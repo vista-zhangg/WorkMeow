@@ -48,7 +48,7 @@ Switching between several agent windows just to check progress is distracting. W
   </tr>
 </table>
 
-> The GIF artwork is from the original “月薪喵” meme series by Douyin creator **@月薪喵** and is authorized for use in WorkMeow and its distributions. The artwork is not covered by the project’s MIT License. See [asset credits and licensing boundaries](assets/cat/CREDITS.md).
+> The GIF artwork comes from the original “月薪喵” meme series by Douyin creator **@月薪喵**. The artwork is not covered by the project’s MIT License. See [asset credits and copyright information](assets/cat/CREDITS.md).
 
 ## Support matrix
 
@@ -142,7 +142,7 @@ WorkMeow is derived from [LLMPET](https://github.com/myunwang/LLMPET), with subs
 - Source code is released under the [MIT License](LICENSE).
 - The root license retains the upstream `Copyright (c) 2026 myunwang` notice.
 - WorkMeow modifications remain copyright of their respective contributors.
-- The 月薪喵 GIFs remain copyright of Douyin creator **@月薪喵** and are used under project-specific authorization, not sublicensed under MIT.
+- The 月薪喵 GIFs remain copyright of Douyin creator **@月薪喵** and are not covered by the project’s MIT License.
 
 ## Contributing
 

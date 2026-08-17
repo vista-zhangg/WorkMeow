@@ -50,7 +50,7 @@
   </tr>
 </table>
 
-> GIF 素材来自抖音博主 **@月薪喵** 的原创“月薪喵”表情系列，已获授权用于 WorkMeow 项目及其发布物。素材版权不包含在本项目 MIT License 中；完整来源与授权边界见 [素材署名](assets/cat/CREDITS.md)。
+> GIF 素材来自抖音博主 @月薪喵 的原创“月薪喵”表情系列。素材版权不包含在本项目 MIT License 中；完整来源与版权说明见 [素材署名](assets/cat/CREDITS.md)。
 
 ## 支持矩阵
 
@@ -144,7 +144,7 @@ WorkMeow 基于 [LLMPET](https://github.com/myunwang/LLMPET) 二次开发，并�
 - 源代码依照 [MIT License](LICENSE) 发布；
 - 根目录许可证保留上游 `Copyright (c) 2026 myunwang`；
 - WorkMeow 的修改部分版权归相应贡献者所有；
-- 月薪喵 GIF 归抖音博主 **@月薪喵** 所有，按针对本项目的授权使用，不随 MIT License 再授权。
+- 月薪喵 GIF 版权归抖音博主 **@月薪喵** 所有，不适用本项目的 MIT License。
 
 ## 参与贡献
 

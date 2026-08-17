@@ -7,7 +7,7 @@ const AGENT = new URLSearchParams(location.search).get('agent') || 'all';
 const stage = document.getElementById('stage');
 const cat = document.getElementById('cat');
 
-// 本地可选的状态 GIF 未获得公开再分发授权；缺失时使用仓库自带的静态猫图。
+// 状态 GIF 缺失或加载失败时使用仓库自带的静态猫图。
 const catImg = document.getElementById('cat-img');
 const CAT_FALLBACK = '../assets/tray-cat.svg';
 if (catImg) {

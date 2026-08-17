@@ -488,7 +488,7 @@ async function main() {
     const petSrc = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'pet.js'), 'utf8');
     const refs = [...new Set([...petSrc.matchAll(/'cat-[a-z0-9-]+\.gif'/g)].map((m) => m[0].slice(1, -1)))];
     const missing = refs.filter((f) => !fs.existsSync(path.join(__dirname, '..', 'assets', 'cat', f)));
-    check('所有被引用的授权 GIF 均可达' + (missing.length ? '（缺失: ' + missing.join(',') + '）' : ''),
+    check('所有被引用的 GIF 均可达' + (missing.length ? '（缺失: ' + missing.join(',') + '）' : ''),
       () => assert.strictEqual(missing.length, 0, '缺失素材: ' + missing.join(', ')));
     check('静态兜底素材存在', () => {
       assert(fs.existsSync(path.join(__dirname, '..', 'assets', 'tray-cat.svg')));
@@ -497,7 +497,7 @@ async function main() {
       assert(/catImg\.onerror\s*=/.test(petSrc));
       assert(/CAT_FALLBACK\s*=\s*'\.\.\/assets\/tray-cat\.svg'/.test(petSrc));
     });
-    check('状态 GIF 映射仍保留，取得授权后可直接恢复动画素材',
+    check('状态 GIF 映射保持完整',
       () => assert(refs.includes('cat-working-2.gif')));
   }
 

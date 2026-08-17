@@ -48,7 +48,7 @@ assert(/Windows x64 only/.test(readmeEn), 'English README must state the Windows
 assert(/\[LLMPET\]\(https:\/\/github\.com\/myunwang\/LLMPET\)/.test(readmeEn),
   'English README must retain explicit upstream attribution');
 assert(/@月薪喵/.test(readme) && /@月薪喵/.test(readmeEn) && /@月薪喵/.test(credits),
-  'both READMEs and asset credits must retain the authorized artist attribution');
+  'both READMEs and asset credits must retain the artist source attribution');
 for (const file of ['CONTRIBUTING.md', 'SECURITY.md', 'docs/PRIVACY.md']) {
   assert(fs.existsSync(path.join(root, file)), `${file} must exist`);
 }

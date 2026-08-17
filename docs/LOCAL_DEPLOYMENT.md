@@ -56,7 +56,7 @@ npm start
 ### 发布前许可证与素材检查
 
 - 上游代码采用 MIT License；公开发布时必须保留根目录 [`LICENSE`](../LICENSE) 中的 `myunwang` 原始版权声明和完整许可文本；
-- `assets/cat/` 中的 GIF 来自抖音博主 **@月薪喵**，已获授权用于本项目；发布时必须保留 [`CREDITS.md`](../assets/cat/CREDITS.md) 中的来源与署名；
+- `assets/cat/` 中的 GIF 素材来自抖音博主 **@月薪喵** 的原创“月薪喵”表情系列；发布时必须保留 [`CREDITS.md`](../assets/cat/CREDITS.md) 中的来源与署名；
 - GIF 不纳入项目 MIT 许可，第三方转载或移作其他项目仍需另行取得原作者许可；
 - 删除上游 `.git` 历史并建立独立仓库不违反 MIT，但不能删除上游版权声明，也不能把上游代码表述为完全原创。
 
