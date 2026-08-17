@@ -7,7 +7,7 @@ Thank you for improving WorkMeow. The project currently accepts changes that can
 ## 开发环境 / Development setup
 
 - Windows x64
-- Node.js 18 或更高版本 / Node.js 18 or newer
+- Node.js 22.12 或更高版本 / Node.js 22.12 or newer
 - npm（依赖以 `package-lock.json` 为准 / dependencies are locked by `package-lock.json`）
 
 ```powershell

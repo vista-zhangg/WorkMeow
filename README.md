@@ -77,7 +77,7 @@
 
 ### 从源码运行
 
-要求：Windows x64、Node.js 18 或更高版本、npm，以及至少一个受支持的 Agent。
+要求：Windows x64、Node.js 22.12 或更高版本、npm，以及至少一个受支持的 Agent。
 
 ```powershell
 git clone https://github.com/vista-zhangg/WorkMeow.git

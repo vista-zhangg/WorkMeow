@@ -75,7 +75,7 @@ Fully extract the portable ZIP before running `WorkMeow.exe`. Do not launch it i
 
 ### Run from source
 
-Requirements: Windows x64, Node.js 18 or newer, npm, and at least one supported agent.
+Requirements: Windows x64, Node.js 22.12 or newer, npm, and at least one supported agent.
 
 ```powershell
 git clone https://github.com/vista-zhangg/WorkMeow.git
