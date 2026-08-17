@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <link rel="stylesheet" href="pet.css" />
+    <title>打工喵 WorkMeow</title>
+  </head>
+  <body>
+    <div id="stage">
+      <!-- 气泡播报 -->
+      <div id="bubble" class="bubble hidden">
+        <span id="bubble-text"></span>
+      </div>
+
+      <!-- 需要输入 / 授权卡片：Claude 要选择/授权/输入时在这处理 -->
+      <div id="ask" class="ask hidden" role="dialog" aria-live="polite" aria-label="需要输入">
+        <div class="ask-head">
+          <div class="ask-label" id="ask-label" data-i18n="ask.needsInput">需要输入</div>
+          <div class="ask-sess" id="ask-sess"></div>
+        </div>
+        <div class="ask-scroll" id="ask-scroll">
+          <div class="ask-card">
+            <div class="ask-qhead" id="ask-qhead"></div>
+            <div class="ask-q" id="ask-q"></div>
+            <div class="ask-hint" id="ask-hint"></div>
+            <div class="ask-opts" id="ask-opts"></div>
+            <div class="ask-other hidden" id="ask-input-row">
+              <input id="ask-text" type="text" data-i18n-ph="ask.placeholder" placeholder="输入自定义回答…" />
+            </div>
+          </div>
+        </div>
+        <div class="ask-toolbar">
+          <div class="ask-page" id="ask-page"></div>
+          <div class="ask-foot" id="ask-foot">
+            <button class="ask-btn" id="ask-back" data-i18n="ask.back">返回</button>
+            <button class="ask-btn primary" id="ask-submit" data-i18n="ask.submit">提交回答</button>
+          </div>
+          <button class="ask-term" id="ask-term" data-i18n="ask.goTerminal">💬 去终端</button>
+        </div>
+      </div>
+
+      <!-- 左键工作速览：轻量回答“现在发生了什么、我能做什么” -->
+      <div id="peek" class="peek hidden" role="dialog" aria-live="polite" data-i18n-aria="peek.aria" aria-label="工作速览">
+        <div class="peek-head">
+          <span id="peek-state" class="peek-state idle" aria-hidden="true"></span>
+          <div class="peek-heading">
+            <div id="peek-title" class="peek-title">暂时没有任务</div>
+            <div id="peek-subtitle" class="peek-subtitle">打工喵正在待命</div>
+          </div>
+          <button id="peek-close" class="peek-close" type="button" data-i18n-aria="peek.close" aria-label="关闭">✕</button>
+        </div>
+        <div id="peek-list" class="peek-list"></div>
+        <div id="peek-summary" class="peek-summary"></div>
+        <div class="peek-actions">
+          <button id="peek-focus" class="peek-focus" type="button" data-i18n="peek.focus">打开当前会话</button>
+          <button id="peek-panel" class="peek-panel" type="button" data-i18n="peek.panel">查看详情</button>
+        </div>
+      </div>
+
+      <!-- 思考指示器（thinking 状态：填补 Claude 在想、没输出的空档） -->
+      <div id="think" class="think">
+        <span class="td">💭</span>
+        <span class="think-label" data-i18n="state.thinking">思考中</span>
+        <span class="dots"><i></i><i></i><i></i></span>
+      </div>
+
+      <!-- 睡觉指示器（逐渐变大往上飘的 z z Z，醒目） -->
+      <div id="sleep" class="sleep">
+        <span class="z z1">z</span>
+        <span class="z z2">z</span>
+        <span class="z z3">Z</span>
+      </div>
+
+
+      <!-- 点击月薪喵弹出的泡泡菜单（JS 动态摆放在月薪喵四周） -->
+      <div id="radial" class="radial hidden"></div>
+
+      <!-- 按工具动作时头顶飘出的道具 emoji -->
+      <div id="prop" class="prop"></div>
+      <div id="sidekick" class="sidekick">🐱</div>
+
+      <!-- 多会话状态点：每个点 = 一个并行任务，颜色 = 状态 -->
+      <div id="sessions" class="sessions"></div>
+
+      <!-- 唯一形象：月薪喵（每个状态一张 GIF，动效由 GIF 自带） -->
+      <div id="cat" class="cat idle" role="button" tabindex="0" aria-label="打工喵：打开当前状态；右键打开菜单">
+        <img id="cat-img" src="../assets/tray-cat.svg" alt="cat" draggable="false" />
+      </div>
+
+      <!-- 常驻今日用量条 -->
+      <div id="chip" class="chip" role="status" aria-live="polite" data-i18n-title="purr.titleAttr" title="今日用量">
+        <span id="chip-context" class="chip-context">🐾 待命</span>
+        <span class="chip-sep">·</span>
+        <span id="chip-tokens" class="chip-tokens">0 tokens</span>
+        <span class="chip-sep">·</span>
+        <span id="chip-cost" class="chip-cost">$0.000</span>
+      </div>
+
+      <!-- 记事本：有待处理事项时显示，点击打开行动中心 -->
+      <div id="notepad" class="notepad hidden" role="button" tabindex="0" aria-label="行动中心" data-i18n-title="action.notepadTitle" title="行动中心">
+        <span class="np-icon">📋</span>
+        <span id="np-badge" class="np-badge"></span>
+      </div>
+
+      <div id="action-pop" class="action-pop hidden" role="dialog" aria-labelledby="ac-title">
+        <div class="ac-top">
+          <span class="ac-title" id="ac-title" data-i18n="action.title">🗒️ 行动中心</span>
+          <button class="ac-close" id="ac-close" type="button" data-i18n-title="action.close" title="关闭" aria-label="关闭">✕</button>
+        </div>
+        <div class="ac-scroll">
+          <div class="ac-sec" id="ac-act-sec">
+            <div class="ac-sec-h" data-i18n="action.needYou">🔔 需要你处理</div>
+            <div id="ac-acts"></div>
+          </div>
+        </div>
+        <div class="ac-ops">
+          <button data-op="panel" data-i18n="action.panel">📊 详情</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../shared/i18n.js"></script>
+    <script src="../shared/states.js"></script>
+    <script src="../shared/agents.js"></script>
+    <script src="../shared/pet-insights.js"></script>
+    <script src="icons.js"></script>
+    <script src="../shared/pet-geometry.js"></script>
+    <script src="pet.js"></script>
+  </body>
+</html>

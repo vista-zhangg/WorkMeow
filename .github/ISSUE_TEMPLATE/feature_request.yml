@@ -1,0 +1,40 @@
+name: 功能建议 / Feature request
+description: 提议 Windows 体验或 Agent 接入改进 / Propose a Windows or agent integration improvement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题 / Problem to solve
+      description: 请描述用户问题，而不只是实现方案 / Describe the user problem, not only an implementation
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案 / Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围 / Area
+      options:
+        - Desktop interaction / 桌面交互
+        - Claude Code
+        - Codex
+        - TRAE
+        - WorkBuddy
+        - opencode
+        - Usage and pricing / 用量与价格
+        - Packaging and installation / 打包与安装
+        - Documentation / 文档
+        - Other / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案与兼容性 / Alternatives and compatibility
+      description: 说明 Windows x64 兼容性、外部配置影响和可逆性 / Note Windows x64 compatibility, external configuration impact, and reversibility

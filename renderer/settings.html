@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <link rel="stylesheet" href="settings.css" />
+    <title>打工喵 · 设置</title>
+  </head>
+  <body>
+    <div id="card">
+      <header id="titlebar">
+        <div class="brand">
+          <span class="logo" aria-hidden="true">🐱</span>
+          <div>
+            <div class="brand-title" data-i18n="settings.title">打工喵 · 设置</div>
+            <div class="brand-sub" data-i18n="settings.subtitle">调整桌宠的启动行为</div>
+          </div>
+        </div>
+        <button id="close" class="icon-button" data-i18n-title="settings.close" title="关闭" aria-label="关闭">✕</button>
+      </header>
+
+      <main>
+        <section class="settings-section">
+          <div class="section-kicker" data-i18n="settings.startupSection">启动设置</div>
+          <div class="setting-card">
+            <div class="setting-copy">
+              <div class="setting-title" data-i18n="settings.autoLaunchTitle">开机自动启动</div>
+              <div class="setting-description" data-i18n="settings.autoLaunchDescription">登录 Windows 后自动运行打工喵</div>
+            </div>
+            <button id="auto-launch-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="开机自动启动">
+              <span class="switch-thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div id="setting-status" class="setting-status" aria-live="polite"></div>
+          <p class="hint" data-i18n="settings.hint">修改会立即生效，下次登录 Windows 时自动运行。</p>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-kicker" data-i18n="settings.xiabanSection">下班彩蛋</div>
+          <div class="schedule-card">
+            <div class="setting-description schedule-description" data-i18n="settings.xiabanDescription">在指定时间播放下班动画和提示语</div>
+            <div class="time-grid">
+              <label class="time-field">
+                <span data-i18n="settings.lunchTime">午间彩蛋</span>
+                <input id="xiaban-lunch-time" type="time" value="10:55" step="60" aria-label="午间彩蛋" />
+              </label>
+              <label class="time-field">
+                <span data-i18n="settings.eveningTime">晚间彩蛋</span>
+                <input id="xiaban-evening-time" type="time" value="16:55" step="60" aria-label="晚间彩蛋" />
+              </label>
+            </div>
+            <div class="schedule-actions">
+              <div id="xiaban-status" class="setting-status" aria-live="polite"></div>
+              <div class="action-buttons">
+                <button id="xiaban-reset" class="subtle-button" type="button" data-i18n="settings.resetTime">恢复默认</button>
+                <button id="xiaban-save" class="done-button" type="button" data-i18n="settings.saveTime">保存时间</button>
+              </div>
+            </div>
+            <p class="hint" data-i18n="settings.timeHint">彩蛋持续 10 分钟，仅在打工喵空闲或休息时播放。</p>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <button id="done" class="done-button" type="button" data-i18n="settings.close">关闭</button>
+      </footer>
+    </div>
+    <script src="../shared/i18n.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

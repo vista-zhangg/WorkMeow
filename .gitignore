@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+
+# Local runtime state (never lives in the repo, but guard anyway)
+.workmeow/
+usage.json
+
+# Editor / local project config
+.claude/
+.vscode/
+.idea/
+
+# Image iteration backups (not part of the shipped art)
+assets/_orig_mascot/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Agent working memory (internal, not project source)
+.workbuddy/
+
+# Local inspection snapshots and unpacked build analysis
+.inspect/
+.tmp_analysis/
+
+# Preview output from the GIF transparency utility
+tools/_preview/

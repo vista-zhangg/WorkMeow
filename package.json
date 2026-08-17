@@ -1,0 +1,62 @@
+{
+  "name": "workmeow",
+  "version": "1.4.0",
+  "description": "打工喵（WorkMeow）桌面宠物：一只喵实时呈现 Claude Code / Codex / TRAE / WorkBuddy / opencode 的状态、消息与统一 token 用量统计",
+  "main": "main.js",
+  "license": "MIT",
+  "author": "vista-zhang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vista-zhangg/WorkMeow.git"
+  },
+  "homepage": "https://github.com/vista-zhangg/WorkMeow#readme",
+  "bugs": {
+    "url": "https://github.com/vista-zhangg/WorkMeow/issues"
+  },
+  "scripts": {
+    "start": "node start-detached.js",
+    "start:console": "electron .",
+    "install:hooks": "node backend/hooks-cli.js",
+    "uninstall:hooks": "node backend/hooks-cli.js --uninstall",
+    "meter:rebuild": "node backend/meter-rebuild.js",
+    "package:portable": "electron-builder --win zip --x64 --publish never && node scripts/finalize-dist.js --portable",
+    "package:win": "electron-builder --win --x64 --publish never && node scripts/finalize-dist.js",
+    "test": "node test/run-all.js"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.vista-zhangg.workmeow",
+    "productName": "打工喵",
+    "executableName": "WorkMeow",
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "backend/**",
+      "renderer/**",
+      "assets/**",
+      "shared/**",
+      "hook/**",
+      "LICENSE"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "assets/icon.ico",
+      "signExecutable": false,
+      "artifactName": "WorkMeow-${version}-Windows-${arch}.${ext}",
+      "electronLanguages": [
+        "zh-CN"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

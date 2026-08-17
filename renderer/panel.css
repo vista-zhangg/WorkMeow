@@ -1,0 +1,176 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none; -webkit-user-select: none;
+  color: #24435f;
+}
+
+/* 打工喵详情面板：Codex 淡蓝配色（浅色底 + 蓝色点缀） */
+#card {
+  width: 100%; min-height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(165deg, #f6faff 0%, #e9f2fc 55%, #dcebfa 100%);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 18px;
+  overflow-y: auto; overflow-x: hidden;
+  box-shadow: 0 20px 50px rgba(30, 64, 175, 0.18);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+#card > * { flex-shrink: 0; }
+#card::-webkit-scrollbar { width: 0; height: 0; }
+
+.cols { columns: 2; column-gap: 14px; padding: 0 16px; }
+.cols .block { break-inside: avoid; -webkit-column-break-inside: avoid; padding: 8px 0; min-width: 0; overflow: hidden; }
+
+/* 标题栏 */
+#titlebar {
+  -webkit-app-region: drag;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { font-size: 26px; }
+.brand-title { font-size: 15px; font-weight: 700; color: #1e3a5f; }
+.brand-sub { font-size: 11px; color: #6485a8; margin-top: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.header-actions { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+.agent-badge {
+  font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
+  color: #fff; background: #3b82f6;
+}
+.agent-badge.hidden { display: none; }
+
+#close {
+  width: 24px; height: 24px; border: none; border-radius: 7px;
+  background: rgba(59, 130, 246, 0.10); color: #3b6ea5; cursor: pointer; font-size: 13px;
+}
+#close:hover { background: rgba(59, 130, 246, 0.22); }
+
+/* 顶部统计卡片 */
+.grid { display: grid; gap: 10px; padding: 4px 16px 8px; }
+.summary-grid { grid-template-columns: 1fr; }
+.cache-grid { grid-template-columns: 1fr 1fr; }
+
+.stat {
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  border-radius: 12px; padding: 12px 14px;
+  transition: border-color 0.3s ease;
+}
+.stat.main-stat {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, rgba(255, 255, 255, 0.62) 100%);
+}
+.stat-label { font-size: 11px; color: #6485a8; }
+.stat-value { font-size: 23px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; color: #2563eb; }
+.stat-value.cache-rate { font-size: 26px; }
+.stat-foot { font-size: 10.5px; color: #7e99b8; margin-top: 3px; }
+
+/* 区块 */
+.block { padding: 8px 16px; }
+.block.hidden { display: none; }
+.block-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #6485a8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
+.rows { display: flex; flex-direction: column; gap: 5px; }
+.row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 4px 10px; background: rgba(255, 255, 255, 0.55); border-radius: 8px; }
+.row b { font-variant-numeric: tabular-nums; color: #1e40af; }
+.row.total { background: rgba(59, 130, 246, 0.14); }
+.row.cache-read-row { background: rgba(52, 199, 89, 0.10); border-left: 3px solid #34c759; }
+.row .mc { color: #6485a8; font-size: 10.5px; }
+.empty { font-size: 12px; color: #93aecb; padding: 6px 4px; }
+
+/* 按模型明细 */
+#by-model { overflow: hidden; }
+.m-item { background: rgba(255, 255, 255, 0.55); border-radius: 8px; padding: 5px 10px; }
+.m-item.m-total { background: rgba(59, 130, 246, 0.14); }
+.m-head { display: flex; align-items: center; gap: 7px; font-size: 12.5px; min-width: 0; }
+.m-head .mc { color: #33608f; font-size: 12px; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-bar { flex: 1 1 12px; height: 5px; min-width: 0; background: rgba(59, 130, 246, 0.12); border-radius: 3px; overflow: hidden; }
+.m-bar i { display: block; height: 100%; background: #3b82f6; border-radius: 3px; transition: background 0.3s ease; }
+.m-cost { color: #1e40af; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.m-tok { color: #7e99b8; font-size: 10.5px; font-variant-numeric: tabular-nums; flex-shrink: 0; text-align: right; }
+.m-detail { color: #93aecb; font-size: 10px; margin-top: 3px; line-height: 1.4; }
+.m-total .m-head .mc { color: #6485a8; }
+
+/* 今日趋势图 */
+.chart {
+  --bar-count: 24;
+  display: grid;
+  grid-template-columns: repeat(var(--bar-count), minmax(0, 1fr));
+  align-items: end;
+  gap: 2px;
+  height: 64px;
+  padding: 0 1px;
+}
+.chart .bar {
+  width: 100%; min-width: 0; min-height: 2px;
+  background: linear-gradient(180deg, #7fb3f8, #3b82f6);
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease, background 0.3s ease;
+  cursor: pointer;
+}
+.chart .bar.now { box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.55); }
+.chart .bar.empty { background: rgba(59, 130, 246, 0.10) !important; }
+.chart-axis {
+  --bar-count: 24;
+  display: grid;
+  grid-template-columns: repeat(var(--bar-count), minmax(0, 1fr));
+  gap: 2px;
+  font-size: 9px;
+  color: #93aecb;
+  margin-top: 3px;
+  min-height: 11px;
+}
+.chart-axis span { min-width: 0; text-align: center; white-space: nowrap; }
+.price-src { font-size: 9.5px; color: #93aecb; margin-top: 8px; }
+
+/* 用量趋势：视图切换 */
+.trend-controls { display: flex; align-items: center; justify-content: flex-end; gap: 5px; flex-wrap: wrap; }
+.range-tabs { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: rgba(59, 130, 246, 0.07); }
+.range-tabs .range {
+  font-size: 9.5px; padding: 3px 6px; border-radius: 6px; cursor: pointer;
+  border: none; background: transparent; color: #6f8eae; text-transform: none; letter-spacing: 0;
+  transition: all 0.2s ease;
+}
+.range-tabs .range.active { background: rgba(255, 255, 255, 0.82); color: #245fae; box-shadow: 0 1px 4px rgba(30, 64, 175, 0.10); }
+.metric-tabs { display: flex; gap: 3px; }
+.metric-tabs .mt {
+  font-size: 10px; padding: 3px 8px; border-radius: 7px; cursor: pointer;
+  border: none; background: rgba(59, 130, 246, 0.10); color: #3b6ea5; text-transform: none; letter-spacing: 0;
+  transition: all 0.2s ease;
+}
+.metric-tabs .mt.active { background: #3b82f6; color: #fff; }
+.readout { font-size: 10.5px; color: #6485a8; margin-top: 5px; min-height: 14px; font-variant-numeric: tabular-nums; }
+.readout b { color: #1e40af; }
+
+/* 进行中的任务 */
+.row.sess { align-items: center; gap: 8px; min-width: 0; }
+.sess-agent { width: 13px; height: 13px; flex-shrink: 0; display: inline-flex; }
+.sess-agent svg { width: 100%; height: 100%; }
+.sess-proj { color: #1e40af; font-size: 12px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sess-op { color: #7e99b8; font-size: 11px; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto; }
+.badge { font-size: 10px; padding: 2px 7px; border-radius: 7px; color: #fff; flex-shrink: 0; }
+.st-working { background: #2f9e52; }
+.st-thinking { background: #7a5fc0; }
+.st-waiting { background: #e08b1e; animation: badgePulse 1s ease-in-out infinite; }
+.st-needsinput { background: #d4af00; animation: badgePulse 1.4s ease-in-out infinite; }
+.st-done { background: #34c759; }
+.st-idle { background: #8ba3bd; }
+.st-error { background: #ff5a52; animation: badgePulse 0.9s ease-in-out infinite; }
+.st-sleeping { background: #6f7d8c; }
+.st-greet, .st-talking { background: #3b82f6; }
+@keyframes badgePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* 操作流 */
+.ops { list-style: none; overflow-y: auto; overflow-x: hidden; max-height: 260px; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+.ops::-webkit-scrollbar { width: 0; }
+.ops li { font-size: 12px; padding: 5px 9px; background: rgba(255, 255, 255, 0.55); border-radius: 8px; display: flex; gap: 7px; align-items: baseline; min-width: 0; }
+.ops li > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops li .op-time { color: #93aecb; font-size: 10px; margin-left: auto; flex-shrink: 0; }
+.ops li .op-proj { color: #6d8fb5; font-size: 10px; }
+.ops li.new { animation: slideIn 0.3s ease; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.8);
+  outline-offset: 2px;
+}

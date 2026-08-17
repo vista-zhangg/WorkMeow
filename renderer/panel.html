@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <link rel="stylesheet" href="panel.css" />
+    <title>打工喵 · 详情</title>
+  </head>
+  <body>
+    <div id="card">
+      <header id="titlebar">
+        <div class="brand">
+          <span class="logo" id="brand-logo">🐱</span>
+          <div>
+            <div class="brand-title" id="brand-title">打工喵</div>
+            <div class="brand-sub" id="active-sub" data-i18n="panel.waitingSession">等待会话…</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span id="agent-badge" class="agent-badge hidden"></span>
+          <button id="close" data-i18n-title="panel.close" title="关闭">✕</button>
+        </div>
+      </header>
+
+      <!-- 今日总览卡片 -->
+      <section id="summary-section" class="grid summary-grid">
+        <div class="stat main-stat">
+          <div class="stat-label" id="main-cost-label">今日 API 等价估算</div>
+          <div class="stat-value" id="today-cost">$0.000</div>
+          <div class="stat-foot" id="today-foot">0 tokens · 0 轮</div>
+        </div>
+      </section>
+
+      <!-- 缓存效率统计卡片 (核心新功能) -->
+      <section id="cache-stats" class="grid cache-grid">
+        <div class="stat">
+          <div class="stat-label" data-i18n="panel.cacheHitRate">缓存命中率</div>
+          <div class="stat-value cache-rate" id="cache-hit-rate">0%</div>
+          <div class="stat-foot" id="cache-input-total">输入总量 0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label" data-i18n="panel.cacheTokens">缓存读取</div>
+          <div class="stat-value" id="cache-tokens">0</div>
+          <div class="stat-foot" id="cache-detail"></div>
+        </div>
+      </section>
+
+      <!-- Token 明细区块 -->
+      <section class="block" id="token-block">
+        <div class="block-title" id="token-detail-title">Token 明细（今日）</div>
+        <div class="rows" id="token-rows">
+          <div class="row"><span data-i18n="panel.tokIn">输入</span><b id="t-in">0</b></div>
+          <div class="row"><span data-i18n="panel.tokOut">输出</span><b id="t-out">0</b></div>
+          <div class="row cache-read-row"><span data-i18n="panel.tokCacheRead">缓存读取</span><b id="t-cr">0</b></div>
+          <div class="row total"><span data-i18n="panel.msgRounds">消息轮次</span><b id="t-msg">0</b></div>
+        </div>
+      </section>
+
+      <!-- 用量趋势 -->
+      <section class="block">
+        <div class="block-title">
+          <span data-i18n="panel.usageTrend">用量趋势</span>
+          <span class="trend-controls">
+            <span class="range-tabs">
+              <button data-range="today" class="range active" data-i18n="panel.rangeToday">今日</button>
+              <button data-range="7d" class="range" data-i18n="panel.range7d">7天</button>
+              <button data-range="30d" class="range" data-i18n="panel.range30d">30天</button>
+            </span>
+            <span class="metric-tabs">
+              <button data-metric="tokens" class="mt active" data-i18n="panel.metricTokens">Token</button>
+              <button data-metric="cost" class="mt" data-i18n="panel.metricCost">费用</button>
+            </span>
+          </span>
+        </div>
+        <div id="view-hours" class="uview">
+          <div id="chart" class="chart"></div>
+          <div id="chart-axis" class="chart-axis" aria-hidden="true"></div>
+          <div id="hours-readout" class="readout"></div>
+        </div>
+        <div id="price-src" class="price-src"></div>
+      </section>
+
+      <div class="cols">
+        <!-- 按模型统计 -->
+        <section class="block">
+          <div class="block-title" data-i18n="panel.byModel">按模型（分）</div>
+          <div id="by-model" class="rows"><div class="empty" data-i18n="panel.noData">暂无数据</div></div>
+        </section>
+
+        <!-- 活跃任务 -->
+        <section class="block">
+          <div class="block-title" data-i18n="panel.activeTasks">进行中的任务</div>
+          <div id="sess-list" class="rows"><div class="empty" data-i18n="panel.noActiveSession">暂无活跃会话</div></div>
+        </section>
+
+        <!-- 累计统计 -->
+        <section class="block" id="lifetime-block">
+          <div class="block-title" data-i18n="panel.lifetimeStats">累计统计</div>
+          <div class="rows" id="lifetime-rows">
+            <div class="row"><span data-i18n="panel.lifetimeCost">累计费用</span><b id="lt-cost">$0.00</b></div>
+            <div class="row"><span data-i18n="panel.lifetimeTokens">累计 Tokens</span><b id="lt-tokens">0</b></div>
+            <div class="row"><span data-i18n="panel.lifetimeMsgs">累计轮次</span><b id="lt-msgs">0</b></div>
+          </div>
+        </section>
+
+        <!-- 实时操作 -->
+        <section class="block">
+          <div class="block-title" data-i18n="panel.liveOps">实时操作</div>
+          <ul id="ops" class="ops"><li class="empty" data-i18n="panel.waitingOps">等待操作…</li></ul>
+        </section>
+      </div>
+    </div>
+    <script src="../shared/i18n.js"></script>
+    <script src="panel.js"></script>
+  </body>
+</html>

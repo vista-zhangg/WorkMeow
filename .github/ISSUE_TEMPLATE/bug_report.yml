@@ -1,0 +1,74 @@
+name: Bug 报告 / Bug report
+description: 报告可复现的 Windows 问题 / Report a reproducible Windows issue
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先移除 transcript、令牌、个人路径和其他敏感信息。
+        Thanks for reporting. Remove transcripts, tokens, personal paths, and other sensitive data first.
+  - type: input
+    id: version
+    attributes:
+      label: WorkMeow 版本 / Version
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 运行方式 / Installation
+      options:
+        - Windows installer
+        - Portable ZIP
+        - Source / 源码
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 环境 / Windows environment
+      description: Windows 版本、x64 架构及相关终端 / Version, x64 architecture, and relevant terminal
+      placeholder: "Windows 11 x64, Windows Terminal"
+    validations:
+      required: true
+  - type: checkboxes
+    id: agents
+    attributes:
+      label: 涉及的 Agent / Affected agents
+      options:
+        - label: Claude Code
+        - label: Codex
+        - label: TRAE
+        - label: WorkBuddy
+        - label: opencode
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      placeholder: "1. Start WorkMeow..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际结果 / Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已脱敏的证据 / Redacted evidence
+      description: 可附截图或最小日志；不要附真实 transcript、token 或个人路径 / Screenshots or minimal logs only; no real transcripts, tokens, or personal paths
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认 / Before submitting
+      options:
+        - label: 我确认问题发生在 Windows x64 / I confirm this occurs on Windows x64
+          required: true
+        - label: 我已移除敏感数据 / I removed sensitive data
+          required: true
+        - label: 这不是需要私下报告的安全漏洞 / This is not a vulnerability requiring private disclosure
+          required: true
