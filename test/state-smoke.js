@@ -294,7 +294,8 @@ async function main() {
     // 工作帧池现扫自 pet.js 源码：你再加 cat-working-6.gif 时测试自动跟，不用手改这份列表
     const petSrcW = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'pet.js'), 'utf8');
     const wm = petSrcW.match(/working:\s*\[([\s\S]*?)\]/);
-    const WPOOL = [...new Set([...(wm ? wm[1].matchAll(/'cat-[a-z0-9-]+\.gif'/g) : []).map((m) => m[0].slice(1, -1))])];
+    const workingMatches = wm ? [...wm[1].matchAll(/'cat-[a-z0-9-]+\.gif'/g)] : [];
+    const WPOOL = [...new Set(workingMatches.map((m) => m[0].slice(1, -1)))];
     const TPOOL = ['cat-thinking.gif', 'cat-thinking-2.gif'];
     const workingSeen = [];
     for (let i = 0; i < WPOOL.length; i++) {
