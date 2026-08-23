@@ -438,15 +438,27 @@ window.pet.onPrice((m) => {
   const sources = Array.isArray(m.sources) ? m.sources : [];
   const names = sources.map((source) => source.name).filter(Boolean).join('、');
   const scope = names ? `${names} · ${m.count || 0} 个模型` : `${m.count || 0} 个模型`;
+  const sync = m.sync && typeof m.sync === 'object' ? m.sync : {};
+  let syncText = '';
+  if (sync.phase === 'scheduled') syncText = ' · 等待同步';
+  if (sync.phase === 'syncing') syncText = ' · 正在同步…';
+  if (sync.phase === 'error') {
+    const retryMs = Math.max(0, Number(sync.nextAttemptTs) - Date.now());
+    const retryMin = Math.max(1, Math.ceil(retryMs / 60000));
+    syncText = ` · 同步失败，约 ${retryMin} 分钟后重试`;
+  }
   if (m.live) {
     const when = m.ts ? new Date(m.ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '缓存';
-    el.textContent = `价目表: 在线（${scope}，${when} 更新）${m.stale ? ' · 建议刷新' : ''}`;
+    el.textContent = `价目表: 在线（${scope}，${when} 更新）${m.stale ? ' · 缓存已过期' : ''}${syncText}`;
   } else if (m.mixed) {
-    el.textContent = `价目表: 部分在线、部分内置（${scope}）${m.stale ? ' · 建议刷新' : ''}`;
+    el.textContent = `价目表: 部分在线、部分内置（${scope}）${m.stale ? ' · 缓存已过期' : ''}${syncText}`;
   } else {
-    el.textContent = `价目表: 内置价格（${scope}）`;
+    el.textContent = `价目表: 内置价格（${scope}）${syncText}`;
   }
-  el.title = m.estimate ? '部分数据源在未匹配到精确价格时会采用估算；WorkBuddy 未匹配模型不计费。' : '所有数据源均使用精确价格或用户覆盖。';
+  const pricingHint = m.estimate ? '部分数据源在未匹配到精确价格时会采用估算；WorkBuddy 未匹配模型不计费。' : '所有数据源均使用精确价格或用户覆盖。';
+  el.title = sync.phase === 'error' && sync.error
+    ? `${pricingHint} 最近一次同步失败：${sync.error}`
+    : pricingHint;
 });
 
 function applyStaticI18n() {

@@ -1803,7 +1803,7 @@ function renderContextCapsule(s) {
     label = '✅ 刚刚完成';
     title = '最近一轮任务已完成';
   } else if (info.kind === 'sleeping') {
-    label = '💤 本喵休息中';
+    label = '💤 休息中';
     title = '没有活动任务，本喵正在休息';
   } else {
     label = '🌿 待命';

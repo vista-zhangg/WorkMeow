@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.4.0-F6A04A" alt="Version 1.4.0">
+    <img src="https://img.shields.io/badge/version-1.4.1-F6A04A" alt="Version 1.4.1">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -98,7 +98,7 @@ npm run start:console
 ```powershell
 npm start                 # 脱离当前终端启动
 npm run start:console     # 在当前终端启动，便于调试
-npm test                  # 运行 29 套回归测试
+npm test                  # 运行 30 套回归测试
 npm run install:hooks     # 对已检测到的工具安装/对账 hook 与插件
 npm run uninstall:hooks   # 备份后卸载 WorkMeow 写入的 hook 与插件
 npm run meter:rebuild     # 用当前价格重新计算本机历史台账

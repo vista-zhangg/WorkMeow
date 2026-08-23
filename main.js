@@ -384,6 +384,9 @@ function combinedPriceInfo() {
     stale: items.some((item) => item.stale),
     estimate: items.some((item) => item.estimate),
     sources: items,
+    sync: pricingSync && typeof pricingSync.getStatus === 'function'
+      ? pricingSync.getStatus()
+      : null,
   };
 }
 
@@ -559,7 +562,10 @@ function bootBackend() {
   // outbound request WorkMeow ever makes) — falls back to the built-in price table.
   if (!env.flag('NO_NET')) {
     pricingSync = createPricingSync({
-      onUpdate: () => {
+      onStatus: () => {
+        sendPanel(IPC.PANEL_PRICE, combinedPriceInfo());
+      },
+      onUpdate: async () => {
         const rebuilds = [];
         if (metering) {
           try {
@@ -577,10 +583,9 @@ function bootBackend() {
             if (result && typeof result.then === 'function') rebuilds.push(result);
           } catch {}
         }
-        Promise.allSettled(rebuilds).then(() => {
-          sendPanel(IPC.PANEL_PRICE, combinedPriceInfo());
-          scheduleEmit();
-        });
+        await Promise.allSettled(rebuilds);
+        sendPanel(IPC.PANEL_PRICE, combinedPriceInfo());
+        scheduleEmit();
       },
     });
     pricingSync.start();

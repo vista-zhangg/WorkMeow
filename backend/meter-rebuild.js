@@ -81,8 +81,15 @@ async function main() {
   if (sync) {
     process.stdout.write('1) Sync latest models.dev pricing... ');
     try {
-      await createPricingSync().refresh();
-      console.log('ok');
+      const pricingSync = createPricingSync();
+      let result;
+      try {
+        result = await pricingSync.refresh();
+      } finally {
+        pricingSync.stop();
+      }
+      if (result && result.ok) console.log('ok');
+      else console.log(`skipped (${result && result.error || 'unknown error'}); using existing cache / built-in prices`);
     } catch (error) {
       console.log(`skipped (${error.message}); using existing cache / built-in prices`);
     }

@@ -21,11 +21,12 @@
 //
 // Safety:
 //   - Fetches one public JSON file. No auth, no account, no API quota.
-//   - Failures are silent — the cost-chip stays accurate-enough on the built-in defaults.
-//   - Stale caches are still used (better than nothing).
+//   - Failures keep the last good cache and are reported to the detail panel.
+//   - Stale caches are still used while short-interval retries continue.
 
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const { normModelName } = require('./metering');
 const { statePath } = require('./paths');
 
@@ -33,10 +34,73 @@ const CACHE = statePath('pricing-cache.json');
 const URL = 'https://models.dev/api.json';
 const REFRESH_MS = 24 * 60 * 60 * 1000;
 const STARTUP_DELAY_MS = 4000;            // let the app finish booting first
-const FETCH_TIMEOUT_MS = 15000;
+const RETRY_DELAYS_MS = Object.freeze([
+  60 * 1000,
+  5 * 60 * 1000,
+  15 * 60 * 1000,
+  60 * 60 * 1000,
+]);
+const FETCH_TIMEOUT_MS = 30000;
 const MAX_BODY = 8 * 1024 * 1024;
 
-function fetchJson(url) {
+async function readFetchBody(response) {
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > MAX_BODY) throw new Error('body too large');
+  if (!response.body || typeof response.body.getReader !== 'function') {
+    const body = Buffer.from(await response.arrayBuffer());
+    if (body.length > MAX_BODY) throw new Error('body too large');
+    return body;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = Buffer.from(value);
+    size += chunk.length;
+    if (size > MAX_BODY) {
+      try { await reader.cancel(); } catch {}
+      throw new Error('body too large');
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks, size);
+}
+
+// Electron's session.fetch uses Chromium's network stack, so it inherits the
+// Windows Internet Options proxy/PAC configuration (including Clash/V2Ray
+// loopback proxies). Node's https.get bypasses that configuration and is kept
+// only for the standalone meter:rebuild CLI and unit tests.
+async function electronFetchJson(url) {
+  const { session } = require('electron');
+  const fetcher = session && session.defaultSession && session.defaultSession.fetch;
+  if (typeof fetcher !== 'function') throw new Error('Electron network session unavailable');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  if (timeout.unref) timeout.unref();
+  try {
+    const response = await fetcher.call(session.defaultSession, url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const body = await readFetchBody(response);
+    return JSON.parse(body.toString('utf8'));
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const timeoutError = new Error('timeout');
+      timeoutError.code = 'ETIMEDOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function nodeFetchJson(url) {
   return new Promise((res, rej) => {
     const req = https.get(url, { timeout: FETCH_TIMEOUT_MS }, (r) => {
       if (r.statusCode !== 200) { r.resume(); rej(new Error('HTTP ' + r.statusCode)); return; }
@@ -47,6 +111,19 @@ function fetchJson(url) {
     req.on('error', rej);
     req.on('timeout', () => { req.destroy(); rej(new Error('timeout')); });
   });
+}
+
+function fetchJson(url) {
+  return process.versions && process.versions.electron
+    ? electronFetchJson(url)
+    : nodeFetchJson(url);
+}
+
+function errorSummary(error) {
+  if (!error) return 'unknown error';
+  const code = error.code ? String(error.code) : '';
+  const message = error.message ? String(error.message) : String(error);
+  return code && !message.includes(code) ? `${code}: ${message}` : message;
 }
 
 // models.dev cost 已是 per-million；四舍五入到 4 位小数，非数返回 null。
@@ -217,20 +294,44 @@ function extractOtherModels(table) {
 
 function createPricingSync(options = {}) {
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
+  const onStatus = typeof options.onStatus === 'function' ? options.onStatus : () => {};
+  const fetcher = typeof options.fetcher === 'function' ? options.fetcher : fetchJson;
+  const cachePath = options.cachePath || CACHE;
+  const refreshMs = Number.isFinite(options.refreshMs) ? options.refreshMs : REFRESH_MS;
+  const startupDelayMs = Number.isFinite(options.startupDelayMs) ? options.startupDelayMs : STARTUP_DELAY_MS;
+  const retryDelaysMs = Array.isArray(options.retryDelaysMs) && options.retryDelaysMs.length
+    ? options.retryDelaysMs : RETRY_DELAYS_MS;
+  const now = typeof options.now === 'function' ? options.now : Date.now;
   let timer = null;
   let stopped = false;
+  let failures = 0;
+  let status = {
+    phase: 'idle',
+    lastAttemptTs: 0,
+    lastSuccessTs: 0,
+    nextAttemptTs: 0,
+    error: '',
+    transport: process.versions && process.versions.electron ? 'electron' : 'node',
+  };
+
+  function publishStatus(patch = {}) {
+    status = { ...status, ...patch };
+    try { onStatus({ ...status }); } catch {}
+  }
 
   function scheduleNext(ms) {
     if (stopped) return;
     if (timer) clearTimeout(timer);
+    publishStatus({ nextAttemptTs: now() + ms });
     timer = setTimeout(refresh, ms);
     if (timer.unref) timer.unref();
   }
 
   async function refresh() {
-    if (stopped) return;
+    if (stopped) return { ok: false, stopped: true };
+    publishStatus({ phase: 'syncing', lastAttemptTs: now(), nextAttemptTs: 0, error: '' });
     try {
-      const table = await fetchJson(URL);
+      const table = await fetcher(URL);
       if (!table || typeof table !== 'object') throw new Error('empty response');
       const pricing = extractFamilies(table);
       const models = extractModels(table);
@@ -239,38 +340,61 @@ function createPricingSync(options = {}) {
       if (!Object.keys(pricing).length && !Object.keys(openaiModels).length) {
         throw new Error('no pricing extracted');
       }
-      let wrote = false;
+      let tmp = '';
       try {
-        fs.mkdirSync(path.dirname(CACHE), { recursive: true });
-        const tmp = path.join(path.dirname(CACHE), `.pricing-cache.${process.pid}.${Date.now()}.tmp`);
+        fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+        tmp = path.join(path.dirname(cachePath), `.pricing-cache.${process.pid}.${now()}.tmp`);
+        const ts = now();
         fs.writeFileSync(tmp, JSON.stringify({
-          ts: Date.now(), source: 'models.dev', url: URL,
+          ts, source: 'models.dev', url: URL,
           pricing, models, openaiModels, otherModels,
         }, null, 2), { encoding: 'utf8', mode: 0o600 });
-        fs.renameSync(tmp, CACHE);
-        try { fs.chmodSync(CACHE, 0o600); } catch {}
-        wrote = true;
-      } catch {}
-      if (wrote) try { onUpdate(); } catch {}
-    } catch (e) {
-      // Network pricing is optional; the last cache or built-in defaults remain valid.
+        fs.renameSync(tmp, cachePath);
+        tmp = '';
+        try { fs.chmodSync(cachePath, 0o600); } catch {}
+        await onUpdate({ ts, count: Object.keys(models).length + Object.keys(openaiModels).length + Object.keys(otherModels).length });
+        failures = 0;
+        publishStatus({ phase: 'success', lastSuccessTs: ts, error: '' });
+        scheduleNext(refreshMs);
+        return { ok: true, ts };
+      } finally {
+        if (tmp) try { fs.unlinkSync(tmp); } catch {}
+      }
+    } catch (error) {
+      // Keep the last cache/built-in defaults, tell the panel what happened,
+      // and retry much sooner than the normal daily refresh interval.
+      const delay = retryDelaysMs[Math.min(failures, retryDelaysMs.length - 1)];
+      failures += 1;
+      publishStatus({ phase: 'error', error: errorSummary(error) });
+      scheduleNext(delay);
+      return { ok: false, error: errorSummary(error) };
     }
-    scheduleNext(REFRESH_MS);
   }
 
   function start() {
     stopped = false;
-    scheduleNext(STARTUP_DELAY_MS); // don't compete with hook install
+    publishStatus({ phase: 'scheduled', error: '' });
+    scheduleNext(startupDelayMs); // don't compete with hook install
   }
   function stop() {
     stopped = true;
     if (timer) { clearTimeout(timer); timer = null; }
+    publishStatus({ phase: 'stopped', nextAttemptTs: 0 });
   }
   function getCached() {
-    try { return JSON.parse(fs.readFileSync(CACHE, 'utf8')); } catch { return null; }
+    try { return JSON.parse(fs.readFileSync(cachePath, 'utf8')); } catch { return null; }
   }
+  function getStatus() { return { ...status }; }
 
-  return { start, stop, getCached, refresh };
+  return { start, stop, getCached, getStatus, refresh };
 }
 
-module.exports = { createPricingSync, CACHE_PATH: CACHE, _extractFamilies: extractFamilies, _extractModels: extractModels, _extractOpenAIModels: extractOpenAIModels, _extractOtherModels: extractOtherModels };
+module.exports = {
+  createPricingSync,
+  CACHE_PATH: CACHE,
+  _readFetchBody: readFetchBody,
+  _extractFamilies: extractFamilies,
+  _extractModels: extractModels,
+  _extractOpenAIModels: extractOpenAIModels,
+  _extractOtherModels: extractOtherModels,
+};

@@ -7,6 +7,7 @@ const TESTS = Object.freeze([
   'smoke.js',
   'state-smoke.js',
   'pricing.js',
+  'pricing-sync.js',
   'metering-common.js',
   'metering.js',
   'codex-metering.js',
