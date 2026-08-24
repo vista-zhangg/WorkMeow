@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadRenderer } = require('./dom-stub');
 const States = require('../shared/states');
+const PetAssets = require('../shared/pet-assets');
 
 let failures = 0;
 function check(name, fn) {
@@ -31,7 +32,7 @@ function baseStats(over = {}) {
 }
 
 function world() {
-  const w = loadRenderer(['shared/i18n.js', 'shared/states.js', 'shared/pet-insights.js', 'renderer/pet.js']);
+  const w = loadRenderer(['shared/i18n.js', 'shared/states.js', 'shared/pet-assets.js', 'shared/pet-insights.js', 'renderer/pet.js']);
   return w;
 }
 const stateClasses = (el) => el.classList.list.filter((c) => STATE_WORDS.includes(c));
@@ -280,7 +281,7 @@ async function main() {
 
   console.log('[R9] 启动不闪 idle');
   {
-    const w = loadRenderer(['shared/i18n.js', 'shared/pet-insights.js', 'renderer/pet.js']);
+    const w = loadRenderer(['shared/i18n.js', 'shared/states.js', 'shared/pet-assets.js', 'shared/pet-insights.js', 'renderer/pet.js']);
     // 模拟 init 拿到快照（getStats stub 返回 null，这里直接补推快照 + 确认不被覆盖）
     w.handlers.stats(baseStats({ workingCount: 1 }));
     await sleep(30); // 让 init 的 async IIFE 走完（getStats→null→setState('idle') 只在无快照时）
@@ -291,11 +292,7 @@ async function main() {
   console.log('[R10] working/thinking 多姿态轮换');
   {
     const w = world();
-    // 工作帧池现扫自 pet.js 源码：你再加 cat-working-6.gif 时测试自动跟，不用手改这份列表
-    const petSrcW = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'pet.js'), 'utf8');
-    const wm = petSrcW.match(/working:\s*\[([\s\S]*?)\]/);
-    const workingMatches = wm ? [...wm[1].matchAll(/'cat-[a-z0-9-]+\.gif'/g)] : [];
-    const WPOOL = [...new Set(workingMatches.map((m) => m[0].slice(1, -1)))];
+    const WPOOL = PetAssets.SLOT_BY_ID.working.defaultFiles;
     const TPOOL = ['cat-thinking.gif', 'cat-thinking-2.gif'];
     const workingSeen = [];
     for (let i = 0; i < WPOOL.length; i++) {
@@ -486,7 +483,7 @@ async function main() {
   console.log('[R12] 素材可达性与静态兜底');
   {
     const petSrc = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'pet.js'), 'utf8');
-    const refs = [...new Set([...petSrc.matchAll(/'cat-[a-z0-9-]+\.gif'/g)].map((m) => m[0].slice(1, -1)))];
+    const refs = [...new Set(PetAssets.SLOTS.flatMap((slot) => slot.defaultFiles))];
     const missing = refs.filter((f) => !fs.existsSync(path.join(__dirname, '..', 'assets', 'cat', f)));
     check('所有被引用的 GIF 均可达' + (missing.length ? '（缺失: ' + missing.join(',') + '）' : ''),
       () => assert.strictEqual(missing.length, 0, '缺失素材: ' + missing.join(', ')));
@@ -499,6 +496,21 @@ async function main() {
     });
     check('状态 GIF 映射保持完整',
       () => assert(refs.includes('cat-working-2.gif')));
+    const custom = world();
+    const catalog = PetAssets.defaultCatalog();
+    catalog.slots.working = {
+      id: 'working', mode: 'replace', usingDefaults: false, custom: [{
+        id: '11111111-1111-4111-8111-111111111111', kind: 'custom', name: 'custom.gif',
+        url: 'workmeow-asset://asset/11111111-1111-4111-8111-111111111111.gif?v=1',
+      }], active: [{
+        id: '11111111-1111-4111-8111-111111111111', kind: 'custom', name: 'custom.gif',
+        url: 'workmeow-asset://asset/11111111-1111-4111-8111-111111111111.gif?v=1',
+      }],
+    };
+    custom.handlers.petAssets(catalog);
+    custom.handlers.stats(baseStats({ workingCount: 1 }));
+    check('自定义资源更新后当前状态立即换图', () =>
+      assert(catSrc(custom).startsWith('workmeow-asset://asset/11111111-')));
   }
 
   console.log('[R13] 呼噜工资条：长按触发、活动时让路、同日去重');

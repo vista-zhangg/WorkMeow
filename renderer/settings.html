@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: workmeow-asset:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <link rel="stylesheet" href="settings.css" />
     <title>打工喵 · 设置</title>
   </head>
@@ -13,13 +13,19 @@
           <span class="logo" aria-hidden="true">🐱</span>
           <div>
             <div class="brand-title" data-i18n="settings.title">打工喵 · 设置</div>
-            <div class="brand-sub" data-i18n="settings.subtitle">调整桌宠的启动行为</div>
+            <div class="brand-sub" data-i18n="settings.subtitle">调整启动方式和每种状态的喵咪表情</div>
           </div>
         </div>
         <button id="close" class="icon-button" data-i18n-title="settings.close" title="关闭" aria-label="关闭">✕</button>
       </header>
 
+      <nav class="settings-tabs" aria-label="设置分类">
+        <button id="tab-general" class="settings-tab active" type="button" data-tab="general" aria-selected="true" data-i18n="settings.generalTab">常规</button>
+        <button id="tab-expressions" class="settings-tab" type="button" data-tab="expressions" aria-selected="false" data-i18n="settings.expressionsTab">喵咪表情</button>
+      </nav>
+
       <main>
+        <div id="panel-general" class="settings-panel active" data-panel="general">
         <section class="settings-section">
           <div class="section-kicker" data-i18n="settings.startupSection">启动设置</div>
           <div class="setting-card">
@@ -59,6 +65,59 @@
             <p class="hint" data-i18n="settings.timeHint">彩蛋持续 10 分钟，仅在打工喵空闲或休息时播放。</p>
           </div>
         </section>
+        </div>
+
+        <div id="panel-expressions" class="settings-panel" data-panel="expressions" hidden>
+          <section class="expression-intro">
+            <div>
+              <div class="expression-title" data-i18n="settings.expressionsTitle">自定义每一种喵咪状态</div>
+              <p data-i18n="settings.expressionsDescription">先选择一个状态，再添加新表情参与轮换，或用一个新 GIF 替换整组。导入后会自动透明化、等比缩放并适配到 120×120。</p>
+            </div>
+            <label class="background-option" title="复杂背景不会强制移除，以免误伤主体">
+              <input id="remove-bg-toggle" type="checkbox" checked />
+              <span data-i18n="settings.removeBackground">自动清理纯色背景</span>
+            </label>
+          </section>
+
+          <div id="asset-status" class="asset-status" aria-live="polite"></div>
+          <section class="asset-workspace">
+            <div class="asset-browser">
+              <div class="asset-browser-head">
+                <div>
+                  <strong data-i18n="settings.allStates">全部状态</strong>
+                  <span data-i18n="settings.allStatesHint">点击卡片进行管理</span>
+                </div>
+                <span id="asset-summary" class="asset-summary"></span>
+              </div>
+              <div id="asset-gallery" class="asset-gallery"></div>
+            </div>
+
+            <aside id="asset-inspector" class="asset-inspector">
+              <div class="inspector-heading">
+                <span id="asset-detail-icon" class="asset-detail-icon">⌨️</span>
+                <div>
+                  <h2 id="asset-detail-title">干活中</h2>
+                  <p id="asset-detail-description"></p>
+                </div>
+              </div>
+              <div class="asset-main-preview checkerboard">
+                <img id="asset-detail-preview" alt="当前表情预览" draggable="false" />
+              </div>
+              <div id="asset-detail-meta" class="asset-detail-meta"></div>
+              <div class="asset-primary-actions">
+                <button id="asset-add" class="asset-action primary" type="button" data-i18n="settings.addExpression">＋ 新增到轮换</button>
+                <button id="asset-replace" class="asset-action" type="button" data-i18n="settings.replaceExpression">替换整组</button>
+              </div>
+              <p class="asset-action-hint" data-i18n="settings.addReplaceHint">“新增”会保留当前表情；“替换”只使用新 GIF。两种操作都可随时撤销。</p>
+              <div class="variant-heading">
+                <strong data-i18n="settings.currentExpressions">当前播放列表</strong>
+                <span id="asset-mode-badge" class="asset-mode-badge"></span>
+              </div>
+              <div id="asset-variants" class="asset-variants"></div>
+              <button id="asset-reset" class="reset-slot" type="button" data-i18n="settings.restoreStateDefault">恢复这个状态的默认表情</button>
+            </aside>
+          </section>
+        </div>
       </main>
 
       <footer>
@@ -66,6 +125,7 @@
       </footer>
     </div>
     <script src="../shared/i18n.js"></script>
+    <script src="../shared/pet-assets.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>

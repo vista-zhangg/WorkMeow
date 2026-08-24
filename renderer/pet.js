@@ -12,60 +12,36 @@ const catImg = document.getElementById('cat-img');
 const CAT_FALLBACK = '../assets/tray-cat.svg';
 if (catImg) {
   catImg.onerror = () => {
-    if (!catAssetMatches('tray-cat.svg')) catImg.src = CAT_FALLBACK;
+    if (!catAssetMatches(CAT_FALLBACK)) catImg.src = CAT_FALLBACK;
   };
 }
-const CAT_STATES = {
-  idle: 'cat-idle.gif',           // 转椅上冰淇淋+手机摸鱼：待命
-  working: 'cat-working.gif',     // 戴耳机对着笔记本喝咖啡：干活中
-  thinking: 'cat-thinking.gif',   // 对着笔记本挠头：思考
-  talking: 'cat-talking.gif',     // 对着笔记本疯狂输出喵喵喵：回应中
-  juggling: 'cat-juggling.gif',   // 趴键盘上还同时刷手机：并行子任务
-  sweeping: 'cat-sweeping.gif',   // 喷消毒水打扫：压缩/清理
-  waiting: 'cat-waiting.gif',     // 冒汗紧张等待：等你授权
-  needsinput: 'cat-needsinput.gif', // 头顶冒问号挠头：等你回复
-  happy: 'cat-happy.gif',         // 摸小猫的头夸夸：完成庆祝
-  greet: 'cat-greet.gif',         // 被闹钟炸醒弹射到工位：新会话火速上线
-  sleeping: 'cat-sleeping.gif',   // 被窝里睡成一坨：睡觉
-  error: 'cat-error.gif',         // 抱头崩溃大叫：出错
-  loafing: 'cat-loafing.gif',     // 躺地上刷手机：上一步干完、等下一步的间隙摸鱼
-  // 情绪短暂态 → 就近映射，别回落到摸鱼 idle 图（表情和文案会打架）
-  loved: 'cat-happy.gif',         // 被夸 → 摸头开心
-  excited: 'cat-happy.gif',
-  sad: 'cat-sad.gif',             // 惹你生气了 → 嚎啕大哭
-  sorry: 'cat-waiting.gif',       // 道歉 → 冒冷汗心虚
-  puzzled: 'cat-needsinput.gif',  // 疑惑 → 头顶问号
-};
-// working/thinking/juggling/loafing 是停留较久的状态 → 多张姿态轮换：进入时
-// 抽一张，持续期间每 60s 再抽一张。每个状态都有自己的随机循环队列：一轮
-// 没抽完之前不会重复，全部出现后才重新洗牌。这样既能避免视觉疲劳，也不会
-// 因为在几个状态之间切换而让某个状态的素材顺序互相干扰。
-const CAT_POOLS = {
-  working: [
-    'cat-working.gif',   // 戴耳机对着笔记本喝咖啡
-    'cat-working-2.gif', // 电脑前举「稍等」牌
-    'cat-working-3.gif', // 捂着耳朵埋头猛敲键盘
-    'cat-working-4.gif', // 边吃零食边敲键盘
-    'cat-working-5.gif', // 飞扑键盘猛敲
-  ],
-  thinking: [
-    'cat-thinking.gif',   // 对着笔记本挠头
-    'cat-thinking-2.gif', // 躺着想：头顶「浮云」思考泡
-  ],
-  juggling: [
-    'cat-juggling.gif',   // 趴键盘上还同时刷手机
-    'cat-juggling-2.gif', // 并行忙活还照看小伙伴
-    'cat-juggling-3.gif', // 分身协作处理多项事情
-  ],
-  // sleeping 不进池：无任务时由下方「闲时作息」接管（打盹/摸鱼/发呆/溜达轮换）
-  loafing: [
-    'cat-loafing.gif',   // 躺地上刷手机
-    'cat-loafing-2.gif', // 沙发上点外卖
-    'cat-loafing-3.gif', // 靠着枕头奶瓶+手机
-    'cat-loafing-4.gif', // 边休息边盯着电脑
-    'cat-loafing-5.gif', // 躺着喝咖啡看屏幕
-  ],
-};
+const PET_ASSET_REGISTRY = window.WorkMeowPetAssets;
+let petAssetCatalog = PET_ASSET_REGISTRY.defaultCatalog();
+
+function slotAssetUrls(slotId) {
+  const slot = petAssetCatalog.slots[slotId];
+  return slot && Array.isArray(slot.active) ? slot.active.map((asset) => asset.url).filter(Boolean) : [];
+}
+
+function stateAssetUrls(stateName) {
+  const slotId = PET_ASSET_REGISTRY.slotForState(stateName);
+  const active = slotAssetUrls(slotId);
+  return active.length ? active : slotAssetUrls('idle');
+}
+
+function applyPetAssetCatalog(next) {
+  petAssetCatalog = PET_ASSET_REGISTRY.normalizeCatalog(next);
+  poolCycles.clear();
+  stopPoolRot();
+  ambientStop();
+  xiabanVisualKey = null;
+  xiabanVisualAsset = null;
+  updateCat(state);
+}
+
+// Any state can now have more than one pose. Entering a state chooses one,
+// then a long-running state rotates every 60 seconds. Each state owns an
+// independent shuffled cycle so adding a custom pose never causes repeats.
 const POOL_ROTATE_MS = 60 * 1000;
 let poolRot = null;
 let poolState = null;
@@ -99,8 +75,8 @@ function nextPoolFile(name, pool) {
 }
 
 function showPoolFile(name, pool) {
-  const file = nextPoolFile(name, pool);
-  if (!catAssetMatches(file)) catImg.src = '../assets/cat/' + file;
+  const source = nextPoolFile(name, pool);
+  if (source && !catAssetMatches(source)) catImg.src = source;
 }
 
 function stopPoolRot() {
@@ -124,18 +100,14 @@ function stopPoolRot() {
    作息曲线：越闲越困。刚下班基本在活动，夜深了基本在睡，但任何阶段都保留
    反向可能——所以永远不会静止成一张图。
    ==================================================================== */
-const AMBIENT_SCENES = [
-  { gif: 'cat-sleeping.gif',   sleep: true  }, // 被窝里睡成一坨
-  { gif: 'cat-sleeping-2.gif', sleep: true  }, // 拔下肚子毛当眼罩睡
-  { gif: 'cat-loafing.gif',    sleep: false }, // 躺地上刷手机
-  { gif: 'cat-loafing-2.gif',  sleep: false }, // 沙发上点外卖
-  { gif: 'cat-loafing-3.gif',  sleep: false }, // 靠着枕头奶瓶+手机
-  { gif: 'cat-loafing-4.gif',  sleep: false }, // 边休息边盯着电脑
-  { gif: 'cat-loafing-5.gif',  sleep: false }, // 躺着喝咖啡看屏幕
-  { gif: 'cat-idle.gif',       sleep: false }, // 转椅上冰淇淋+手机
-  { gif: 'cat-thinking-2.gif', sleep: false }, // 趴着望云——发呆
-  { gif: 'cat-roam.gif',       sleep: false, hold: [8000, 16000] }, // 撒腿跑着玩（幅度大，短播）
-];
+function ambientScenes(wantSleep) {
+  const slotId = wantSleep ? 'ambient-sleep' : 'ambient-awake';
+  return slotAssetUrls(slotId).map((url) => ({
+    gif: url,
+    sleep: wantSleep,
+    hold: /\/cat-roam\.gif(?:[?#]|$)/.test(url) ? [8000, 16000] : null,
+  }));
+}
 // awake = 抽到「醒着的活动」的概率；hold = 片段停留时长区间（区间内随机，避免机械感）。
 // maxSleepRun / maxAwakeRun 是节奏护栏：概率负责自然感，护栏保证不会一直睡或一直醒。
 // 越往后不只是越困，切换也越慢——睡沉了还每 30 秒换个睡姿，看着像在发抖。
@@ -157,7 +129,8 @@ function ambientPhase() {
 }
 
 function nextAmbientScene(wantSleep) {
-  const same = AMBIENT_SCENES.filter((scene) => scene.sleep === wantSleep);
+  let same = ambientScenes(wantSleep);
+  if (!same.length) same = ambientScenes(!wantSleep);
   const key = wantSleep ? 'sleep' : 'awake';
   let cycle = ambientCycles.get(key);
   const signature = same.map((scene) => scene.gif).join('\u0000');
@@ -201,7 +174,7 @@ function ambientStep() {
     ambientAwakeRun++;
     ambientSleepRun = 0;
   }
-  if (!catAssetMatches(sc.gif)) catImg.src = '../assets/cat/' + sc.gif;
+  if (!catAssetMatches(sc.gif)) catImg.src = sc.gif;
   if (sleepEl) sleepEl.classList.toggle('on', sc.sleep); // 💤 只在真睡的片段亮
   const [lo, hi] = sc.hold || phase.hold; // 片段自带时长优先（如 roam 幅度大要短播）
   ambientTimer = setTimeout(ambientStep, lo + Math.random() * (hi - lo));
@@ -225,7 +198,6 @@ function ambientStop() {
 
 // 定时下班片段：只在本机当地时间的两个下班窗口播放，且只覆盖真正无任务的
 // idle/sleeping。它不是业务状态，不会把 sleeping 伪装成 loafing，也不会盖住工作。
-const XIABAN_FILE = 'cat-xiaban.gif';
 const XIABAN_DURATION_MS = 10 * 60 * 1000;
 const XIABAN_DEFAULT_TIMES = Object.freeze({ lunch: '10:55', evening: '16:55' });
 let xiabanSchedule = { ...XIABAN_DEFAULT_TIMES };
@@ -236,6 +208,8 @@ const XIABAN_COPY_KEYS = {
 };
 const XIABAN_ANNOUNCED_STORAGE_KEY = 'workmeow.xiaban-announced-window';
 let xiabanTimer = null;
+let xiabanVisualKey = null;
+let xiabanVisualAsset = null;
 let xiabanAnnouncedWindow = (() => {
   try { return window.localStorage && window.localStorage.getItem(XIABAN_ANNOUNCED_STORAGE_KEY); }
   catch { return null; }
@@ -333,8 +307,18 @@ function announceXiaban(info) {
 function xiabanMaybeShow(s) {
   scheduleXiabanBoundary();
   const info = xiabanWindow();
-  if (!XIABAN_STATES.has(s) || !info) return false;
-  if (!catAssetMatches(XIABAN_FILE)) catImg.src = '../assets/cat/' + XIABAN_FILE;
+  if (!XIABAN_STATES.has(s) || !info) {
+    xiabanVisualKey = null;
+    xiabanVisualAsset = null;
+    return false;
+  }
+  const pool = slotAssetUrls('xiaban');
+  if (!pool.length) return false;
+  if (xiabanVisualKey !== info.key || !xiabanVisualAsset) {
+    xiabanVisualKey = info.key;
+    xiabanVisualAsset = nextPoolFile('xiaban', pool);
+  }
+  if (!catAssetMatches(xiabanVisualAsset)) catImg.src = xiabanVisualAsset;
   if (sleepEl) sleepEl.classList.remove('on');
   announceXiaban(info);
   return true;
@@ -349,17 +333,15 @@ function updateCat(s) {
   }
   if (s === 'sleeping') { stopPoolRot(); ambientStart(); return; } // 画面交给作息表
   ambientStop();
-  const pool = CAT_POOLS[s];
-  const f = pool ? null : (CAT_STATES[s] || CAT_STATES.idle);
-  if (f && !catAssetMatches(f)) catImg.src = '../assets/cat/' + f;
-  if (pool) {
+  const pool = stateAssetUrls(s);
+  if (pool.length) {
     if (poolState !== s) {
       stopPoolRot();
       poolState = s;
       showPoolFile(s, pool);
       poolRot = setInterval(() => {
-        const cur = CAT_POOLS[state];
-        if (!cur || state !== s) { stopPoolRot(); return; }
+        const cur = stateAssetUrls(state);
+        if (!cur.length || state !== s) { stopPoolRot(); return; }
         showPoolFile(s, cur);
       }, POOL_ROTATE_MS);
     }
@@ -368,12 +350,12 @@ function updateCat(s) {
   }
 }
 
-function catAssetMatches(filename) {
+function catAssetMatches(source) {
   if (!catImg) return false;
   try {
-    return new URL(catImg.src, window.location.href).pathname.endsWith('/' + filename);
+    return new URL(catImg.src, window.location.href).href === new URL(source, window.location.href).href;
   } catch {
-    return String(catImg.getAttribute('src') || '').split(/[?#]/, 1)[0].endsWith(filename);
+    return String(catImg.getAttribute('src') || '') === String(source || '');
   }
 }
 const bubble = document.getElementById('bubble');
@@ -1898,6 +1880,7 @@ function applyStats(s) {
   }
 }
 window.pet.onXiabanSchedule((schedule) => applyXiabanSchedule(schedule));
+if (window.pet.onPetAssets) window.pet.onPetAssets((catalog) => applyPetAssetCatalog(catalog));
 window.pet.onStats(applyStats);
 
 function renderSessions(sessions) {
@@ -2246,6 +2229,9 @@ window.addEventListener('blur', () => {
   // window rather than the visible pet.
   requestAnimationFrame(settleEdgeLayout);
   applyStaticI18n();
+  if (window.pet.getPetAssets) {
+    try { applyPetAssetCatalog(await window.pet.getPetAssets()); } catch {}
+  }
   const s = await window.pet.getStats();
   // 有快照就按真实聚合态亮相；之前无条件 setState('idle') 会把刚算出的
   // working/waiting 盖掉，启动瞬间总是先闪一下空闲。getStats 落空但推送

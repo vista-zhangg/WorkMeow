@@ -29,6 +29,7 @@ for (const key of zhKeys) {
 
 const SOURCES = [
   'main.js', 'backend/adapter.js', 'renderer/pet.js', 'renderer/panel.js',
+  'renderer/settings.js',
 ];
 const DOTTED = /^[a-z]+\.[A-Za-z]\w*$/;
 const usedKeys = new Set();
@@ -40,7 +41,7 @@ for (const file of SOURCES) {
   collect(/\bt\(\s*'([\w.]+)'/g, src);
   collect(/(?:labelKey|key):\s*'([\w.]+)'/g, src);
 }
-for (const file of ['renderer/pet.html', 'renderer/panel.html']) {
+for (const file of ['renderer/pet.html', 'renderer/panel.html', 'renderer/settings.html']) {
   collect(/data-i18n(?:-title|-ph)?="([^"]+)"/g, read(file));
 }
 assert(usedKeys.size > 100, `key scan found suspiciously few usages: ${usedKeys.size}`);

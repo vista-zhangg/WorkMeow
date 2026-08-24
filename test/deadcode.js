@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
+const PetAssets = require('../shared/pet-assets');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const runtimeFiles = [
   'main.js', 'preload.js', 'backend/server.js', 'backend/permission.js',
@@ -25,10 +26,9 @@ assert(/action\.title/.test(read('renderer/pet.html')) && /action\.needYou/.test
   'the live action center must keep its explicit contract');
 assert(!/DEBUG_STATE|DEBUG_CONFETTI/.test(read('renderer/pet.js')), 'renderer debug switches must stay out of production code');
 
-const petJs = read('renderer/pet.js');
 const assetDir = path.join(root, 'assets', 'cat');
 const gifNames = fs.readdirSync(assetDir).filter((name) => name.endsWith('.gif')).sort();
-const referenced = new Set([...petJs.matchAll(/cat-[\w-]+\.gif/g)].map((match) => match[0]));
+const referenced = new Set(PetAssets.SLOTS.flatMap((slot) => slot.defaultFiles));
 const intentionallyUnwired = [];
 const unwired = gifNames.filter((name) => !referenced.has(name));
 assert.deepStrictEqual(unwired, intentionallyUnwired,

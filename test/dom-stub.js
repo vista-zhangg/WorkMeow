@@ -121,7 +121,7 @@ function createStubWorld() {
   };
 
   // Captured renderer callbacks (registered via window.pet.onX)
-  const handlers = { event: null, stats: null, xiabanSchedule: null };
+  const handlers = { event: null, stats: null, xiabanSchedule: null, petAssets: null };
   const calls = []; // record of preload calls for assertions
   const behavior = { focusResult: true };
 
@@ -129,6 +129,8 @@ function createStubWorld() {
     onEvent: (cb) => { handlers.event = cb; },
     onStats: (cb) => { handlers.stats = cb; },
     onXiabanSchedule: (cb) => { handlers.xiabanSchedule = cb; },
+    onPetAssets: (cb) => { handlers.petAssets = cb; },
+    getPetAssets: () => Promise.resolve(null),
     getStats: () => Promise.resolve(null),
     getWinPos: () => Promise.resolve([0, 0]),
     getWindowMetrics: () => Promise.resolve({

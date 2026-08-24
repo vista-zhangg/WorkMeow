@@ -10,10 +10,18 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { fileURLToPath } = require('url');
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, dialog, shell } = require('electron');
+const { fileURLToPath, pathToFileURL } = require('url');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, dialog, shell, protocol, net } = require('electron');
 const BRAND = require('./shared/brand');
 const { IPC } = require('./shared/ipc-channels');
+const { PetAssetStore, isAssetId } = require('./backend/pet-assets');
+const { GifImportError } = require('./backend/gif-normalizer');
+
+const PET_ASSET_SCHEME = 'workmeow-asset';
+protocol.registerSchemesAsPrivileged([{
+  scheme: PET_ASSET_SCHEME,
+  privileges: { standard: true, secure: true, supportFetchAPI: true },
+}]);
 
 // Give the dev app the public WorkMeow identity so it isn't shown as a generic
 // "Electron" window or confused with an older legacy build.
@@ -43,6 +51,7 @@ const { migrateLegacyState } = require('./backend/paths');
 const i18n = require('./shared/i18n');
 
 const t = i18n.t;
+const petAssetStore = new PetAssetStore();
 
 // Windows 下由 `npm start` 的 detached 启动器（start-detached.js）
 // 让 GUI 进程脱离启动它的控制台，关闭终端后桌宠仍继续运行。
@@ -272,13 +281,13 @@ function openSettings() {
     return;
   }
   const win = new BrowserWindow({
-    width: 440,
-    height: 540,
-    minWidth: 400,
-    minHeight: 460,
+    width: 840,
+    height: 760,
+    minWidth: 720,
+    minHeight: 620,
     frame: false,
     transparent: false,
-    resizable: false,
+    resizable: true,
     minimizable: false,
     maximizable: false,
     skipTaskbar: false,
@@ -345,6 +354,27 @@ function firstAlivePetWin() {
 }
 function sendPet(channel, payload) { sendWin(firstAlivePetWin(), channel, payload); }
 function sendPanel(channel, payload) { sendWin(panelWin, channel, payload); }
+
+function publishPetAssets(catalog = petAssetStore.catalog()) {
+  sendPet(IPC.PET_ASSETS, catalog);
+  sendWin(settingsWin, IPC.PET_ASSETS, catalog);
+  return catalog;
+}
+
+function registerPetAssetProtocol() {
+  protocol.handle(PET_ASSET_SCHEME, (request) => {
+    try {
+      const url = new URL(request.url);
+      if (url.host !== 'asset') return new Response('Not found', { status: 404 });
+      const match = decodeURIComponent(url.pathname).match(/^\/([^/]+)\.gif$/i);
+      const file = match && isAssetId(match[1]) ? petAssetStore.assetPath(match[1]) : null;
+      if (!file) return new Response('Not found', { status: 404 });
+      return net.fetch(pathToFileURL(file).toString());
+    } catch {
+      return new Response('Bad request', { status: 400 });
+    }
+  });
+}
 
 function meterInstances() {
   return {
@@ -697,6 +727,43 @@ function registerIpc() {
   ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_e, enabled) => setAutoLaunch(enabled));
   ipcMain.handle(IPC.GET_XIABAN_SCHEDULE, () => getXiabanSchedule());
   ipcMain.handle(IPC.SET_XIABAN_SCHEDULE, (_e, schedule) => setXiabanSchedule(schedule));
+  ipcMain.handle(IPC.GET_PET_ASSETS, () => petAssetStore.catalog());
+  ipcMain.handle(IPC.IMPORT_PET_GIF, async (e, slotId, mode, options) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
+      return { ok: false, error: 'forbidden', message: '只能在设置窗口中导入表情' };
+    }
+    const picked = await dialog.showOpenDialog(settingsWin, {
+      title: mode === 'replace' ? '选择要替换为的新表情 GIF' : '选择要补充的新表情 GIF',
+      buttonLabel: mode === 'replace' ? '选择并替换' : '选择并添加',
+      properties: ['openFile'],
+      filters: [{ name: 'GIF 动画', extensions: ['gif'] }],
+    });
+    if (picked.canceled || !picked.filePaths || !picked.filePaths[0]) return { ok: false, canceled: true };
+    try {
+      const result = await petAssetStore.importGif(picked.filePaths[0], slotId, mode, options || {});
+      publishPetAssets(result.catalog);
+      return result;
+    } catch (error) {
+      const expected = error instanceof GifImportError;
+      return {
+        ok: false,
+        error: expected ? error.code : 'processing-failed',
+        message: expected ? error.message : 'GIF 处理失败，请换一个文件重试',
+      };
+    }
+  });
+  ipcMain.handle(IPC.REMOVE_PET_ASSET, (e, slotId, assetId) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false, error: 'forbidden' };
+    const result = petAssetStore.removeAsset(slotId, assetId);
+    if (result.ok) publishPetAssets(result.catalog);
+    return result;
+  });
+  ipcMain.handle(IPC.RESET_PET_SLOT, (e, slotId) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false, error: 'forbidden' };
+    const result = petAssetStore.resetSlot(slotId);
+    if (result.ok) publishPetAssets(result.catalog);
+    return result;
+  });
   ipcMain.on(IPC.CLOSE_SETTINGS, closeSettings);
 
   // 详情面板按内容高度自适应：clamp 到屏幕工作区，阈值防抖避免每次 stats 都抖
@@ -940,6 +1007,7 @@ if (!gotTheLock) {
     // Rewrite legacy config once so removed appearance/layout/budget fields disappear
     // from ~/.workmeow/config.json instead of remaining as dead state.
     config.save({});
+    registerPetAssetProtocol();
     registerIpc();
     bootBackend();
     createPetWindows();

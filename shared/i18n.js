@@ -40,7 +40,9 @@
 
     // ── settings ────────────────────────────────────────────────────────────
     'settings.title': '打工喵 · 设置',
-    'settings.subtitle': '调整桌宠的启动行为',
+    'settings.subtitle': '调整启动方式和每种状态的喵咪表情',
+    'settings.generalTab': '常规',
+    'settings.expressionsTab': '喵咪表情',
     'settings.startupSection': '启动设置',
     'settings.autoLaunchTitle': '开机自动启动',
     'settings.autoLaunchDescription': '登录 Windows 后自动运行打工喵',
@@ -62,6 +64,16 @@
     'settings.timeInvalid': '请输入有效的时间',
     'settings.timeSaveFailed': '下班时间保存失败，请重试',
     'settings.timeHint': '彩蛋持续 10 分钟，仅在打工喵空闲或休息时播放。',
+    'settings.expressionsTitle': '自定义每一种喵咪状态',
+    'settings.expressionsDescription': '先选择一个状态，再添加新表情参与轮换，或用一个新 GIF 替换整组。导入后会自动透明化、等比缩放并适配到 120×120。',
+    'settings.removeBackground': '自动清理纯色背景',
+    'settings.allStates': '全部状态',
+    'settings.allStatesHint': '点击卡片进行管理',
+    'settings.addExpression': '＋ 新增到轮换',
+    'settings.replaceExpression': '替换整组',
+    'settings.addReplaceHint': '“新增”会保留当前表情；“替换”只使用新 GIF。两种操作都可随时撤销。',
+    'settings.currentExpressions': '当前播放列表',
+    'settings.restoreStateDefault': '恢复这个状态的默认表情',
     'settings.close': '关闭',
 
     // ── waiting reasons ─────────────────────────────────────────────────────
