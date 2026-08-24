@@ -12,6 +12,30 @@ function dayKey(timestamp) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+// Provider transcripts use both ISO strings and Unix timestamps.  Date.parse
+// does not accept numeric Unix milliseconds, so normalise the value before it
+// reaches dayKey()/new Date(); otherwise an old record can fall back to the
+// scan time and be incorrectly reported as today's usage.
+function parseTimestamp(value, fallback = Date.now()) {
+  if (value instanceof Date) {
+    const timestamp = value.getTime();
+    return Number.isFinite(timestamp) ? timestamp : fallback;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value > 0 && value < 1e12 ? value * 1000 : value;
+  }
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+      const numeric = Number(text);
+      if (Number.isFinite(numeric)) return numeric > 0 && numeric < 1e12 ? numeric * 1000 : numeric;
+    }
+    const parsed = Date.parse(text);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
 // A rebuild is allowed to reprice a complete retained ledger, but it must
 // never turn a source outage/partial transcript into a lower all-time total.
 // These are the usage fields shared by the provider ledgers (unknown fields
@@ -55,4 +79,12 @@ function mergeLifetime(previous, current) {
   return out;
 }
 
-module.exports = { num, dayKey, MONOTONIC_USAGE_FIELDS, usageHasLoss, mergeUsageMax, mergeLifetime };
+module.exports = {
+  num,
+  dayKey,
+  parseTimestamp,
+  MONOTONIC_USAGE_FIELDS,
+  usageHasLoss,
+  mergeUsageMax,
+  mergeLifetime,
+};

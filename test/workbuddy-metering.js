@@ -22,6 +22,7 @@ async function main() {
   // 用「今天」构造时间戳，避免硬编码日期跨午夜后 today 桶错位。
   const _n = new Date();
   const todayTs = (h) => `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}T${String(h).padStart(2, '0')}:00:00.000Z`;
+  const historicalTs = Date.now() - 2 * 24 * 60 * 60 * 1000;
 
   const base = await fsp.mkdtemp(path.join(os.tmpdir(), 'wb-meter-test-'));
   const projects = path.join(base, 'projects', 'proj-x', 'sess-1');
@@ -62,6 +63,15 @@ async function main() {
           cache_creation_input_tokens: 200, cache_read_input_tokens: 50 },
       },
     }),
+    // WorkBuddy writes numeric Unix milliseconds in real transcripts. This
+    // old row must stay in its source day instead of being moved to scan time.
+    JSON.stringify({
+      type: 'message', role: 'assistant', timestamp: historicalTs,
+      providerData: {
+        model: 'old-workbuddy-model', messageId: 'historical-m1',
+        usage: { inputTokens: 700, outputTokens: 30, totalTokens: 730 },
+      },
+    }),
   ];
   await fsp.writeFile(jsonl, lines.join('\n') + '\n', 'utf8');
 
@@ -74,6 +84,15 @@ async function main() {
   };
   const cachePath = path.join(base, 'pricing-cache.json');
   await fsp.writeFile(cachePath, JSON.stringify(cache), 'utf8');
+
+  // Simulate the pre-v6 ledger that incorrectly put all numeric-timestamp
+  // rows into today's bucket. Loading it must trigger the automatic rebuild.
+  const todayKey = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
+  await fsp.writeFile(path.join(base, 'workbuddy-usage.json'), JSON.stringify({
+    schemaVersion: 5,
+    daily: { [todayKey]: { tokens: 999999, msgs: 99 } },
+    byModelByDay: { [todayKey]: { 'stale-model': { tokens: 999999, msgs: 99 } } },
+  }), 'utf8');
 
   const m = createWorkbuddyMetering({
     projectsDir: path.join(base, 'projects'),
@@ -92,6 +111,11 @@ async function main() {
 
   const by = s.byModel;
   assert(by.hy3 && by['gpt-4o'] && by['claude-x'], 'all three models present in byModel');
+  assert(!by['old-workbuddy-model'], 'numeric historical timestamp is not counted as today');
+  const historicalDay = new Date(historicalTs);
+  const historicalKey = `${historicalDay.getFullYear()}-${String(historicalDay.getMonth() + 1).padStart(2, '0')}-${String(historicalDay.getDate()).padStart(2, '0')}`;
+  assert(s.daily[historicalKey] && s.daily[historicalKey].tokens === 730,
+    'numeric historical timestamp stays in its original day');
   assert(by.hy3.cost === 0, `hy3 has no price → cost $0 (got ${by.hy3.cost})`);
   // gpt-4o: 2000 input (2000*2.5=5000) + 100 output (100*10=1000) = 6000 /1e6 = 0.006
   assert(by['gpt-4o'].cost > 0, `gpt-4o priced → cost>0 (got ${by['gpt-4o'].cost})`);

@@ -28,7 +28,7 @@ const fsp = fs.promises;
 const os = require('os');
 const path = require('path');
 const { STATE_DIR } = require('./paths');
-const { num, dayKey, mergeLifetime } = require('./metering-common');
+const { num, dayKey, parseTimestamp, mergeLifetime } = require('./metering-common');
 const { createMeterQueue } = require('./meter-queue');
 
 const PROJECTS_DIR = path.join(os.homedir(), '.workbuddy', 'projects');
@@ -37,7 +37,10 @@ const PRICING_CACHE_PATH = path.join(STATE_DIR, 'pricing-cache.json'); // models
 const PRICING_OVERRIDE_PATH = path.join(STATE_DIR, 'workbuddy-pricing.json'); // user override
 // v5: 修正流式 assistant 消息的轮次统计。相同 messageId 的后续累计更新
 // 只补 token 增量，不应再次增加消息轮次，需要全量重扫一次。
-const SCHEMA_VERSION = 5;
+// v6: numeric Unix timestamps were previously passed to Date.parse(), which
+// failed and assigned every historical row to the scan day. Force one clean
+// rescan so already-persisted "today" buckets are repaired automatically.
+const SCHEMA_VERSION = 6;
 const DAILY_KEEP_DAYS = 95;
 const BACKFILL_MS = DAILY_KEEP_DAYS * 24 * 60 * 60 * 1000;
 
@@ -333,7 +336,7 @@ function createWorkbuddyMetering(options = {}) {
     if (normalized.tokens <= 0) return;
     const model = pd.model || (o.message && o.message.model) || o.model || 'unknown';
     const messageId = pd.messageId || o.id || `${o.requestId || ''}:${o.timestamp || ''}`;
-    const ts = Date.parse(o.timestamp) || Date.now();
+    const ts = parseTimestamp(o.timestamp);
     if (fileState.replaying && ts < Date.now() - BACKFILL_MS) return;
     record(ts, model, normalized, messageId);
   }
