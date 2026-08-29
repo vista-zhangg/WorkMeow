@@ -13,6 +13,7 @@ const IPC = Object.freeze({
   GET_WIN_POS: 'get-win-pos',
   GET_WINDOW_METRICS: 'get-window-metrics',
   SET_WIN_POS: 'set-win-pos',
+  END_WIN_DRAG: 'end-win-drag',
   OPEN_PANEL: 'open-panel',
   CLOSE_PANEL: 'close-panel',
   GET_AUTO_LAUNCH: 'get-auto-launch',
@@ -42,7 +43,7 @@ const INVOKE_CHANNELS = Object.freeze([
   'PERMISSION_DECIDE', 'FOCUS_SESSION',
 ]);
 const COMMAND_CHANNELS = Object.freeze([
-  'SET_WIN_POS', 'OPEN_PANEL', 'CLOSE_PANEL', 'CLOSE_SETTINGS', 'SET_PANEL_HEIGHT', 'QUIT_APP',
+  'SET_WIN_POS', 'END_WIN_DRAG', 'OPEN_PANEL', 'CLOSE_PANEL', 'CLOSE_SETTINGS', 'SET_PANEL_HEIGHT', 'QUIT_APP',
   'CLOSE_PET', 'SET_PET_SIZE', 'PET_BLUR',
   'SET_IGNORE_MOUSE',
 ]);

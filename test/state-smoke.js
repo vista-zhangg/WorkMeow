@@ -473,11 +473,47 @@ async function main() {
     const dragWorld = world();
     dragWorld.elements('peek').classList.add('hidden');
     dragWorld.handlers.stats(working);
+    dragWorld.window.screenX = 100;
+    dragWorld.window.screenY = 100;
+    dragWorld.window.innerWidth = 320;
+    dragWorld.window.innerHeight = 340;
     const dragCat = dragWorld.elements('cat');
-    dragCat.dispatch('pointerdown', { button: 0, pointerId: 7, screenX: 10, screenY: 10 });
-    dragCat.dispatch('pointermove', { button: 0, pointerId: 7, screenX: 20, screenY: 10 });
-    dragCat.dispatch('pointerup', { button: 0, pointerId: 7, screenX: 20, screenY: 10 });
+    dragCat.dispatch('pointerdown', { button: 0, pointerId: 7, screenX: 110, screenY: 110, clientX: 10, clientY: 10 });
+    dragCat.dispatch('pointermove', { button: 0, pointerId: 7, screenX: 120, screenY: 110, clientX: 20, clientY: 10 });
+    // Moving the BrowserWindow can generate another event while the physical
+    // cursor is stationary. Its local clientX changes, but the grab offset sent
+    // to main must remain fixed so this event cannot feed movement back in.
+    dragWorld.window.screenX = 110;
+    for (let i = 0; i < 20; i++) {
+      dragCat.dispatch('pointermove', { button: 0, pointerId: 7, screenX: 120, screenY: 110, clientX: 10, clientY: 10 });
+    }
+    dragCat.dispatch('pointerup', { button: 0, pointerId: 7, screenX: 120, screenY: 110, clientX: 10, clientY: 10 });
     check('拖动超过 4px 不误打开速览', () => assert(dragWorld.elements('peek').classList.contains('hidden')));
+    check('窗口自身的重复移动事件被合并且不改变抓取偏移', () => {
+      const moves = dragWorld.calls.filter(([name]) => name === 'setWinPos');
+      assert.strictEqual(moves.length, 1, 'same-frame feedback must collapse to one move');
+      assert.strictEqual(moves[0][1][2].x, 10);
+      assert.strictEqual(moves[0][1][2].y, 10);
+      assert.strictEqual(moves[0][1][2].seq, 1);
+      const ends = dragWorld.calls.filter(([name]) => name === 'endWinDrag');
+      assert.strictEqual(ends.length, 1, 'pointerup must terminate the drag session once');
+      assert.strictEqual(ends[0][1][0], moves[0][1][2].id);
+    });
+
+    const cancelledWorld = world();
+    cancelledWorld.elements('peek').classList.add('hidden');
+    cancelledWorld.handlers.stats(working);
+    cancelledWorld.window.screenX = 100;
+    cancelledWorld.window.screenY = 100;
+    const cancelledCat = cancelledWorld.elements('cat');
+    cancelledCat.dispatch('pointerdown', { button: 0, pointerId: 8, screenX: 110, screenY: 110, clientX: 10, clientY: 10 });
+    cancelledCat.dispatch('pointermove', { button: 0, pointerId: 8, screenX: 125, screenY: 110, clientX: 25, clientY: 10 });
+    cancelledCat.dispatch('pointercancel', { button: 0, pointerId: 8, screenX: 125, screenY: 110, clientX: 25, clientY: 10 });
+    await sleep(5);
+    check('取消拖动会丢弃待发送坐标并终止会话', () => {
+      assert.strictEqual(cancelledWorld.calls.filter(([name]) => name === 'setWinPos').length, 0);
+      assert.strictEqual(cancelledWorld.calls.filter(([name]) => name === 'endWinDrag').length, 1);
+    });
   }
 
   console.log('[R12] 素材可达性与静态兜底');

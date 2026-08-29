@@ -83,7 +83,7 @@ let traeMetering = null; // TRAE agent 日志 token 台账（只读，从 Trae C
 let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.workmeow/opencode-usage.jsonl）
 
 // 宠物窗口的交互状态（单宠，但保留 Map 结构以便安全处理渲染进程生命周期）。
-const petState = new Map(); // id → { agent, win, customSize, mouseIgnoring }
+const petState = new Map(); // id → { agent, win, customSize, mouseIgnoring, dragId, dragSeq, lastEndedDragId }
 const petStates = () => [...petState.values()].filter((s) => s.win && !s.win.isDestroyed());
 const stateOfSender = (sender) => petState.get(sender.id) || null;
 const primaryPetState = () => (petWin && !petWin.isDestroyed() ? petState.get(petWin.webContents.id) : null);
@@ -207,7 +207,10 @@ function makePetWindow(agent) {
   win.loadFile(path.join(__dirname, 'renderer', 'pet.html'), { query: { agent } });
 
   // mouseIgnoring=true：透明窗启动即穿透，renderer 命中测试后再接管（pet.js 同款默认）
-  const st = { agent, win, customSize: null, mouseIgnoring: true };
+  const st = {
+    agent, win, customSize: null, mouseIgnoring: true,
+    dragId: null, dragSeq: -1, lastEndedDragId: null,
+  };
   // 'closed' 之后绝不能再碰 win.webContents（抛 "Object has been destroyed"，主进程
   // 未捕获直接崩）——id 在创建时取好。
   const wcId = win.webContents.id;
@@ -713,12 +716,57 @@ function registerIpc() {
     return { window: windowBounds, workArea };
   });
 
-  ipcMain.on(IPC.SET_WIN_POS, (e, x, y) => {
-    const win = senderPetWin(e);
+  ipcMain.on(IPC.SET_WIN_POS, (e, x, y, dragOffset) => {
+    const st = stateOfSender(e.sender);
+    const win = st && st.win && !st.win.isDestroyed() ? st.win : null;
     if (win && Number.isFinite(x) && Number.isFinite(y)) {
       const b = win.getBounds();
-      win.setBounds({ x: Math.round(x), y: Math.round(y), width: b.width, height: b.height });
+      let targetX = x;
+      let targetY = y;
+      const hasDragOffset = !!dragOffset && typeof dragOffset === 'object';
+      const offsetX = hasDragOffset ? Number(dragOffset.x) : NaN;
+      const offsetY = hasDragOffset ? Number(dragOffset.y) : NaN;
+      const dragId = hasDragOffset && typeof dragOffset.id === 'string' ? dragOffset.id : '';
+      const dragSeq = hasDragOffset ? Number(dragOffset.seq) : NaN;
+      const validDragOffset = hasDragOffset && Number.isFinite(offsetX) && Number.isFinite(offsetY)
+        && offsetX >= 0 && offsetX <= b.width && offsetY >= 0 && offsetY <= b.height;
+      if (validDragOffset) {
+        // A released gesture is terminal. This also makes a queued animation
+        // frame harmless if it reaches main after pointerup/pointercancel.
+        if (dragId && st.lastEndedDragId === dragId) return;
+        if (dragId) {
+          if (st.dragId !== dragId) {
+            st.dragId = dragId;
+            st.dragSeq = -1;
+          }
+          if (Number.isFinite(dragSeq) && dragSeq <= st.dragSeq) return;
+          if (Number.isFinite(dragSeq)) st.dragSeq = dragSeq;
+        }
+        // Moving this transparent BrowserWindow can itself enqueue pointer
+        // events with stale relative coordinates. Resolve every drag frame from
+        // the OS cursor so a stationary hand can never feed movement back in.
+        const cursor = screen.getCursorScreenPoint();
+        targetX = cursor.x - offsetX;
+        targetY = cursor.y - offsetY;
+      }
+      const nextX = Math.round(targetX);
+      const nextY = Math.round(targetY);
+      // setBounds can cause another pointermove even when Chromium reports the
+      // same physical cursor. Do not create a self-sustaining move -> event ->
+      // move loop when the window has already reached the requested pixel.
+      if (nextX === b.x && nextY === b.y) return;
+      win.setBounds({ x: nextX, y: nextY, width: b.width, height: b.height });
     }
+  });
+
+  ipcMain.on(IPC.END_WIN_DRAG, (e, dragId) => {
+    const st = stateOfSender(e.sender);
+    if (!st || typeof dragId !== 'string' || !dragId) return;
+    if (st.dragId === dragId) {
+      st.dragId = null;
+      st.dragSeq = -1;
+    }
+    st.lastEndedDragId = dragId;
   });
 
   ipcMain.on(IPC.OPEN_PANEL, (_e, agent) => openPanel(agent || 'all'));

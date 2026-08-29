@@ -620,9 +620,15 @@ function settleEdgeLayout() {
 // jump. Returning from the top probes the normal layout first and restores it
 // as soon as the whole frame can fit on-screen again.
 function movePetDuringDrag(gesture, e, targetX, targetY) {
+  const dragMeta = () => ({
+    x: gesture.grabX,
+    y: gesture.grabY,
+    id: gesture.id,
+    seq: ++gesture.moveSeq,
+  });
   const el = curSkinEl();
   if (!el) {
-    window.pet.setWinPos(targetX, targetY);
+    window.pet.setWinPos(targetX, targetY, dragMeta());
     return;
   }
   const before = el.getBoundingClientRect();
@@ -662,13 +668,18 @@ function movePetDuringDrag(gesture, e, targetX, targetY) {
   const after = el.getBoundingClientRect();
   const anchoredX = petScreenX - after.left;
   const anchoredY = petScreenY - after.top;
+  // When the cat changes its internal edge anchor, the grabbed pixel moves
+  // inside the window. Shift the local grab point by the same amount so the OS
+  // cursor remains attached to that exact pixel without a visible jump.
+  gesture.grabX += after.left - before.left;
+  gesture.grabY += after.top - before.top;
 
   if (Math.abs(anchoredX - targetX) > 0.5 || Math.abs(anchoredY - targetY) > 0.5) {
     gesture.win = [anchoredX, anchoredY];
     gesture.sx = pointerScreenX(e);
     gesture.sy = pointerScreenY(e);
   }
-  window.pet.setWinPos(anchoredX, anchoredY);
+  window.pet.setWinPos(anchoredX, anchoredY, dragMeta());
 }
 
 // 从快照重建队列（多任务都在、且标明项目）
@@ -1918,6 +1929,7 @@ function applyStaticI18n() {
 // 拖动 + 右键菜单（拖动=移动窗口）
 // ====================================================================
 let g = null; // 当前手势（同步建立，保证快速点击也能识别）
+let dragGestureSeq = 0;
 function pointerScreenX(e) {
   const value = Number(e && e.screenX);
   if (Number.isFinite(value)) return value;
@@ -1933,6 +1945,73 @@ function currentWindowScreenPosition() {
   const y = Number(window.screenY);
   return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
 }
+function pointerClientX(e) {
+  const value = Number(e && e.clientX);
+  if (Number.isFinite(value)) return value;
+  return pointerScreenX(e) - (Number(window.screenX) || 0);
+}
+function pointerClientY(e) {
+  const value = Number(e && e.clientY);
+  if (Number.isFinite(value)) return value;
+  return pointerScreenY(e) - (Number(window.screenY) || 0);
+}
+
+function cancelQueuedDragMove(gesture) {
+  if (!gesture) return;
+  if (gesture.moveFrame !== null) cancelAnimationFrame(gesture.moveFrame);
+  gesture.moveFrame = null;
+  gesture.pendingMove = null;
+}
+
+function flushQueuedDragMove(gesture) {
+  if (!gesture) return;
+  if (gesture.moveFrame !== null) cancelAnimationFrame(gesture.moveFrame);
+  gesture.moveFrame = null;
+  const pending = gesture.pendingMove;
+  gesture.pendingMove = null;
+  if (!pending || g !== gesture || !gesture.moved) return;
+  movePetDuringDrag(gesture, pending, pending.targetX, pending.targetY);
+}
+
+function queueDragMove(gesture, e, targetX, targetY) {
+  // BrowserWindow movement can produce a burst of pointermove events itself.
+  // Keep only the newest physical-cursor sample per paint frame; together with
+  // main's same-position guard this makes the feedback chain terminate.
+  gesture.pendingMove = {
+    screenX: pointerScreenX(e),
+    screenY: pointerScreenY(e),
+    targetX,
+    targetY,
+  };
+  if (gesture.moveFrame !== null) return;
+  gesture.moveFrame = requestAnimationFrame(() => flushQueuedDragMove(gesture));
+}
+
+function finishDrag(el, e, cancelled) {
+  if (!g || g.el !== el) return;
+  if (e && Number.isFinite(e.pointerId) && e.pointerId !== g.pid) return;
+  const gesture = g;
+  const wasMove = gesture.moved;
+  const wasPurr = gesture.purrTriggered;
+  clearTimeout(gesture.holdTimer);
+  if (wasMove && !cancelled) flushQueuedDragMove(gesture);
+  else cancelQueuedDragMove(gesture);
+  el.classList.remove('dragging');
+  g = null;
+  try { el.releasePointerCapture(gesture.pid); } catch {}
+  try { window.pet.endWinDrag(gesture.id); } catch {}
+  if (wasMove) {
+    if (peekOpen) closePeek();
+    // END_WIN_DRAG is sent after the final position, so the queued size/anchor
+    // settlement cannot revive an already released movement gesture.
+    setTimeout(settleEdgeLayout, 0);
+  } else if (!wasPurr && !cancelled) {
+    // 左键短按 = 按当前优先级打开待处理卡/行动中心/工作速览；
+    // 拖动仍由上面的 4px 阈值独立裁决，不会误触点击。
+    handleCatClick();
+  }
+}
+
 function attachDrag(el) {
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
@@ -1946,6 +2025,14 @@ function attachDrag(el) {
       moved: false,
       purrTriggered: false,
       holdTimer: null,
+      id: `${Date.now().toString(36)}-${++dragGestureSeq}`,
+      moveSeq: 0,
+      moveFrame: null,
+      pendingMove: null,
+      // Main combines this stable in-window grab point with the authoritative
+      // OS cursor. Window-generated pointer events cannot accumulate movement.
+      grabX: pointerClientX(e),
+      grabY: pointerClientY(e),
       // Prefer the synchronous BrowserWindow coordinates. The IPC result is
       // only a fallback and is ignored once this gesture has a window origin.
       win: currentWindowScreenPosition(),
@@ -1962,6 +2049,7 @@ function attachDrag(el) {
   });
   el.addEventListener('pointermove', (e) => {
     if (!g) return;
+    if (Number.isFinite(e.pointerId) && e.pointerId !== g.pid) return;
     const dx = pointerScreenX(e) - g.sx;
     const dy = pointerScreenY(e) - g.sy;
     if (!g.moved && Math.abs(dx) + Math.abs(dy) > 4) g.moved = true;
@@ -1972,36 +2060,12 @@ function attachDrag(el) {
     if (g.moved && !g.win) g.win = currentWindowScreenPosition();
     if (g.moved && g.win) {
       if (radialOpen) closeRadial();
-      movePetDuringDrag(g, e, g.win[0] + dx, g.win[1] + dy);
+      queueDragMove(g, e, g.win[0] + dx, g.win[1] + dy);
     }
   });
-  el.addEventListener('pointerup', () => {
-    if (!g) return;
-    const wasMove = g.moved;
-    const wasPurr = g.purrTriggered;
-    clearTimeout(g.holdTimer);
-    try { el.releasePointerCapture(g.pid); } catch {}
-    el.classList.remove('dragging');
-    g = null;
-    if (wasMove) {
-      if (peekOpen) closePeek();
-      // Let the final setBounds land, then exchange the internal top/bottom or
-      // left/right anchor without moving the visible pet.
-      setTimeout(settleEdgeLayout, 0);
-    } else if (!wasPurr) {
-      // 左键短按 = 按当前优先级打开待处理卡/行动中心/工作速览；
-      // 拖动仍由上面的 4px 阈值独立裁决，不会误触点击。
-      handleCatClick();
-    }
-  });
-  el.addEventListener('pointercancel', () => {
-    if (g) {
-      clearTimeout(g.holdTimer);
-      el.classList.remove('dragging');
-    }
-    g = null;
-    setTimeout(settleEdgeLayout, 0);
-  });
+  el.addEventListener('pointerup', (e) => finishDrag(el, e, false));
+  el.addEventListener('pointercancel', (e) => finishDrag(el, e, true));
+  el.addEventListener('lostpointercapture', (e) => finishDrag(el, e, true));
   // 右键 = 泡泡菜单
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();

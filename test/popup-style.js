@@ -69,6 +69,18 @@ assert(/function positionProp\(\)[\s\S]*propEl\.style\.left/.test(js), 'action p
 assert(!/#stage\.edge-right \.prop/.test(css), 'action prop must not use a fixed edge offset');
 assert(/function pointerScreenX\(e\)/.test(js) && /function pointerScreenY\(e\)/.test(js), 'dragging must normalize pointer coordinates');
 assert(/g !== gesture \|\| gesture\.win/.test(js), 'stale async window-position results must not cross drag gestures');
+assert(/grabX:\s*pointerClientX\(e\)/.test(js) && /grabY:\s*pointerClientY\(e\)/.test(js),
+  'dragging must preserve the in-window grab point');
+assert(/screen\.getCursorScreenPoint\(\)/.test(main),
+  'the main process must resolve drag movement from the authoritative OS cursor');
+assert(/if \(nextX === b\.x && nextY === b\.y\) return/.test(main),
+  'the main process must stop same-position BrowserWindow feedback');
+assert(/lastEndedDragId === dragId/.test(main) && /IPC\.END_WIN_DRAG/.test(main),
+  'released drag sessions must reject late move frames');
+assert(/setWinPos:\s*\(x, y, dragOffset\)/.test(preload),
+  'the preload bridge must forward the stable drag offset');
+assert(/function queueDragMove[\s\S]*requestAnimationFrame/.test(js),
+  'renderer drag messages must coalesce to one latest move per paint frame');
 assert(/document\.addEventListener\('keydown',[\s\S]*e\.key !== 'Escape'[\s\S]*window\.pet\.closePanel\(\)/.test(panel), 'detail panel must close on Escape');
 
 console.log('popup style checks passed');

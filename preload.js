@@ -8,7 +8,7 @@ const IPC = Object.freeze({
   GET_STATS: 'get-stats', GET_WIN_POS: 'get-win-pos', GET_WINDOW_METRICS: 'get-window-metrics',
   XIABAN_SCHEDULE: 'xiaban:schedule',
   PET_ASSETS: 'pet-assets:changed',
-  SET_WIN_POS: 'set-win-pos', OPEN_PANEL: 'open-panel', CLOSE_PANEL: 'close-panel',
+  SET_WIN_POS: 'set-win-pos', END_WIN_DRAG: 'end-win-drag', OPEN_PANEL: 'open-panel', CLOSE_PANEL: 'close-panel',
   GET_AUTO_LAUNCH: 'get-auto-launch', SET_AUTO_LAUNCH: 'set-auto-launch',
   GET_XIABAN_SCHEDULE: 'get-xiaban-schedule', SET_XIABAN_SCHEDULE: 'set-xiaban-schedule',
   GET_PET_ASSETS: 'get-pet-assets', IMPORT_PET_GIF: 'import-pet-gif',
@@ -46,7 +46,8 @@ contextBridge.exposeInMainWorld('pet', {
   // 手动拖动窗口
   getWinPos: () => ipcRenderer.invoke(IPC.GET_WIN_POS),
   getWindowMetrics: () => ipcRenderer.invoke(IPC.GET_WINDOW_METRICS),
-  setWinPos: (x, y) => ipcRenderer.send(IPC.SET_WIN_POS, x, y),
+  setWinPos: (x, y, dragOffset) => ipcRenderer.send(IPC.SET_WIN_POS, x, y, dragOffset || null),
+  endWinDrag: (dragId) => ipcRenderer.send(IPC.END_WIN_DRAG, dragId),
   // 原生授权：通过本地 HTTP server 回 CC 决策（allow/deny），不需按键/Accessibility
   decidePermission: (permId, behavior) => ipcRenderer.invoke(IPC.PERMISSION_DECIDE, permId, behavior),
   // 对话类（继续/选择/方案）：Codex 精确打开对应 task，其它 Agent 定位会话窗口/终端
