@@ -55,6 +55,12 @@ async function main() {
     unknown: { mode: 'replace', assets: [] },
   } });
   assert.deepStrictEqual(bad.slots, {}, 'manifest sanitization must reject traversal and unknown slots');
+  const exclusions = sanitizeManifest({ slots: {
+    working: { mode: 'append', assets: [], excludedDefaults: ['cat-working.gif', '../escape.gif', 'cat-working.gif'] },
+    idle: { mode: 'append', assets: [], excludedDefaults: ['cat-idle.gif'] },
+  } });
+  assert.deepStrictEqual(exclusions.slots.working.excludedDefaults, ['cat-working.gif']);
+  assert.strictEqual(exclusions.slots.idle, undefined, 'sanitization must keep one default when no custom GIF exists');
 
   const store = new PetAssetStore({ rootDir: path.join(temp, 'store') });
   const source = path.join(root, 'assets', 'cat', 'cat-idle.gif');
@@ -77,6 +83,30 @@ async function main() {
   } } });
   await assert.rejects(fullStore.importGif(source, 'working', 'append'), (error) => error.code === 'slot-limit');
   assert.strictEqual(normalizedAtLimit, false, 'a full slot must reject before expensive GIF decoding');
+  const fullTarget = fullStore.catalog().slots.working.custom[0];
+  const replacedAtLimit = await fullStore.importGif(source, 'working', 'replace-one', { assetId: fullTarget.id });
+  assert.strictEqual(normalizedAtLimit, true, 'replacing a custom GIF must still work when the slot is full');
+  assert.strictEqual(replacedAtLimit.catalog.slots.working.custom.length, 20);
+
+  const firstBuiltin = store.catalog().slots.working.active[0];
+  const removedBuiltin = store.removeAsset('working', firstBuiltin.id);
+  assert(removedBuiltin.ok, 'built-in GIFs must be individually removable');
+  assert.strictEqual(removedBuiltin.catalog.slots.working.active.length, Registry.SLOT_BY_ID.working.defaultFiles.length - 1);
+  assert.strictEqual(removedBuiltin.catalog.slots.working.mode, 'append');
+  assert.strictEqual(removedBuiltin.catalog.slots.working.custom.length, 0);
+  assert.strictEqual(store.removeAsset('idle', 'builtin:cat-idle.gif').error, 'last-asset', 'the final GIF in a state must be protected');
+
+  const secondBuiltin = removedBuiltin.catalog.slots.working.active[0];
+  const replacedBuiltin = await store.importGif(source, 'working', 'replace-one', { assetId: secondBuiltin.id });
+  assert(!replacedBuiltin.catalog.slots.working.active.some((asset) => asset.id === secondBuiltin.id));
+  assert(replacedBuiltin.catalog.slots.working.active.some((asset) => asset.id === replacedBuiltin.imported.id));
+  const replacedCustom = await store.importGif(source, 'working', 'replace-one', { assetId: replacedBuiltin.imported.id });
+  assert.strictEqual(store.assetPath(replacedBuiltin.imported.id), null, 'replacing a custom GIF must delete its superseded managed copy');
+  assert.strictEqual(replacedCustom.catalog.slots.working.active.length, replacedBuiltin.catalog.slots.working.active.length);
+  assert(store.removeAsset('working', replacedCustom.imported.id).ok, 'a selected custom GIF must remain removable');
+  const restoredSelections = store.resetSlot('working');
+  assert.strictEqual(restoredSelections.catalog.slots.working.active.length, Registry.SLOT_BY_ID.working.defaultFiles.length);
+
   const appended = await store.importGif(source, 'working', 'append');
   assert.strictEqual(appended.catalog.slots.working.mode, 'append');
   assert.strictEqual(appended.catalog.slots.working.custom.length, 1);

@@ -732,9 +732,10 @@ function registerIpc() {
     if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
       return { ok: false, error: 'forbidden', message: '只能在设置窗口中导入表情' };
     }
+    const replacing = mode === 'replace' || mode === 'replace-one';
     const picked = await dialog.showOpenDialog(settingsWin, {
-      title: mode === 'replace' ? '选择要替换为的新表情 GIF' : '选择要补充的新表情 GIF',
-      buttonLabel: mode === 'replace' ? '选择并替换' : '选择并添加',
+      title: replacing ? '选择用于替换的新表情 GIF' : '选择要新增的表情 GIF',
+      buttonLabel: replacing ? '选择并替换' : '选择并添加',
       properties: ['openFile'],
       filters: [{ name: 'GIF 动画', extensions: ['gif'] }],
     });
@@ -882,8 +883,10 @@ function autoLaunchMatchOptions() {
   return options;
 }
 
-function autoLaunchSettings(enabled) {
-  return { ...autoLaunchMatchOptions(), openAtLogin: !!enabled };
+const LEGACY_AUTO_LAUNCH_NAMES = Object.freeze(['io.github.youraccount.workmeow']);
+
+function autoLaunchSettings(enabled, name = BRAND.appId) {
+  return { ...autoLaunchMatchOptions(), name, openAtLogin: !!enabled };
 }
 
 function autoLaunchSupported() {
@@ -913,6 +916,12 @@ function setAutoLaunch(enabled) {
   if (!autoLaunchSupported()) return { supported: false, enabled: false, ok: false, error: 'unsupported' };
   try {
     app.setLoginItemSettings(autoLaunchSettings(desired));
+    // Older development builds used a placeholder AppUserModelId as the Run
+    // value name. Removing that exact legacy entry prevents Windows from still
+    // launching the same executable after the current entry has been disabled.
+    for (const name of LEGACY_AUTO_LAUNCH_NAMES) {
+      app.setLoginItemSettings(autoLaunchSettings(false, name));
+    }
   } catch {
     return { ...getAutoLaunchStatus(), ok: false, error: 'write' };
   }

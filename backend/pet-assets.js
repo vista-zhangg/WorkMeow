@@ -50,10 +50,17 @@ function sanitizeManifest(value) {
     const source = value.slots[slotId];
     if (!source || typeof source !== 'object' || !Array.isArray(source.assets)) continue;
     const assets = source.assets.map(sanitizeRecord).filter(Boolean).slice(0, MAX_CUSTOM_PER_SLOT);
-    if (!assets.length) continue;
+    const defaults = REGISTRY.SLOT_BY_ID[slotId].defaultFiles;
+    let excludedDefaults = Array.isArray(source.excludedDefaults)
+      ? [...new Set(source.excludedDefaults.filter((file) => defaults.includes(file)))]
+      : [];
+    // A damaged or hand-edited manifest must never leave a state with no GIF.
+    if (!assets.length && excludedDefaults.length >= defaults.length) excludedDefaults = excludedDefaults.slice(0, -1);
+    if (!assets.length && !excludedDefaults.length) continue;
     out.slots[slotId] = {
-      mode: source.mode === 'replace' ? 'replace' : 'append',
+      mode: source.mode === 'replace' && assets.length ? 'replace' : 'append',
       assets,
+      excludedDefaults,
     };
   }
   return out;
@@ -102,17 +109,19 @@ class PetAssetStore {
     for (const slot of REGISTRY.SLOTS) {
       const saved = manifest.slots[slot.id];
       const custom = saved ? saved.assets.map((record) => this.customRef(record)) : [];
-      const builtins = slot.defaultFiles.map((file) => ({
+      const excluded = new Set(saved ? saved.excludedDefaults : []);
+      const builtins = slot.defaultFiles.filter((file) => !excluded.has(file)).map((file) => ({
         id: `builtin:${file}`,
         kind: 'builtin',
         name: file,
         url: `../assets/cat/${file}`,
       }));
       const replace = !!(saved && saved.mode === 'replace' && custom.length);
+      const modified = !!(saved && (custom.length || excluded.size));
       slots[slot.id] = {
         id: slot.id,
-        mode: replace ? 'replace' : custom.length ? 'append' : 'default',
-        usingDefaults: !replace,
+        mode: replace ? 'replace' : modified ? 'append' : 'default',
+        usingDefaults: !replace && builtins.length > 0,
         active: replace ? custom : [...builtins, ...custom],
         custom,
       };
@@ -122,10 +131,16 @@ class PetAssetStore {
 
   async importGif(sourcePath, slotId, mode = 'append', options = {}) {
     if (!REGISTRY.SLOT_BY_ID[slotId]) throw new GifImportError('invalid-slot', '请选择要应用的状态');
-    if (!['append', 'replace'].includes(mode)) throw new GifImportError('invalid-mode', '不支持的添加方式');
+    if (!['append', 'replace', 'replace-one'].includes(mode)) throw new GifImportError('invalid-mode', '不支持的添加方式');
     const manifest = this.readManifest();
-    const current = manifest.slots[slotId] || { mode: 'append', assets: [] };
-    if (mode === 'append' && current.assets.length >= MAX_CUSTOM_PER_SLOT) {
+    const current = manifest.slots[slotId] || { mode: 'append', assets: [], excludedDefaults: [] };
+    const targetId = typeof options.assetId === 'string' ? options.assetId : '';
+    const target = mode === 'replace-one'
+      ? this.catalog(manifest).slots[slotId].active.find((asset) => asset.id === targetId)
+      : null;
+    if (mode === 'replace-one' && !target) throw new GifImportError('invalid-target', '请选择当前播放列表中的一个表情');
+    const addsCustom = mode === 'append' || (mode === 'replace-one' && target.kind === 'builtin');
+    if (addsCustom && current.assets.length >= MAX_CUSTOM_PER_SLOT) {
       throw new GifImportError('slot-limit', `每个状态最多添加 ${MAX_CUSTOM_PER_SLOT} 个自定义表情`);
     }
     let resolvedSource;
@@ -149,12 +164,36 @@ class PetAssetStore {
     } finally {
       try { fs.unlinkSync(tempPath); } catch {}
     }
-    const stale = mode === 'replace' ? current.assets.slice() : [];
-    const nextMode = mode === 'replace' ? 'replace' : current.mode === 'replace' ? 'replace' : 'append';
-    manifest.slots[slotId] = {
-      mode: nextMode,
-      assets: mode === 'replace' ? [record] : [...current.assets, record],
-    };
+    let stale = [];
+    if (mode === 'replace') {
+      stale = current.assets.slice();
+      manifest.slots[slotId] = { mode: 'replace', assets: [record], excludedDefaults: [] };
+    } else if (mode === 'replace-one' && target.kind === 'custom') {
+      const old = current.assets.find((item) => item.id === target.id);
+      if (!old) {
+        try { fs.unlinkSync(finalPath); } catch {}
+        throw new GifImportError('invalid-target', '要替换的表情已不在当前播放列表中');
+      }
+      stale = [old];
+      manifest.slots[slotId] = {
+        mode: current.mode,
+        assets: current.assets.map((item) => item.id === target.id ? record : item),
+        excludedDefaults: current.excludedDefaults,
+      };
+    } else if (mode === 'replace-one') {
+      const file = target.id.slice('builtin:'.length);
+      manifest.slots[slotId] = {
+        mode: current.mode,
+        assets: [...current.assets, record],
+        excludedDefaults: [...new Set([...current.excludedDefaults, file])],
+      };
+    } else {
+      manifest.slots[slotId] = {
+        mode: current.mode === 'replace' ? 'replace' : 'append',
+        assets: [...current.assets, record],
+        excludedDefaults: current.excludedDefaults,
+      };
+    }
     try {
       this.writeManifest(manifest);
     } catch (error) {
@@ -166,16 +205,28 @@ class PetAssetStore {
   }
 
   removeAsset(slotId, assetId) {
-    if (!REGISTRY.SLOT_BY_ID[slotId] || !isAssetId(assetId)) return { ok: false, error: 'invalid' };
+    const definition = REGISTRY.SLOT_BY_ID[slotId];
+    if (!definition || typeof assetId !== 'string') return { ok: false, error: 'invalid' };
     const manifest = this.readManifest();
-    const current = manifest.slots[slotId];
-    if (!current) return { ok: false, error: 'missing' };
-    const removed = current.assets.find((record) => record.id === assetId);
-    if (!removed) return { ok: false, error: 'missing' };
-    current.assets = current.assets.filter((record) => record.id !== assetId);
-    if (!current.assets.length) delete manifest.slots[slotId];
+    const slot = this.catalog(manifest).slots[slotId];
+    const active = slot.active.find((asset) => asset.id === assetId);
+    if (!active) return { ok: false, error: 'missing' };
+    if (slot.active.length <= 1) return { ok: false, error: 'last-asset' };
+    const current = manifest.slots[slotId] || { mode: 'append', assets: [], excludedDefaults: [] };
+    let removed = null;
+    if (active.kind === 'custom') {
+      removed = current.assets.find((record) => record.id === assetId);
+      if (!removed) return { ok: false, error: 'missing' };
+      current.assets = current.assets.filter((record) => record.id !== assetId);
+    } else {
+      const file = assetId.slice('builtin:'.length);
+      if (!definition.defaultFiles.includes(file) || current.mode === 'replace') return { ok: false, error: 'invalid' };
+      current.excludedDefaults = [...new Set([...current.excludedDefaults, file])];
+    }
+    if (!current.assets.length && !current.excludedDefaults.length) delete manifest.slots[slotId];
+    else manifest.slots[slotId] = current;
     this.writeManifest(manifest);
-    this.deleteRecordFile(removed);
+    if (removed) this.deleteRecordFile(removed);
     return { ok: true, catalog: this.catalog() };
   }
 

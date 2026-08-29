@@ -15,6 +15,7 @@ const assetGallery = $('asset-gallery');
 const assetStatus = $('asset-status');
 const assetAdd = $('asset-add');
 const assetReplace = $('asset-replace');
+const assetRemove = $('asset-remove');
 const assetReset = $('asset-reset');
 const removeBackground = $('remove-bg-toggle');
 const DEFAULT_XIABAN_TIMES = Object.freeze({ lunch: '10:55', evening: '16:55' });
@@ -156,7 +157,8 @@ function currentSlotDefinition() { return ASSETS.SLOT_BY_ID[selectedSlotId] || A
 function currentSlotData() { return assetCatalog.slots[selectedSlotId] || ASSETS.defaultCatalog().slots[selectedSlotId]; }
 function assetCountLabel(slot) {
   if (slot.mode === 'replace') return `${slot.active.length} 个 · 已替换`;
-  if (slot.custom.length) return `${slot.active.length} 个 · 新增 ${slot.custom.length}`;
+  if (slot.custom.length) return `${slot.active.length} 个 · 自定义 ${slot.custom.length}`;
+  if (slot.mode !== 'default') return `${slot.active.length} 个 · 已调整`;
   return `${slot.active.length} 个默认表情`;
 }
 
@@ -218,8 +220,8 @@ function renderGallery() {
     section.append(heading, grid);
     assetGallery.appendChild(section);
   }
-  const customCount = ASSETS.SLOTS.reduce((sum, def) => sum + assetCatalog.slots[def.id].custom.length, 0);
-  $('asset-summary').textContent = customCount ? `已添加 ${customCount} 个自定义表情` : '当前全部使用默认表情';
+  const modifiedCount = ASSETS.SLOTS.filter((def) => assetCatalog.slots[def.id].mode !== 'default').length;
+  $('asset-summary').textContent = modifiedCount ? `已调整 ${modifiedCount} 个状态` : '当前全部使用默认表情';
 }
 
 function selectPreview(assetId) {
@@ -228,13 +230,13 @@ function selectPreview(assetId) {
 }
 
 function describeAsset(asset) {
-  if (asset.kind === 'builtin') return '内置表情 · 120×120';
+  if (asset.kind === 'builtin') return `默认 · ${asset.name} · 120×120`;
   const meta = asset.meta || {};
   const frames = Number(meta.frames) || 1;
   const duration = Number(meta.durationMs) || 0;
   const background = meta.backgroundMode === 'removed-solid' ? '已清理纯色背景'
     : meta.backgroundMode === 'preserved-transparency' ? '保留透明背景' : '保留原背景';
-  return `自定义 · ${frames} 帧${duration ? ` · ${(duration / 1000).toFixed(1)} 秒` : ''} · ${background}`;
+  return `自定义 · ${asset.name} · ${frames} 帧${duration ? ` · ${(duration / 1000).toFixed(1)} 秒` : ''} · ${background}`;
 }
 
 function createVariant(asset) {
@@ -254,19 +256,6 @@ function createVariant(asset) {
   card.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); }
   });
-  if (asset.kind === 'custom') {
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'variant-remove';
-    remove.textContent = '✕';
-    remove.title = '删除这个自定义表情';
-    remove.setAttribute('aria-label', `删除 ${asset.name}`);
-    remove.addEventListener('click', (event) => {
-      event.stopPropagation();
-      removeExpression(asset);
-    });
-    card.appendChild(remove);
-  }
   return card;
 }
 
@@ -284,12 +273,18 @@ function renderInspector() {
   $('asset-detail-preview').src = selected.url;
   $('asset-detail-preview').alt = `${definition.label}：${selected.name}`;
   $('asset-detail-meta').textContent = describeAsset(selected);
-  $('asset-mode-badge').textContent = slot.mode === 'replace' ? '仅使用自定义' : slot.custom.length ? '默认 + 自定义轮换' : '默认轮换';
+  $('asset-detail-meta').title = selected.name;
+  $('asset-mode-badge').textContent = slot.mode === 'replace' ? '仅使用自定义'
+    : slot.custom.length && slot.usingDefaults ? '默认 + 自定义轮换'
+      : slot.custom.length ? '自定义轮换'
+        : slot.mode !== 'default' ? '已隐藏部分默认' : '默认轮换';
   const variants = $('asset-variants');
   variants.replaceChildren(...slot.active.map(createVariant));
-  assetReset.disabled = assetBusy || slot.custom.length === 0;
+  assetReset.disabled = assetBusy || slot.mode === 'default';
   assetAdd.disabled = assetBusy;
   assetReplace.disabled = assetBusy;
+  assetRemove.disabled = assetBusy || slot.active.length <= 1;
+  assetRemove.title = slot.active.length <= 1 ? '每个状态至少要保留一个表情' : `从播放列表移出“${selected.name}”`;
 }
 
 function renderAssets() {
@@ -302,21 +297,27 @@ function setAssetBusy(next) {
   assetBusy = next;
   assetAdd.disabled = next;
   assetReplace.disabled = next;
-  assetReset.disabled = next || currentSlotData().custom.length === 0;
+  assetRemove.disabled = next || currentSlotData().active.length <= 1;
+  assetReset.disabled = next || currentSlotData().mode === 'default';
   removeBackground.disabled = next;
 }
 
 async function importExpression(mode) {
   if (assetBusy) return;
   const definition = currentSlotDefinition();
-  if (mode === 'replace') {
-    const confirmed = window.confirm(`确定替换“${definition.label}”的整组表情吗？\n\n替换后只播放新选择的 GIF；默认和旧的自定义表情不会继续播放。你仍可一键恢复默认。`);
+  const selected = currentSlotData().active.find((asset) => asset.id === selectedAssetId) || currentSlotData().active[0];
+  if (mode === 'replace-one') {
+    const irreversible = selected.kind === 'custom' ? '\n\n旧的自定义副本会从打工喵中删除，原始 GIF 文件不受影响。' : '';
+    const confirmed = window.confirm(`用新的 GIF 替换当前选中的“${selected.name}”吗？${irreversible}`);
     if (!confirmed) return;
   }
   setAssetBusy(true);
   showAssetStatus('请选择一个 GIF。选中后会自动处理背景、尺寸和动画帧，请稍候…', '', true);
   try {
-    const result = await window.pet.importPetGif(selectedSlotId, mode, { removeBackground: removeBackground.checked });
+    const result = await window.pet.importPetGif(selectedSlotId, mode, {
+      removeBackground: removeBackground.checked,
+      assetId: mode === 'replace-one' ? selected.id : undefined,
+    });
     if (!result || result.canceled) {
       showAssetStatus('没有选择文件，当前表情保持不变。');
       return;
@@ -329,7 +330,9 @@ async function importExpression(mode) {
     selectedAssetId = result.imported && result.imported.id;
     renderAssets();
     const warning = Array.isArray(result.warnings) && result.warnings.length ? ` ${result.warnings.join('；')}。` : '';
-    showAssetStatus(mode === 'replace' ? `已替换“${definition.label}”。${warning}` : `已为“${definition.label}”新增一个轮换表情。${warning}`, 'success');
+    showAssetStatus(mode === 'replace-one'
+      ? `已替换“${definition.label}”中选中的表情。${warning}`
+      : `已为“${definition.label}”新增一个轮换表情。${warning}`, 'success');
   } catch {
     showAssetStatus('GIF 导入失败，请稍后重试。', 'error');
   } finally {
@@ -337,24 +340,36 @@ async function importExpression(mode) {
   }
 }
 
-async function removeExpression(asset) {
-  if (assetBusy || asset.kind !== 'custom') return;
-  if (!window.confirm(`删除自定义表情“${asset.name}”吗？\n\n删除后无法从打工喵中恢复，原始 GIF 文件不会受到影响。`)) return;
+async function removeSelectedExpression() {
+  const slot = currentSlotData();
+  const asset = slot.active.find((item) => item.id === selectedAssetId) || slot.active[0];
+  if (assetBusy || !asset || slot.active.length <= 1) return;
+  const definition = currentSlotDefinition();
+  const detail = asset.kind === 'custom'
+    ? '\n\n自定义副本会从打工喵中删除，原始 GIF 文件不受影响。'
+    : '\n\n可随时通过“恢复默认”重新启用它。';
+  if (!window.confirm(`从“${definition.label}”的播放列表中移出“${asset.name}”吗？${detail}`)) return;
   setAssetBusy(true);
-  showAssetStatus('正在删除自定义表情…', '', true);
+  showAssetStatus('正在移出选中的表情…', '', true);
   try {
     const result = await window.pet.removePetAsset(selectedSlotId, asset.id);
-    if (!result || !result.ok) throw new Error('remove failed');
+    if (!result || !result.ok) {
+      if (result && result.error === 'last-asset') {
+        showAssetStatus('每个状态至少要保留一个表情；请先新增或替换。', 'error');
+        return;
+      }
+      throw new Error('remove failed');
+    }
     assetCatalog = ASSETS.normalizeCatalog(result.catalog);
     selectedAssetId = null;
     renderAssets();
-    showAssetStatus('自定义表情已删除；播放列表已立即更新。', 'success');
-  } catch { showAssetStatus('删除失败，请重试。', 'error'); }
+    showAssetStatus('选中的表情已移出；播放列表已立即更新。', 'success');
+  } catch { showAssetStatus('移出失败，请重试。', 'error'); }
   finally { setAssetBusy(false); }
 }
 
 async function resetSlot() {
-  if (assetBusy || !currentSlotData().custom.length) return;
+  if (assetBusy || currentSlotData().mode === 'default') return;
   const definition = currentSlotDefinition();
   if (!window.confirm(`恢复“${definition.label}”的默认表情吗？\n\n这个状态下添加的所有自定义表情都会从打工喵中删除。原始 GIF 文件不会受到影响。`)) return;
   setAssetBusy(true);
@@ -380,7 +395,8 @@ toggle.addEventListener('click', toggleAutoLaunch);
 xiabanSave.addEventListener('click', () => saveXiabanSchedule());
 xiabanReset.addEventListener('click', () => saveXiabanSchedule(DEFAULT_XIABAN_TIMES));
 assetAdd.addEventListener('click', () => importExpression('append'));
-assetReplace.addEventListener('click', () => importExpression('replace'));
+assetReplace.addEventListener('click', () => importExpression('replace-one'));
+assetRemove.addEventListener('click', removeSelectedExpression);
 assetReset.addEventListener('click', resetSlot);
 for (const tab of document.querySelectorAll('.settings-tab')) tab.addEventListener('click', () => setTab(tab.dataset.tab));
 if (window.pet.onPetAssets) window.pet.onPetAssets((catalog) => {

@@ -12,7 +12,7 @@ const css = read('renderer/settings.css');
 const main = read('main.js');
 const preload = read('preload.js');
 
-for (const id of ['tab-expressions', 'asset-gallery', 'asset-inspector', 'asset-add', 'asset-replace',
+for (const id of ['tab-expressions', 'asset-gallery', 'asset-inspector', 'asset-add', 'asset-replace', 'asset-remove',
   'asset-reset', 'asset-variants', 'remove-bg-toggle']) {
   assert(html.includes(`id="${id}"`), `settings must expose ${id}`);
 }
@@ -20,10 +20,13 @@ assert(/img-src 'self' data: workmeow-asset:/.test(html), 'settings CSP must all
 assert(html.includes('../shared/pet-assets.js'), 'settings must use the shared visual slot registry');
 assert(/importPetGif\(selectedSlotId, mode/.test(js), 'the selected slot must drive imports');
 assert(/importExpression\('append'\)/.test(js), 'adding a GIF must preserve the current playlist');
-assert(/importExpression\('replace'\)/.test(js), 'replacing a state must be an explicit separate action');
-assert(/removePetAsset/.test(js) && /resetPetSlot/.test(js), 'custom entries must be removable and resettable');
+assert(/importExpression\('replace-one'\)/.test(js) && /assetId: mode === 'replace-one'/.test(js),
+  'replacement must target the selected playlist item');
+assert(/assetRemove\.addEventListener/.test(js) && /removePetAsset/.test(js) && /resetPetSlot/.test(js),
+  'selected built-in or custom entries must be removable and the state must be resettable');
 assert(/window\.confirm/.test(js), 'destructive playlist operations must require confirmation');
-assert(/checkerboard/.test(css) && /asset-grid/.test(css), 'the gallery must make transparency and every state visually reviewable');
+assert(/checkerboard/.test(css) && /asset-grid/.test(css) && /asset-action\.danger/.test(css),
+  'the gallery must make transparency, every state, and destructive actions visually clear');
 assert(/e\.sender !== settingsWin\.webContents/.test(main), 'mutating asset IPC must reject non-settings renderers');
 assert(/filters: \[\{ name: 'GIF 动画', extensions: \['gif'\]/.test(main), 'native picker must be restricted to GIF files');
 assert(/PET_ASSETS: 'pet-assets:changed'/.test(preload), 'live asset changes must be exposed to renderers');

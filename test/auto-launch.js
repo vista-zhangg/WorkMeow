@@ -15,6 +15,8 @@ const i18n = require('../shared/i18n');
 
 assert(/app\.getLoginItemSettings\(autoLaunchMatchOptions\(\)\)/.test(main), 'settings must read the current auto-launch state');
 assert(/app\.setLoginItemSettings\(autoLaunchSettings\(desired\)\)/.test(main), 'settings must update the auto-launch state');
+assert(/LEGACY_AUTO_LAUNCH_NAMES/.test(main) && /autoLaunchSettings\(false, name\)/.test(main),
+  'disabling auto-launch must remove legacy registry entries for the same executable');
 assert(/executableWillLaunchAtLogin/.test(main), 'Windows settings must use the executable launch status');
 assert(/function openSettings\(\)/.test(main) && /settings\.html/.test(main), 'tray must open the settings window');
 assert(/tray\.settings/.test(main), 'tray menu must expose a settings entry');

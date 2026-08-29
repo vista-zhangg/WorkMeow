@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.5.0-F6A04A" alt="Version 1.5.0">
+    <img src="https://img.shields.io/badge/version-1.5.1-F6A04A" alt="Version 1.5.1">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -28,7 +28,7 @@
 
 - **一只喵，五个 Agent**：统一监控 Claude Code、Codex、TRAE、WorkBuddy 和 opencode。
 - **状态一眼可见**：工作、思考、并行、清理、等待授权、等待回复、完成、出错、摸鱼与睡眠。
-- **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换整组、删除补充或一键恢复默认。
+- **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
 - **本地优先**：会话与统计数据留在本机；唯一的常规外联是下载 models.dev 公共模型价目表。
@@ -57,9 +57,9 @@
 
 在任务栏托盘打开“设置”，切换到“喵咪表情”，即可看到工作、反馈和闲时全部状态。选择状态后可以：
 
-- “新增轮换”保留当前表情，把新 GIF 加入随机轮换；
-- “替换整组”只使用新 GIF，适合完整换肤；之后仍可继续补充同组表情；
-- 删除某个自定义 GIF，或“恢复默认”清空该状态的所有自定义内容。
+- “新增”保留当前表情，把新 GIF 加入随机轮换；
+- 在播放列表中选中任意默认或自定义 GIF 后，可单独替换或移出；内置文件不会删除，自定义原始文件也不受影响；
+- 每个状态至少保留一个表情；“恢复默认”会撤销该状态的全部调整。
 
 导入流程会把 GIF 统一适配为桌宠使用的 120 × 120 画布，并尽量移除与主体分离的纯色背景。透明背景会原样保留；复杂背景不会强行抠图，以免破坏主体，设置页会给出提示。支持最大 12 MB、2048 × 2048、180 帧、60 秒的 GIF，每个状态最多保存 20 个自定义表情。
 

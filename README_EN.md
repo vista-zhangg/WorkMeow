@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.5.0-F6A04A" alt="Version 1.5.0">
+    <img src="https://img.shields.io/badge/version-1.5.1-F6A04A" alt="Version 1.5.1">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -26,7 +26,7 @@ Switching between several agent windows just to check progress is distracting. W
 
 - **One cat, five agents** — Claude Code, Codex, TRAE, WorkBuddy, and opencode.
 - **Status at a glance** — working, thinking, parallel tasks, compaction, permission waits, user input, completion, errors, breaks, and sleep.
-- **Custom expressions** — browse every state GIF, add rotating variants, replace a set, remove additions, or restore defaults.
+- **Custom expressions** — browse every state GIF, add rotating variants, replace or remove a selected item, or restore defaults.
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
 - **Unified usage view** — tokens, cache reads and writes, context windows, models, daily trends, and API-price estimates.
 - **Local-first operation** — conversations and usage stay on the machine; the regular optional network request only downloads public model pricing from models.dev.
@@ -56,8 +56,8 @@ Switching between several agent windows just to check progress is distracting. W
 Open Settings from the system tray and select **Cat expressions** to browse every work, feedback, and ambient state. For the selected state you can:
 
 - keep the current expressions and **add a rotating variant**;
-- **replace the whole set** with a new GIF, then add more variants later;
-- remove one custom GIF or restore the state to its built-in defaults.
+- select any built-in or custom GIF in the playlist and replace or remove only that item; built-in files and imported source files are never deleted;
+- keep at least one GIF per state, or restore all of the state's built-in defaults at once.
 
 Imports are fitted to WorkMeow's 120 × 120 pet canvas. Transparent backgrounds are preserved, while a detached solid-color border is removed when it can be detected safely. Complex backgrounds are kept to avoid damaging the subject, with a warning shown in Settings. Limits are 12 MB, 2048 × 2048, 180 frames, and 60 seconds per GIF; each state accepts up to 20 custom expressions.
 
