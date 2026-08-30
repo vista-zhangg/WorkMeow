@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.6.0-F6A04A" alt="Version 1.6.0">
+    <img src="https://img.shields.io/badge/version-1.6.1-F6A04A" alt="Version 1.6.1">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -27,7 +27,7 @@
 当多个 Agent 同时工作时，频繁切换窗口查看状态很容易打断思路。WorkMeow 把本机上的会话汇聚为一个常驻桌面的小窗口：忙时开工、需要你时举手、结束时提醒，还能在统一面板中查看用量与上下文。
 
 - **一只喵，五个 Agent**：统一监控 Claude Code、Codex、TRAE、WorkBuddy 和 opencode。
-- **状态一眼可见**：工作、思考、并行、清理、等待授权、等待回复、完成、出错、摸鱼与睡眠。
+- **状态一眼可见**：工作、思考、并行、清理、等待授权、等待回复、完成、出错、摸鱼与睡眠；后台任务或定时唤醒未结束时保持运行，不提前报完成。
 - **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。

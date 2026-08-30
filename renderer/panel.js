@@ -3,6 +3,7 @@
 const $ = (id) => document.getElementById(id);
 let lastOpKey = null;
 const t = (key, vars) => window.WorkMeowI18n.t(key, vars);
+const backgroundStatus = (session) => window.WorkMeowI18n.backgroundStatus(session);
 
 let hoursSummary = '';
 let usageMetric = 'tokens';
@@ -348,9 +349,13 @@ function renderSessList(sessions) {
         : s.state === 'idle' && s.badge === 'interrupted' ? 'error'
         : s.state;
       const m = STATE_META[effState] || STATE_META.idle;
+      const background = backgroundStatus(s);
+      const showBackground = background
+        && (effState === 'working' || effState === 'juggling' || effState === 'sweeping' || effState === 'thinking');
       const detail =
         effState === 'waiting' ? escapeHtml(s.reason ? t('wait.' + s.reason) : t('wait.default'))
         : effState === 'needsinput' ? escapeHtml((s.choice && s.choice.question) || t('state.needsinput'))
+        : showBackground ? escapeHtml(background)
         : (effState === 'working' || effState === 'juggling' || effState === 'sweeping' || effState === 'thinking') && s.op ? escapeHtml(s.op)
         : escapeHtml(t(m.key));
       const context = contextLabel(s.contextPercent);

@@ -156,6 +156,11 @@
     'state.greet': '新会话',
     'state.talking': '回应中',
 
+    // ── background work ─────────────────────────────────────────
+    'background.tasks': '后台任务 {count} 项',
+    'background.crons': '定时等待 {count} 项',
+    'background.mixed': '后台 {tasks} 项 · 定时 {crons} 项',
+
     // ── tool labels ─────────────────────────────────────────────────────────
     'tool.Edit': '编辑文件',
     'tool.Write': '写文件',
@@ -358,5 +363,18 @@
     return fill(raw, vars);
   }
 
-  return { DICT, t };
+  function backgroundStatus(session) {
+    const normalize = (value) => {
+      const count = Number(value);
+      return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+    };
+    const tasks = normalize(session && session.backgroundTasksCount);
+    const crons = normalize(session && session.sessionCronsCount);
+    if (tasks > 0 && crons > 0) return t('background.mixed', { tasks, crons });
+    if (tasks > 0) return t('background.tasks', { count: tasks });
+    if (crons > 0) return t('background.crons', { count: crons });
+    return '';
+  }
+
+  return { DICT, t, backgroundStatus };
 });

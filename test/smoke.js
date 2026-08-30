@@ -318,17 +318,70 @@ async function main() {
     });
   }
 
-  console.log('\n[9] Stop 完成门：被抑制的 Stop 不显示 done 徽标');
+  console.log('\n[9] Stop 完成门：后台任务未结束时保持运行');
   const supSid = 'suppressed-stop-gggg';
   await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: supSid, cwd: '/Users/me/proj-sup' });
-  await post('/state', { state: 'attention', event: 'Stop', session_id: supSid, cwd: '/Users/me/proj-sup', background_tasks_count: 2 });
+  const backgroundTurnStartedAt = core.getSession(supSid).turnStartedAt;
+  await post('/state', {
+    state: 'attention', event: 'Stop', session_id: supSid, cwd: '/Users/me/proj-sup',
+    background_tasks_count: 2, session_crons_count: 1,
+  });
   {
     const s9 = core.getSession(supSid);
-    check('抑制的 Stop 不置 requiresCompletionAck', () => assert.strictEqual(!!s9.requiresCompletionAck, false));
+    check('后台 Stop 保持 working 且不置完成标记', () => {
+      assert.strictEqual(s9.state, 'working');
+      assert.strictEqual(!!s9.requiresCompletionAck, false);
+      assert.strictEqual(s9.turnStartedAt, backgroundTurnStartedAt);
+    });
     const st = adapter.buildPetStats(core.buildSnapshot(), [], null);
     const e9 = st.sessions.find((x) => x.sessionId === supSid);
-    check('徽标为 idle 而非 done（deriveBadge 不再被 Stop 事件击穿）', () => assert.strictEqual(e9.badge, 'idle'));
+    check('快照传递后台/定时数量并显示运行徽标', () => {
+      assert.strictEqual(e9.state, 'working');
+      assert.strictEqual(e9.badge, 'running');
+      assert.strictEqual(e9.backgroundActive, true);
+      assert.strictEqual(e9.backgroundTasksCount, 2);
+      assert.strictEqual(e9.sessionCronsCount, 1);
+    });
     check('无 turn-done 庆祝事件', () => assert(!events.some((e) => e.kind === 'turn-done' && e.project === 'proj-sup')));
+    await post('/state', { state: 'idle', event: 'IdleNotification', session_id: supSid });
+    core.sessions.get(supSid).updatedAt = Date.now() - 31 * 60 * 1000;
+    core.cleanStaleSessions();
+    check('空闲通知、5 分钟忙碌兜底和 30 分钟无 PID 回收不打断已知后台任务', () => {
+      assert.strictEqual(core.getSession(supSid).state, 'working');
+      assert.strictEqual(core.getSession(supSid).backgroundActive, true);
+    });
+
+    // A later Stop with empty registries is the actual completion boundary.
+    // stop_hook_active only reports that a previous Stop hook continued Claude;
+    // it is not evidence of remaining background work on this Stop.
+    const completedBefore = events.filter((e) => e.kind === 'turn-done' && e.project === 'proj-sup').length;
+    await post('/state', {
+      state: 'attention', event: 'Stop', session_id: supSid, cwd: '/Users/me/proj-sup',
+      background_tasks_count: 0, session_crons_count: 0, stop_hook_active: true,
+    });
+    const finalSession = core.getSession(supSid);
+    const finalStats = adapter.buildPetStats(core.buildSnapshot(), [], null);
+    const finalEntry = finalStats.sessions.find((x) => x.sessionId === supSid);
+    check('后台清空后才完成并清理后台状态', () => {
+      assert.strictEqual(finalSession.state, 'idle');
+      assert.strictEqual(finalSession.turnStartedAt, 0);
+      assert.strictEqual(finalSession.backgroundActive, false);
+      assert.strictEqual(finalEntry.badge, 'done');
+      assert.strictEqual(finalEntry.backgroundTasksCount, 0);
+      assert.strictEqual(finalEntry.sessionCronsCount, 0);
+      assert.strictEqual(events.filter((e) => e.kind === 'turn-done' && e.project === 'proj-sup').length, completedBefore + 1);
+    });
+
+    const cronOnlySid = 'cron-only-stop-hhhh';
+    await post('/state', {
+      state: 'attention', event: 'Stop', session_id: cronOnlySid,
+      session_crons_count: 1,
+    });
+    check('缺少前置事件时，定时等待 Stop 也会建立本轮计时', () => {
+      assert(core.getSession(cronOnlySid).turnStartedAt > 0);
+      assert.strictEqual(core.getSession(cronOnlySid).state, 'working');
+    });
+    await post('/state', { state: 'attention', event: 'Stop', session_id: cronOnlySid, session_crons_count: 0 });
   }
 
   console.log('\n[10] oneshot 衰减：error/sweeping 不再永久卡死');

@@ -57,6 +57,17 @@ const BACKFILL_MAX_AGE_MS = SESSION_STALE_MS; // on boot, seed sessions whose tr
 const BACKFILL_MAX = 15;                  // cap seeded sessions
 const RESULT_BADGE_TTL_MS = 2 * 60 * 1000;
 
+function positiveCount(value) {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function clearBackgroundActivity(session) {
+  session.backgroundActive = false;
+  session.backgroundTasksCount = 0;
+  session.sessionCronsCount = 0;
+}
+
 // The session's Claude Code transcript file. Prefer the real path CC hands us
 // (forwarded by the hook / captured during backfill); only fall back to deriving
 // it from cwd. CC encodes the project dir by replacing "/", "." AND "_" with "-"
@@ -137,7 +148,7 @@ function createCore(options = {}) {
     setField(s, 'model', f.model);
     if (f.contextUsage) s.contextUsage = f.contextUsage;
     s.idleNotifiedAt = Date.now();
-    if (BUSY_STATES.has(s.state)) {
+    if (BUSY_STATES.has(s.state) && !s.backgroundActive) {
       s.state = 'idle';
       onDirty();
     } else if (f.contextUsage) {
@@ -194,6 +205,11 @@ function createCore(options = {}) {
     let resolvedState = VALID_STATES.has(incomingState) ? incomingState : 'idle';
     let realCompletion = false;
 
+    // Background task metadata is a snapshot carried by Stop. A later real
+    // event takes over the foreground state, so it must not inherit an old
+    // "background running" label. The next Stop refreshes it if work remains.
+    if (event !== 'Stop') clearBackgroundActivity(s);
+
     // Subagent juggling: hold the "juggling" state through the subagent's tool
     // calls instead of letting the next working event overwrite it after one
     // step. Released by SubagentStop/UserPromptSubmit/Stop (non-tool events).
@@ -202,17 +218,22 @@ function createCore(options = {}) {
     }
 
     if (event === 'Stop') {
-      // #406 completion gate: a Stop with live background shells / cron wakeups /
-      // a stop-hook continuation is NOT a real turn completion.
-      const suppressed =
-        (Number(f.backgroundTasksCount) || 0) > 0 ||
-        (Number(f.sessionCronsCount) || 0) > 0 ||
-        f.stopHookActive === true;
-      if (suppressed) {
-        resolvedState = 'idle';
-        // A continuation/active background task must not inherit the previous
-        // turn's completion capsule. Otherwise a session that just resumed
-        // work can still be advertised as done until the next tool event.
+      const backgroundTasksCount = positiveCount(f.backgroundTasksCount);
+      const sessionCronsCount = positiveCount(f.sessionCronsCount);
+      const backgroundActive = backgroundTasksCount > 0 || sessionCronsCount > 0;
+      s.backgroundActive = backgroundActive;
+      s.backgroundTasksCount = backgroundTasksCount;
+      s.sessionCronsCount = sessionCronsCount;
+
+      // Claude Code defines these arrays as the completion boundary: a Stop
+      // with in-flight background work is a paused session waiting to wake,
+      // not an idle or completed turn. `stop_hook_active` alone only says a
+      // previous Stop hook continued the agent, so it must not suppress this
+      // Stop when both arrays are empty.
+      if (backgroundActive) {
+        resolvedState = 'working';
+        // Active background work must not inherit the previous turn's done
+        // capsule while it waits for the next wake-up.
         s.requiresCompletionAck = false;
         s.completionAt = 0;
       } else {
@@ -227,7 +248,9 @@ function createCore(options = {}) {
     }
 
     // preserve_state: some hooks ask us to keep the prior steady state.
-    if (f.preserveState === true && prev) resolvedState = prevState;
+    // Stop's background registry is the authoritative completion boundary and
+    // must not be overwritten by a generic preservation hint.
+    if (f.preserveState === true && prev && event !== 'Stop') resolvedState = prevState;
 
     // SessionEnd（含 /clear → sweeping）标记会话已结束：之后无论落在什么状态，
     // 陈旧清理都会按「已结束」回收，不再因终端 pid 还活着而永久留在列表里。
@@ -270,7 +293,9 @@ function createCore(options = {}) {
     // separately so the renderer never reports session age as task duration.
     if (event === 'UserPromptSubmit' || event === 'TaskStarted') s.turnStartedAt = now;
     else if (WORK_START_EVENTS.has(event) && !s.turnStartedAt) s.turnStartedAt = now;
-    if (event === 'Stop' || event === 'StopFailure' || event === 'TurnAborted' || event === 'SessionEnd') {
+    else if (event === 'Stop' && s.backgroundActive && !s.turnStartedAt) s.turnStartedAt = now;
+    if ((event === 'Stop' && !s.backgroundActive)
+      || event === 'StopFailure' || event === 'TurnAborted' || event === 'SessionEnd') {
       s.turnStartedAt = 0;
     }
 
@@ -336,6 +361,9 @@ function createCore(options = {}) {
       assistantLastOutput: typeof s.assistantLastOutput === 'string' ? s.assistantLastOutput : null,
       assistantLastOutputTruncated: !!s.assistantLastOutputTruncated,
       requiresCompletionAck: !!s.requiresCompletionAck,
+      backgroundActive: !!s.backgroundActive,
+      backgroundTasksCount: positiveCount(s.backgroundTasksCount),
+      sessionCronsCount: positiveCount(s.sessionCronsCount),
       lastEvent: s.lastEvent || null,
       lastEventTool: s.lastEventTool || null,
       createdAt: s.createdAt || 0,
@@ -446,6 +474,7 @@ function createCore(options = {}) {
         if (cu) s.contextUsage = cu;
         if (BUSY_STATES.has(s.state) && transcript.interruptedAfter(entries, s.lastEvent ? s.lastEvent.at : 0)) {
           s.state = 'idle';
+          clearBackgroundActivity(s);
           s.recentEvents = pushRecentEvent(s, 'idle', 'StopFailure', now); // 徽标 → 中断
           s.updatedAt = now;
           changed = true;
@@ -486,7 +515,10 @@ function createCore(options = {}) {
       // Oneshot decay backstop: error/attention/sweeping/carrying settle to idle
       // after their TTL if no further event arrives (StopFailure / /clear paths).
       const ttl = ONESHOT_TTL_MS[s.state];
-      if (ttl && idle > ttl) { s.state = 'idle'; changed = true; }
+      if (ttl && idle > ttl) {
+        s.state = s.backgroundActive ? 'working' : 'idle';
+        changed = true;
+      }
       if (s.requiresCompletionAck && now - Number(s.completionAt || 0) > RESULT_BADGE_TTL_MS) {
         s.requiresCompletionAck = false;
         s.completionAt = 0;
@@ -503,14 +535,14 @@ function createCore(options = {}) {
         sessions.delete(id); changed = true; continue;
       }
       // No terminal info at all + silent very long → remove.
-      if (alive === null && idle > SESSION_STALE_MS) {
+      if (alive === null && !s.backgroundActive && idle > SESSION_STALE_MS) {
         sessions.delete(id); changed = true; continue;
       }
       // Stuck working/thinking → settle to idle, but KEEP it visible.
       // 「卡死」的判定用 事件时间 和 transcript 产出时间 取较新者：慢长任务
       // （17 分钟一轮、token 缓慢增长）事件少但文件一直在写，不算卡死。
       const busyIdle = now - Math.max(s.updatedAt || 0, s.transcriptActiveAt || 0);
-      if (BUSY_STATES.has(s.state) && busyIdle > WORKING_STALE_MS) {
+      if (BUSY_STATES.has(s.state) && !s.backgroundActive && busyIdle > WORKING_STALE_MS) {
         s.state = 'idle'; changed = true;
       }
       // Idle sessions whose terminal is still alive stay visible (no auto-sleep)

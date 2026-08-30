@@ -413,6 +413,7 @@ const isInteracting = () => askActive && (askHover || document.activeElement ===
 
 // i18n: shared/i18n.js is loaded as a <script> before this file.
 const t = (key, vars) => window.WorkMeowI18n.t(key, vars);
+const backgroundStatus = (session) => window.WorkMeowI18n.backgroundStatus(session);
 // A reason arrives as a stable key ('reply'|'plan'|'perm'); older payloads may
 // still carry free text, so fall back to whatever came in.
 const waitPhrase = (reason) => (reason ? t('wait.' + reason) : t('wait.default'));
@@ -1191,6 +1192,8 @@ function peekSessionDetail(s) {
   if (effective === 'waiting') return waitPhrase(s.reason);
   if (effective === 'needsinput') return (s.choice && s.choice.question) || t('state.needsinput');
   if (effective === 'error') return t('peek.errorDetail');
+  const background = backgroundStatus(s);
+  if (background) return background;
   if (s.op) return s.op;
   const key = SESS_META_KEY[effective];
   return key ? t(key) : t('state.idle');
@@ -1784,7 +1787,7 @@ function renderContextCapsule(s) {
     title = `任务异常：${info.count} 项`;
   } else if (info.kind === 'active') {
     const icon = SESS_META_ICON[info.state] || '⚙️';
-    const stateText = t(SESS_META_KEY[info.state] || 'state.working');
+    const stateText = backgroundStatus(info.primary) || t(SESS_META_KEY[info.state] || 'state.working');
     const elapsed = info.primary && info.primary.turnStartedAt
       ? capsuleElapsed(now - Number(info.primary.turnStartedAt))
       : '';

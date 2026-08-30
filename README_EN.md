@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.6.0-F6A04A" alt="Version 1.6.0">
+    <img src="https://img.shields.io/badge/version-1.6.1-F6A04A" alt="Version 1.6.1">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -25,7 +25,7 @@
 Switching between several agent windows just to check progress is distracting. WorkMeow turns local agent activity into one small desktop companion: it works when your agents work, asks for attention when they need you, celebrates completed turns, and presents usage in one place.
 
 - **One cat, five agents** — Claude Code, Codex, TRAE, WorkBuddy, and opencode.
-- **Status at a glance** — working, thinking, parallel tasks, compaction, permission waits, user input, completion, errors, breaks, and sleep.
+- **Status at a glance** — working, thinking, parallel tasks, compaction, permission waits, user input, completion, errors, breaks, and sleep; background tasks and scheduled wakeups stay active until they actually clear.
 - **Custom expressions** — browse every state GIF, add rotating variants, replace or remove a selected item, or restore defaults.
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
 - **Unified usage view** — tokens, cache reads and writes, context windows, models, daily trends, and API-price estimates.
