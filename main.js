@@ -12,6 +12,7 @@ const os = require('os');
 const path = require('path');
 const { fileURLToPath, pathToFileURL } = require('url');
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, dialog, shell, protocol, net } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const BRAND = require('./shared/brand');
 const { IPC } = require('./shared/ipc-channels');
 const { PetAssetStore, isAssetId } = require('./backend/pet-assets');
@@ -49,6 +50,7 @@ const transport = require('./backend/transport');
 const env = require('./backend/env');
 const { migrateLegacyState } = require('./backend/paths');
 const i18n = require('./shared/i18n');
+const { createUpdateService } = require('./backend/updater');
 
 const t = i18n.t;
 const petAssetStore = new PetAssetStore();
@@ -81,6 +83,7 @@ let codexMetering = null; // Codex rollout 累计 token 台账（与状态 watch
 let workbuddyMetering = null; // WorkBuddy 转录 token 台账（只读，从 ~/.workbuddy/projects 扫描）
 let traeMetering = null; // TRAE agent 日志 token 台账（只读，从 Trae CN logs 扫描）
 let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.workmeow/opencode-usage.jsonl）
+let updateService = null;
 
 // 宠物窗口的交互状态（单宠，但保留 Map 结构以便安全处理渲染进程生命周期）。
 const petState = new Map(); // id → { agent, win, customSize, mouseIgnoring, dragId, dragSeq, lastEndedDragId }
@@ -362,6 +365,41 @@ function publishPetAssets(catalog = petAssetStore.catalog()) {
   sendPet(IPC.PET_ASSETS, catalog);
   sendWin(settingsWin, IPC.PET_ASSETS, catalog);
   return catalog;
+}
+
+function publishUpdateState(state) {
+  sendWin(settingsWin, IPC.UPDATE_STATE, state);
+  return state;
+}
+
+function promptDownloadedUpdate(state) {
+  const owner = settingsWin && !settingsWin.isDestroyed()
+    ? settingsWin
+    : (petWin && !petWin.isDestroyed() ? petWin : null);
+  const options = {
+    type: 'info',
+    title: t('update.readyTitle'),
+    message: t('update.readyMessage', { version: state.latestVersion || '' }),
+    detail: t('update.readyDetail'),
+    buttons: [t('update.restartNow'), t('update.later')],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  };
+  const prompt = owner ? dialog.showMessageBox(owner, options) : dialog.showMessageBox(options);
+  prompt.then(({ response }) => { if (response === 0 && updateService) updateService.install(); }).catch(() => {});
+}
+
+function initUpdateService() {
+  updateService = createUpdateService({
+    app,
+    updater: autoUpdater,
+    config,
+    shell,
+    onState: publishUpdateState,
+    onDownloaded: promptDownloadedUpdate,
+  });
+  updateService.start(true);
 }
 
 function registerPetAssetProtocol() {
@@ -773,6 +811,33 @@ function registerIpc() {
   ipcMain.on(IPC.CLOSE_PANEL, closePanel);
   ipcMain.handle(IPC.GET_AUTO_LAUNCH, () => getAutoLaunchStatus());
   ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_e, enabled) => setAutoLaunch(enabled));
+  ipcMain.handle(IPC.GET_UPDATE_STATE, () => updateService ? updateService.snapshot() : null);
+  ipcMain.handle(IPC.CHECK_FOR_UPDATES, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !updateService) {
+      return { ok: false, error: 'forbidden' };
+    }
+    return updateService.check(true);
+  });
+  ipcMain.handle(IPC.SET_AUTO_UPDATE, (e, enabled) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !updateService) {
+      return { ok: false, error: 'forbidden' };
+    }
+    return { ok: true, ...updateService.setAutoCheck(enabled) };
+  });
+  ipcMain.handle(IPC.DOWNLOAD_UPDATE, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !updateService) {
+      return { ok: false, error: 'forbidden' };
+    }
+    return updateService.download();
+  });
+  ipcMain.handle(IPC.INSTALL_UPDATE, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !updateService) return false;
+    return updateService.install();
+  });
+  ipcMain.handle(IPC.OPEN_UPDATE_PAGE, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !updateService) return false;
+    return updateService.openReleasePage();
+  });
   ipcMain.handle(IPC.GET_XIABAN_SCHEDULE, () => getXiabanSchedule());
   ipcMain.handle(IPC.SET_XIABAN_SCHEDULE, (_e, schedule) => setXiabanSchedule(schedule));
   ipcMain.handle(IPC.GET_PET_ASSETS, () => petAssetStore.catalog());
@@ -1069,6 +1134,7 @@ if (!gotTheLock) {
     bootBackend();
     createPetWindows();
     try { buildTray(); } catch {}
+    initUpdateService();
   });
 }
 

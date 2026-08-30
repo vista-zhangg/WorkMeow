@@ -42,6 +42,36 @@
         </section>
 
         <section class="settings-section">
+          <div class="section-kicker" data-i18n="settings.updateSection">版本更新</div>
+          <div class="setting-card">
+            <div class="setting-copy">
+              <div class="setting-title" data-i18n="settings.autoUpdateTitle">自动检查更新</div>
+              <div id="update-mode-description" class="setting-description">自动检查并下载安装版更新</div>
+            </div>
+            <button id="auto-update-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="自动检查更新">
+              <span class="switch-thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="update-card">
+            <div class="version-row">
+              <span><span data-i18n="settings.currentVersion">当前版本</span> <strong id="current-version">--</strong></span>
+              <span><span data-i18n="settings.latestVersion">最新版本</span> <strong id="latest-version">--</strong></span>
+            </div>
+            <div id="update-progress" class="update-progress" hidden>
+              <span id="update-progress-bar"></span>
+            </div>
+            <div class="update-actions">
+              <div id="update-status" class="setting-status" aria-live="polite"></div>
+              <div class="action-buttons">
+                <button id="update-check" class="subtle-button" type="button" data-i18n="settings.checkUpdate">立即检查</button>
+                <button id="update-action" class="done-button" type="button" hidden></button>
+              </div>
+            </div>
+            <p id="update-hint" class="hint"></p>
+          </div>
+        </section>
+
+        <section class="settings-section">
           <div class="section-kicker" data-i18n="settings.xiabanSection">下班彩蛋</div>
           <div class="schedule-card">
             <div class="setting-description schedule-description" data-i18n="settings.xiabanDescription">在指定时间播放下班动画和提示语</div>

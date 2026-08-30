@@ -6,6 +6,16 @@ const $ = (id) => document.getElementById(id);
 
 const toggle = $('auto-launch-toggle');
 const statusEl = $('setting-status');
+const updateToggle = $('auto-update-toggle');
+const updateModeDescription = $('update-mode-description');
+const currentVersionEl = $('current-version');
+const latestVersionEl = $('latest-version');
+const updateStatusEl = $('update-status');
+const updateCheck = $('update-check');
+const updateAction = $('update-action');
+const updateProgress = $('update-progress');
+const updateProgressBar = $('update-progress-bar');
+const updateHint = $('update-hint');
 const lunchTime = $('xiaban-lunch-time');
 const eveningTime = $('xiaban-evening-time');
 const xiabanStatusEl = $('xiaban-status');
@@ -23,6 +33,8 @@ const DEFAULT_XIABAN_TIMES = Object.freeze({ lunch: '10:55', evening: '16:55' })
 let enabled = false;
 let supported = true;
 let busy = false;
+let updateBusy = false;
+let updateState = null;
 let xiabanBusy = false;
 let assetBusy = false;
 let selectedSlotId = 'working';
@@ -85,6 +97,106 @@ async function toggleAutoLaunch() {
     else applyState(result, 'settings.failed', 'error');
   } catch { renderStatus('settings.failed', 'error'); }
   finally { busy = false; toggle.disabled = !supported; }
+}
+
+function updateStatusText(state) {
+  const version = state.latestVersion || '--';
+  switch (state.phase) {
+    case 'checking': return t('settings.updateChecking');
+    case 'up-to-date': return t('settings.updateLatest');
+    case 'available': return t('settings.updateAvailable', { version });
+    case 'downloading': return t('settings.updateDownloading', { percent: Math.round(state.progress || 0) });
+    case 'downloaded': return t('settings.updateDownloaded');
+    case 'error': return t('settings.updateFailed', { message: state.error || '未知错误' });
+    case 'development': return t('settings.updateDevelopment');
+    case 'unsupported': return t('settings.updateUnsupported');
+    default: return t('settings.updateIdle');
+  }
+}
+
+function renderUpdateState(next) {
+  updateState = next && typeof next === 'object' ? next : {
+    supported: false, mode: 'unsupported', autoCheck: false,
+    currentVersion: '--', latestVersion: null, phase: 'unsupported', progress: null,
+  };
+  const state = updateState;
+  const active = state.phase === 'checking' || state.phase === 'downloading';
+  updateToggle.setAttribute('aria-checked', String(!!state.autoCheck));
+  updateToggle.disabled = updateBusy || !state.supported;
+  currentVersionEl.textContent = state.currentVersion || '--';
+  latestVersionEl.textContent = state.latestVersion || '--';
+  updateCheck.disabled = updateBusy || !state.supported || active;
+  updateStatusEl.textContent = updateStatusText(state);
+  updateStatusEl.className = `setting-status${state.phase === 'error' ? ' error' : ''}${!state.supported ? ' unsupported' : ''}`;
+
+  const downloading = state.phase === 'downloading';
+  updateProgress.hidden = !downloading;
+  updateProgressBar.style.width = `${downloading ? Math.max(2, Number(state.progress) || 0) : 0}%`;
+
+  updateAction.hidden = true;
+  updateAction.dataset.action = '';
+  if (state.mode === 'portable' && state.phase === 'available') {
+    updateAction.hidden = false;
+    updateAction.dataset.action = 'open';
+    updateAction.textContent = t('settings.openDownload');
+  } else if (state.mode === 'installer' && state.phase === 'available') {
+    updateAction.hidden = false;
+    updateAction.dataset.action = 'download';
+    updateAction.textContent = t('settings.downloadUpdate');
+  } else if (state.mode === 'installer' && state.phase === 'downloaded') {
+    updateAction.hidden = false;
+    updateAction.dataset.action = 'install';
+    updateAction.textContent = t('settings.restartUpdate');
+  }
+  updateAction.disabled = updateBusy || active;
+
+  if (state.mode === 'installer') {
+    updateModeDescription.textContent = t('settings.installerUpdateDescription');
+    updateHint.textContent = t('settings.updateInstallerHint');
+  } else if (state.mode === 'portable') {
+    updateModeDescription.textContent = t('settings.portableUpdateDescription');
+    updateHint.textContent = t('settings.updatePortableHint');
+  } else {
+    updateModeDescription.textContent = t('settings.developmentUpdateDescription');
+    updateHint.textContent = '';
+  }
+}
+
+async function loadUpdateState() {
+  try { renderUpdateState(await window.pet.getUpdateState()); }
+  catch { renderUpdateState(null); }
+}
+
+async function toggleAutoUpdate() {
+  if (!updateState || !updateState.supported || updateBusy) return;
+  updateBusy = true;
+  renderUpdateState(updateState);
+  try {
+    const result = await window.pet.setAutoUpdate(!updateState.autoCheck);
+    renderUpdateState(result && result.ok ? result : { ...updateState, phase: 'error', error: '设置保存失败' });
+  } catch { renderUpdateState({ ...updateState, phase: 'error', error: '设置保存失败' }); }
+  finally { updateBusy = false; renderUpdateState(updateState); }
+}
+
+async function checkUpdatesNow() {
+  if (!updateState || !updateState.supported || updateBusy) return;
+  updateBusy = true;
+  renderUpdateState({ ...updateState, phase: 'checking', error: null });
+  try { renderUpdateState(await window.pet.checkForUpdates()); }
+  catch { renderUpdateState({ ...updateState, phase: 'error', error: '检查更新失败，请稍后重试' }); }
+  finally { updateBusy = false; renderUpdateState(updateState); }
+}
+
+async function runUpdateAction() {
+  if (!updateState || updateBusy) return;
+  updateBusy = true;
+  renderUpdateState(updateState);
+  try {
+    if (updateAction.dataset.action === 'open') await window.pet.openUpdatePage();
+    else if (updateAction.dataset.action === 'download') renderUpdateState(await window.pet.downloadUpdate());
+    else if (updateAction.dataset.action === 'install') await window.pet.installUpdate();
+  } catch { renderUpdateState({ ...updateState, phase: 'error', error: '更新操作失败，请稍后重试' }); }
+  finally { updateBusy = false; renderUpdateState(updateState); }
 }
 
 function isClockTime(value) { return typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value); }
@@ -392,6 +504,9 @@ async function loadAssetCatalog() {
 }
 
 toggle.addEventListener('click', toggleAutoLaunch);
+updateToggle.addEventListener('click', toggleAutoUpdate);
+updateCheck.addEventListener('click', checkUpdatesNow);
+updateAction.addEventListener('click', runUpdateAction);
 xiabanSave.addEventListener('click', () => saveXiabanSchedule());
 xiabanReset.addEventListener('click', () => saveXiabanSchedule(DEFAULT_XIABAN_TIMES));
 assetAdd.addEventListener('click', () => importExpression('append'));
@@ -403,6 +518,7 @@ if (window.pet.onPetAssets) window.pet.onPetAssets((catalog) => {
   assetCatalog = ASSETS.normalizeCatalog(catalog);
   renderAssets();
 });
+if (window.pet.onUpdateState) window.pet.onUpdateState(renderUpdateState);
 $('close').addEventListener('click', () => window.pet.closeSettings());
 $('done').addEventListener('click', () => window.pet.closeSettings());
 document.addEventListener('keydown', (event) => {
@@ -414,5 +530,6 @@ document.addEventListener('keydown', (event) => {
 applyStaticI18n();
 setTab('general');
 loadSettings();
+loadUpdateState();
 loadXiabanSchedule();
 loadAssetCatalog();

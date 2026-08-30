@@ -1,6 +1,6 @@
 {
   "name": "workmeow",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "打工喵（WorkMeow）桌面宠物：一只喵实时呈现 Claude Code / Codex / TRAE / WorkBuddy / opencode 的状态、消息与统一 token 用量统计",
   "main": "main.js",
   "license": "MIT",
@@ -31,6 +31,7 @@
     "electron-builder": "^26.15.3"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "sharp": "^0.35.3"
   },
   "build": {
@@ -38,6 +39,15 @@
     "productName": "打工喵",
     "executableName": "WorkMeow",
     "asar": false,
+    "electronDist": "node_modules/electron/dist",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "vista-zhangg",
+        "repo": "WorkMeow",
+        "releaseType": "release"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",

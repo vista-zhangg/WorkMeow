@@ -9,9 +9,16 @@ const IPC = Object.freeze({
   PANEL_PRICE: 'panel:price',
   XIABAN_SCHEDULE: 'xiaban:schedule',
   PET_ASSETS: 'pet-assets:changed',
+  UPDATE_STATE: 'update:state',
   GET_STATS: 'get-stats',
   GET_WIN_POS: 'get-win-pos',
   GET_WINDOW_METRICS: 'get-window-metrics',
+  GET_UPDATE_STATE: 'update:get-state',
+  CHECK_FOR_UPDATES: 'update:check',
+  SET_AUTO_UPDATE: 'update:set-auto',
+  DOWNLOAD_UPDATE: 'update:download',
+  INSTALL_UPDATE: 'update:install',
+  OPEN_UPDATE_PAGE: 'update:open-page',
   SET_WIN_POS: 'set-win-pos',
   END_WIN_DRAG: 'end-win-drag',
   OPEN_PANEL: 'open-panel',
@@ -35,12 +42,13 @@ const IPC = Object.freeze({
   SET_IGNORE_MOUSE: 'set-ignore-mouse',
 });
 
-const PUSH_CHANNELS = Object.freeze(['PET_EVENT', 'PET_STATS', 'PANEL_STATS', 'PANEL_PRICE', 'XIABAN_SCHEDULE', 'PET_ASSETS']);
+const PUSH_CHANNELS = Object.freeze(['PET_EVENT', 'PET_STATS', 'PANEL_STATS', 'PANEL_PRICE', 'XIABAN_SCHEDULE', 'PET_ASSETS', 'UPDATE_STATE']);
 const INVOKE_CHANNELS = Object.freeze([
   'GET_STATS', 'GET_WIN_POS', 'GET_WINDOW_METRICS', 'GET_AUTO_LAUNCH',
   'SET_AUTO_LAUNCH', 'GET_XIABAN_SCHEDULE', 'SET_XIABAN_SCHEDULE',
   'GET_PET_ASSETS', 'IMPORT_PET_GIF', 'REMOVE_PET_ASSET', 'RESET_PET_SLOT',
-  'PERMISSION_DECIDE', 'FOCUS_SESSION',
+  'PERMISSION_DECIDE', 'FOCUS_SESSION', 'GET_UPDATE_STATE', 'CHECK_FOR_UPDATES',
+  'SET_AUTO_UPDATE', 'DOWNLOAD_UPDATE', 'INSTALL_UPDATE', 'OPEN_UPDATE_PAGE',
 ]);
 const COMMAND_CHANNELS = Object.freeze([
   'SET_WIN_POS', 'END_WIN_DRAG', 'OPEN_PANEL', 'CLOSE_PANEL', 'CLOSE_SETTINGS', 'SET_PANEL_HEIGHT', 'QUIT_APP',

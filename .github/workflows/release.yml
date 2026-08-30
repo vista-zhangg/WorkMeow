@@ -39,7 +39,9 @@ jobs:
           name: workmeow-windows-x64
           path: |
             dist/WorkMeow-*-Windows-x64.exe
+            dist/WorkMeow-*-Windows-x64.exe.blockmap
             dist/WorkMeow-*-Windows-x64.zip
+            dist/latest.yml
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
