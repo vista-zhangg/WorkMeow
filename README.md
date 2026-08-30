@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.5.1-F6A04A" alt="Version 1.5.1">
+    <img src="https://img.shields.io/badge/version-1.6.0-F6A04A" alt="Version 1.6.0">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -31,6 +31,7 @@
 - **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
+- **接入自检与修复**：在设置中核对五个 Agent 的 Hook、插件或只读监听状态，并一键修复已检测工具的异常接入。
 - **本地优先**：会话与统计数据留在本机；唯一的常规外联是下载 models.dev 公共模型价目表。
 - **轻量桌面交互**：拖动、贴边、工作速览、行动中心、系统托盘、开机启动和下班彩蛋。
 

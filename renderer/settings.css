@@ -66,6 +66,40 @@ main { padding: 10px 18px 0; flex: 1; }
   border: 1px solid rgba(59, 130, 246, 0.14);
   border-radius: 13px;
 }
+.integration-card {
+  padding: 13px 14px 14px;
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(59, 130, 246, 0.14);
+  border-radius: 13px;
+}
+.integration-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+}
+.integration-summary {
+  flex: 0 0 auto; max-width: 260px; margin-top: 1px;
+  color: #3e6f9e; font-size: 10.5px; font-weight: 650; text-align: right;
+}
+.integration-list { margin-top: 11px; border-top: 1px solid rgba(59, 130, 246, 0.10); }
+.integration-row {
+  display: grid; grid-template-columns: minmax(110px, 1fr) minmax(150px, 1.3fr) auto;
+  align-items: center; gap: 10px; min-height: 39px;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.09); font-size: 10.5px;
+}
+.integration-name { min-width: 0; color: #315d87; font-size: 11px; font-weight: 700; }
+.integration-detail { overflow: hidden; color: #819ab4; text-overflow: ellipsis; white-space: nowrap; }
+.integration-state {
+  min-width: 58px; padding: 4px 7px; border-radius: 999px;
+  background: rgba(59, 130, 246, 0.09); color: #47739e; font-size: 9.5px; text-align: center;
+}
+.integration-state.ready { background: rgba(25, 145, 104, 0.10); color: #23755a; }
+.integration-state.needs-repair { background: rgba(220, 70, 80, 0.10); color: #b33f48; }
+.integration-state.disabled { background: rgba(207, 147, 41, 0.12); color: #8b6d35; }
+.integration-state.not-detected { background: rgba(126, 153, 184, 0.10); color: #8498ab; }
+.integration-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 11px;
+}
+.integration-actions .setting-status { margin: 0; line-height: 1.45; }
+.integration-card .hint { margin-top: 10px; }
 .version-row {
   display: flex; justify-content: space-between; gap: 14px;
   color: #7693b0; font-size: 10.5px;
@@ -132,7 +166,7 @@ main { padding: 10px 18px 0; flex: 1; }
 }
 .switch[aria-checked="true"] .switch-thumb { transform: translateX(20px); }
 .switch:disabled { cursor: wait; opacity: 0.56; }
-.switch:focus-visible, .done-button:focus-visible, .icon-button:focus-visible {
+.switch:focus-visible, .subtle-button:focus-visible, .done-button:focus-visible, .icon-button:focus-visible {
   outline: 3px solid rgba(37, 99, 235, 0.8); outline-offset: 2px;
 }
 

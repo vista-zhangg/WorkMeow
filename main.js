@@ -45,6 +45,7 @@ const { createWorkbuddyMetering } = require('./backend/workbuddy-metering');
 const { createTraeMetering } = require('./backend/trae-metering');
 const { createOpenCodeMetering } = require('./backend/opencode-metering');
 const { emptyUsage, normalizeSourceRow, mergeUsageRows, mergeDaily } = require('./backend/usage-stats');
+const { buildIntegrationHealth } = require('./backend/integration-health');
 const { withValues: withSourceValues } = require('./backend/source-registry');
 const transport = require('./backend/transport');
 const env = require('./backend/env');
@@ -323,6 +324,71 @@ function openSettings() {
 function closeSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close();
   settingsWin = null;
+}
+
+function watcherHealth(watcher) {
+  const available = !!watcher && typeof watcher.start === 'function';
+  let running = false;
+  if (available) {
+    try {
+      running = typeof watcher.isRunning === 'function' ? watcher.isRunning() : true;
+    } catch {}
+  }
+  return { available, running };
+}
+
+function codexDetected() {
+  const configured = env.value('CODEX_DIR');
+  try {
+    return configured ? fs.existsSync(configured) : fs.existsSync(path.join(os.homedir(), '.codex'));
+  } catch { return false; }
+}
+
+function currentIntegrationHealth() {
+  const port = server && server.getPort();
+  const token = server && server.getToken();
+  return buildIntegrationHealth({
+    hookIntegrations: hooks.integrationStatus(port, token),
+    hooksEnabled: config.reload().hooksEnabled !== false,
+    codexDetected: codexDetected(),
+    watchers: {
+      codex: watcherHealth(codexWatch),
+      trae: watcherHealth(traeWatch),
+    },
+    snapshot: core ? core.buildSnapshot() : null,
+  });
+}
+
+function repairIntegrationHealth() {
+  if (env.flag('NO_HOOKS')) {
+    return { ...currentIntegrationHealth(), ok: false, error: 'disabled-by-environment' };
+  }
+  if (!server || !server.getPort() || !server.getToken()) {
+    return { ...currentIntegrationHealth(), ok: false, error: 'service-unavailable' };
+  }
+
+  const before = currentIntegrationHealth();
+  const managedRepairNeeded = before.integrations.some((row) =>
+    row.repairable && (row.mode === 'hook' || row.mode === 'plugin'));
+  try {
+    if (managedRepairNeeded) {
+      hooks.install(server.getPort(), server.getToken());
+      if (!stopWatcher) {
+        stopWatcher = hooks.startWatcher(() => ({ port: server.getPort(), token: server.getToken() }));
+      }
+    }
+    for (const watcher of [codexWatch, traeWatch]) {
+      if (watcher && typeof watcher.start === 'function') watcher.start();
+    }
+  } catch {
+    return { ...currentIntegrationHealth(), ok: false, error: 'repair-failed' };
+  }
+  const health = currentIntegrationHealth();
+  return {
+    ...health,
+    ok: health.summary.needsRepair === 0,
+    error: health.summary.needsRepair === 0 ? null : 'partial',
+  };
 }
 
 // 显示/藏起打工喵（单宠：只有一个开关）。
@@ -716,11 +782,11 @@ function bootBackend() {
     }
     const port = server.getPort();
     if (port) {
-      const report = hooks.install(port, server.getToken());
+      hooks.install(port, server.getToken());
       stopWatcher = hooks.startWatcher(() => ({ port: server.getPort(), token: server.getToken() }));
       if (config.get().onboardingVersion < 1) {
         config.save({ onboardingVersion: 1 });
-        showIntegrationStatus(report);
+        showIntegrationStatus();
       }
     }
   }, 400);
@@ -811,6 +877,18 @@ function registerIpc() {
   ipcMain.on(IPC.CLOSE_PANEL, closePanel);
   ipcMain.handle(IPC.GET_AUTO_LAUNCH, () => getAutoLaunchStatus());
   ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_e, enabled) => setAutoLaunch(enabled));
+  ipcMain.handle(IPC.GET_INTEGRATION_HEALTH, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
+      return { ok: false, error: 'forbidden' };
+    }
+    return currentIntegrationHealth();
+  });
+  ipcMain.handle(IPC.REPAIR_INTEGRATIONS, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
+      return { ok: false, error: 'forbidden' };
+    }
+    return repairIntegrationHealth();
+  });
   ipcMain.handle(IPC.GET_UPDATE_STATE, () => updateService ? updateService.snapshot() : null);
   ipcMain.handle(IPC.CHECK_FOR_UPDATES, (e) => {
     if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !updateService) {
@@ -956,22 +1034,16 @@ function buildTray() {
   tray.on('click', () => { showPet(); });
 }
 
-function showIntegrationStatus(report = null) {
-  const port = server && server.getPort();
-  const token = server && server.getToken();
-  const integrations = report && Array.isArray(report.integrations)
-    ? report.integrations
-    : hooks.integrationStatus(port, token);
-  const codexDetected = fs.existsSync(path.join(os.homedir(), '.codex'));
-  const rows = [
-    { label: 'Codex', detected: codexDetected, connected: codexDetected && Boolean(codexWatch) },
-    ...integrations,
-  ];
+function showIntegrationStatus() {
+  const health = currentIntegrationHealth();
+  const rows = health.integrations;
   const detail = rows.map((row) => {
-    const ready = row.detected && row.connected;
+    const ready = row.state === 'ready';
     const key = ready
       ? 'dlg.integrationsReady'
-      : row.detected ? 'dlg.integrationsFailed' : 'dlg.integrationsMissing';
+      : row.state === 'disabled'
+        ? 'dlg.integrationsDisabled'
+        : row.detected ? 'dlg.integrationsFailed' : 'dlg.integrationsMissing';
     return `${ready ? '✓' : '—'} ${row.label}：${t(key)}`;
   }).join('\n') + `\n\n${t('dlg.integrationsHint')}`;
   dialog.showMessageBox({

@@ -633,7 +633,9 @@ function createCodexWatch(deps) {
     if (timer) { clearInterval(timer); timer = null; }
   }
 
-  return { start, stop, tick, seedRecent, _trackers: trackers, _cursors: cursors };
+  function isRunning() { return !!timer; }
+
+  return { start, stop, isRunning, tick, seedRecent, _trackers: trackers, _cursors: cursors };
 }
 
 module.exports = { createCodexWatch, toContextUsage, mapTool };

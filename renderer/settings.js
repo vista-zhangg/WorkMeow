@@ -16,6 +16,11 @@ const updateAction = $('update-action');
 const updateProgress = $('update-progress');
 const updateProgressBar = $('update-progress-bar');
 const updateHint = $('update-hint');
+const integrationSummary = $('integration-summary');
+const integrationList = $('integration-list');
+const integrationStatusEl = $('integration-status');
+const integrationRefresh = $('integration-refresh');
+const integrationRepair = $('integration-repair');
 const lunchTime = $('xiaban-lunch-time');
 const eveningTime = $('xiaban-evening-time');
 const xiabanStatusEl = $('xiaban-status');
@@ -35,6 +40,8 @@ let supported = true;
 let busy = false;
 let updateBusy = false;
 let updateState = null;
+let integrationBusy = false;
+let integrationHealth = null;
 let xiabanBusy = false;
 let assetBusy = false;
 let selectedSlotId = 'working';
@@ -97,6 +104,115 @@ async function toggleAutoLaunch() {
     else applyState(result, 'settings.failed', 'error');
   } catch { renderStatus('settings.failed', 'error'); }
   finally { busy = false; toggle.disabled = !supported; }
+}
+
+function integrationModeLabel(mode) {
+  if (mode === 'watcher') return t('settings.integrationsWatcher');
+  if (mode === 'plugin') return t('settings.integrationsPlugin');
+  return t('settings.integrationsHook');
+}
+
+function integrationStateLabel(state) {
+  if (state === 'ready') return t('settings.integrationsReady');
+  if (state === 'needs-repair') return t('settings.integrationsRepair');
+  if (state === 'disabled') return t('settings.integrationsDisabled');
+  return t('settings.integrationsMissing');
+}
+
+function integrationEventLabel(row) {
+  if (!row.detected) return integrationModeLabel(row.mode);
+  if (!row.lastEventAt) return `${integrationModeLabel(row.mode)} · ${t('settings.integrationsNoEvent')}`;
+  const time = new Date(row.lastEventAt).toLocaleString('zh-CN', {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+  return `${integrationModeLabel(row.mode)} · ${t('settings.integrationsLastEvent', { time })}`;
+}
+
+function renderIntegrationHealth(report, messageKey = null, kind = '') {
+  integrationHealth = report && Array.isArray(report.integrations) ? report : null;
+  integrationList.replaceChildren();
+  if (!integrationHealth) {
+    integrationSummary.textContent = t('settings.integrationsCheckFailed');
+    integrationStatusEl.textContent = messageKey ? t(messageKey) : '';
+    integrationStatusEl.className = `setting-status${kind ? ` ${kind}` : ''}`;
+    integrationRefresh.disabled = integrationBusy;
+    integrationRepair.disabled = true;
+    return;
+  }
+
+  const summary = integrationHealth.summary || {};
+  integrationSummary.textContent = summary.detected === 0
+    ? t('settings.integrationsNone')
+    : summary.needsRepair === 0
+      ? t('settings.integrationsHealthy', { detected: summary.detected })
+      : t('settings.integrationsIssues', {
+        ready: summary.ready, detected: summary.detected, issues: summary.needsRepair,
+      });
+  for (const row of integrationHealth.integrations) {
+    const item = document.createElement('div');
+    item.className = 'integration-row';
+    const name = document.createElement('span');
+    name.className = 'integration-name';
+    name.textContent = row.label;
+    const detail = document.createElement('span');
+    detail.className = 'integration-detail';
+    detail.textContent = integrationEventLabel(row);
+    detail.title = detail.textContent;
+    const state = document.createElement('span');
+    state.className = `integration-state ${row.state}`;
+    state.textContent = integrationStateLabel(row.state);
+    item.append(name, detail, state);
+    integrationList.appendChild(item);
+  }
+  integrationStatusEl.textContent = messageKey ? t(messageKey) : '';
+  integrationStatusEl.className = `setting-status${kind ? ` ${kind}` : ''}`;
+  integrationRefresh.disabled = integrationBusy;
+  integrationRepair.disabled = integrationBusy || !(summary.repairable > 0);
+}
+
+async function loadIntegrationHealth(messageKey = null, kind = '') {
+  if (integrationBusy) return;
+  integrationBusy = true;
+  integrationSummary.textContent = t('settings.integrationsChecking');
+  integrationRefresh.disabled = true;
+  integrationRepair.disabled = true;
+  try {
+    const report = await window.pet.getIntegrationHealth();
+    if (!report || report.error === 'forbidden') throw new Error('health unavailable');
+    renderIntegrationHealth(report, messageKey, kind);
+  } catch {
+    renderIntegrationHealth(null, 'settings.integrationsCheckFailed', 'error');
+  } finally {
+    integrationBusy = false;
+    if (integrationHealth) renderIntegrationHealth(integrationHealth, messageKey, kind);
+  }
+}
+
+async function repairIntegrations() {
+  if (integrationBusy || !integrationHealth || !(integrationHealth.summary.repairable > 0)) return;
+  integrationBusy = true;
+  integrationStatusEl.textContent = t('settings.integrationsRepairing');
+  integrationStatusEl.className = 'setting-status';
+  integrationRefresh.disabled = true;
+  integrationRepair.disabled = true;
+  try {
+    const report = await window.pet.repairIntegrations();
+    if (!report || report.error === 'forbidden') throw new Error('repair unavailable');
+    const message = report.ok
+      ? 'settings.integrationsRepaired'
+      : report.error === 'disabled-by-environment'
+        ? 'settings.integrationsEnvDisabled'
+        : 'settings.integrationsPartial';
+    renderIntegrationHealth(report, message, report.ok ? '' : 'error');
+  } catch {
+    renderIntegrationHealth(integrationHealth, 'settings.integrationsCheckFailed', 'error');
+  } finally {
+    integrationBusy = false;
+    if (integrationHealth) {
+      integrationRefresh.disabled = false;
+      integrationRepair.disabled = !(integrationHealth.summary.repairable > 0);
+    }
+  }
 }
 
 function updateStatusText(state) {
@@ -504,6 +620,8 @@ async function loadAssetCatalog() {
 }
 
 toggle.addEventListener('click', toggleAutoLaunch);
+integrationRefresh.addEventListener('click', () => loadIntegrationHealth());
+integrationRepair.addEventListener('click', repairIntegrations);
 updateToggle.addEventListener('click', toggleAutoUpdate);
 updateCheck.addEventListener('click', checkUpdatesNow);
 updateAction.addEventListener('click', runUpdateAction);
@@ -530,6 +648,7 @@ document.addEventListener('keydown', (event) => {
 applyStaticI18n();
 setTab('general');
 loadSettings();
+loadIntegrationHealth();
 loadUpdateState();
 loadXiabanSchedule();
 loadAssetCatalog();

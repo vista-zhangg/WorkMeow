@@ -378,7 +378,9 @@ function createTraeWatch(deps) {
     if (timer) { clearInterval(timer); timer = null; }
   }
 
-  return { start, stop, tick, _trackers: trackers, _cursors: cursors };
+  function isRunning() { return !!timer; }
+
+  return { start, stop, isRunning, tick, _trackers: trackers, _cursors: cursors };
 }
 
 module.exports = { createTraeWatch, candidateLogRoots };

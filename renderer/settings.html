@@ -41,6 +41,28 @@
           <p class="hint" data-i18n="settings.hint">修改会立即生效，下次登录 Windows 时自动运行。</p>
         </section>
 
+        <section class="settings-section" id="integrations-section">
+          <div class="section-kicker" data-i18n="settings.integrationsSection">Agent 接入</div>
+          <div class="integration-card">
+            <div class="integration-head">
+              <div>
+                <div class="setting-title" data-i18n="settings.integrationsTitle">接入健康检查</div>
+                <div class="setting-description" data-i18n="settings.integrationsDescription">核对各工具的 Hook、插件或只读监听器是否正常</div>
+              </div>
+              <strong id="integration-summary" class="integration-summary" aria-live="polite">正在检查…</strong>
+            </div>
+            <div id="integration-list" class="integration-list" aria-live="polite"></div>
+            <div class="integration-actions">
+              <div id="integration-status" class="setting-status" aria-live="polite"></div>
+              <div class="action-buttons">
+                <button id="integration-refresh" class="subtle-button" type="button" data-i18n="settings.integrationsRefresh">重新检查</button>
+                <button id="integration-repair" class="done-button" type="button" data-i18n="settings.integrationsRepairAll" disabled>一键修复</button>
+              </div>
+            </div>
+            <p class="hint" data-i18n="settings.integrationsHint">只修复已检测到的工具，不会为未安装的 Agent 创建配置目录。</p>
+          </div>
+        </section>
+
         <section class="settings-section">
           <div class="section-kicker" data-i18n="settings.updateSection">版本更新</div>
           <div class="setting-card">

@@ -16,6 +16,7 @@ const TESTS = Object.freeze([
   'opencode-metering.js',
   'usage-stats.js',
   'source-registry.js',
+  'integration-health.js',
   'workmeow-migration.js',
   'config-external-write.js',
   'portable-runtime.js',
