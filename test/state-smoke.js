@@ -220,7 +220,7 @@ async function main() {
     check('下午下班窗口的 sleeping 播放 cat-xiaban', () => assert(catSrc(w).endsWith('cat-xiaban.gif')));
     const eveningLines = [
       '🍜 下班时间到！今天的 bug 留给明天，先去干饭～',
-      '🌃 工位已由本喵接管，放心下班，记得按时吃饭！',
+      '🌃 工位已由喵接管，放心下班，记得按时吃饭！',
       '🔔 收工收工！再不走，晚饭就要开始等你回复了。',
     ];
     check('晚间窗口使用下班主题文案', () => assert(eveningLines.includes(bubbleText.textContent), bubbleText.textContent));
@@ -524,11 +524,11 @@ async function main() {
     check('所有被引用的 GIF 均可达' + (missing.length ? '（缺失: ' + missing.join(',') + '）' : ''),
       () => assert.strictEqual(missing.length, 0, '缺失素材: ' + missing.join(', ')));
     check('静态兜底素材存在', () => {
-      assert(fs.existsSync(path.join(__dirname, '..', 'assets', 'tray-cat.svg')));
+      assert(fs.existsSync(path.join(__dirname, '..', 'assets', 'salary-cat.png')));
     });
     check('GIF 缺失时会回退到静态素材', () => {
       assert(/catImg\.onerror\s*=/.test(petSrc));
-      assert(/CAT_FALLBACK\s*=\s*'\.\.\/assets\/tray-cat\.svg'/.test(petSrc));
+      assert(/CAT_FALLBACK\s*=\s*'\.\.\/assets\/salary-cat\.png'/.test(petSrc));
     });
     check('状态 GIF 映射保持完整',
       () => assert(refs.includes('cat-working-2.gif')));

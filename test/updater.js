@@ -150,12 +150,21 @@ async function run() {
   assert(pkg.dependencies['electron-updater'], 'electron-updater must ship with the application');
   assert.strictEqual(pkg.build.electronDist, 'node_modules/electron/dist',
     'packaging must reuse the Electron runtime already installed by npm');
+  assert.deepStrictEqual(pkg.build.win.target, ['nsis'],
+    'new releases must expose the NSIS EXE installer only');
+  assert.strictEqual(pkg.scripts['package:portable'], undefined,
+    'portable ZIP packaging must be retired from the public release flow');
+  assert(/--win nsis(?:\s|$)/.test(pkg.scripts['package:win']),
+    'Windows packaging must target NSIS explicitly');
   assert.strictEqual(pkg.build.publish[0].provider, 'github');
   assert.strictEqual(pkg.build.publish[0].owner, 'vista-zhangg');
+  assert(!workflow.includes('dist/WorkMeow-*-Windows-x64.zip'),
+    'releases must not upload the retired portable ZIP');
   assert(workflow.includes('dist/latest.yml') && workflow.includes('.exe.blockmap'),
     'releases must upload updater metadata and the differential blockmap');
-  assert(finalize.includes("'latest.yml'") && finalize.includes('`${prefix}.exe.blockmap`'),
-    'distribution finalization must retain updater metadata');
+  assert(finalize.includes("'latest.yml'") && finalize.includes('`${prefix}.exe.blockmap`')
+    && !finalize.includes('.zip'),
+    'distribution finalization must retain updater metadata without a portable ZIP');
   assert(settings.includes('id="auto-update-toggle"') && settings.includes('id="update-check"'),
     'settings must expose the preference and manual check');
   for (const api of ['getUpdateState', 'checkForUpdates', 'setAutoUpdate', 'downloadUpdate', 'installUpdate', 'openUpdatePage']) {

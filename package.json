@@ -1,6 +1,6 @@
 {
   "name": "workmeow",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "description": "打工喵（WorkMeow）桌面宠物：一只喵实时呈现 Claude Code / Codex / TRAE / WorkBuddy / opencode 的状态、消息与统一 token 用量统计",
   "main": "main.js",
   "license": "MIT",
@@ -22,8 +22,7 @@
     "install:hooks": "node backend/hooks-cli.js",
     "uninstall:hooks": "node backend/hooks-cli.js --uninstall",
     "meter:rebuild": "node backend/meter-rebuild.js",
-    "package:portable": "electron-builder --win zip --x64 --publish never && node scripts/finalize-dist.js --portable && node scripts/verify-dist.js --portable",
-    "package:win": "electron-builder --win --x64 --publish never && node scripts/finalize-dist.js && node scripts/verify-dist.js",
+    "package:win": "electron-builder --win nsis --x64 --publish never && node scripts/finalize-dist.js && node scripts/verify-dist.js",
     "verify:dist": "node scripts/verify-dist.js",
     "test": "node test/run-all.js"
   },
@@ -61,10 +60,9 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "zip"
+        "nsis"
       ],
-      "icon": "assets/icon.ico",
+      "icon": "assets/salary-cat.ico",
       "signExecutable": false,
       "artifactName": "WorkMeow-${version}-Windows-${arch}.${ext}",
       "electronLanguages": [

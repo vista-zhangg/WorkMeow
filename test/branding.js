@@ -39,6 +39,14 @@ assert.strictEqual(lock.name, 'workmeow');
 assert.strictEqual(lock.packages[''].name, 'workmeow');
 assert(/app\.setName\(BRAND\.name\)/.test(main), 'Electron app name must come from the brand registry');
 assert(/app\.setAppUserModelId\(BRAND\.appId\)/.test(main), 'Windows app identity must come from the brand registry');
+assert(/const WINDOW_ICON_PATH = path\.join\(__dirname, 'assets', 'salary-cat\.ico'\)/.test(main),
+  'every Windows surface must share one packaged 月薪喵 icon');
+assert.strictEqual(pkg.build.win.icon, 'assets/salary-cat.ico', 'packaged Windows icon must use the cache-busting salary-cat path');
+assert.strictEqual((main.match(/icon:\s*WINDOW_ICON/g) || []).length, 3,
+  'pet, detail, and settings windows must all receive the 月薪喵 window icon');
+assert(/function applyWindowBranding\(win\)/.test(main) && /win\.setIcon\(WINDOW_ICON\)/.test(main)
+  && /win\.setAppDetails\(\{/.test(main) && /appIconPath: WINDOW_ICON_PATH/.test(main),
+  'Windows taskbar buttons must be explicitly refreshed with the generated icon');
 assert(/hook[\\/]workmeow-hook\.js/.test(read('README.md').replace(/`/g, '')), 'Claude hook docs must use the WorkMeow filename');
 assert(/基于 \[LLMPET\]\(https:\/\/github\.com\/myunwang\/LLMPET\) 二次开发/.test(readme),
   'README must retain explicit upstream attribution');

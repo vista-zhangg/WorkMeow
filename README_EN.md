@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/tray-cat.svg" width="112" alt="WorkMeow icon">
+  <img src="assets/salary-cat.png" width="112" alt="WorkMeow salary-cat avatar">
   <h1>WorkMeow</h1>
   <p><strong>One cat keeping an eye on every AI coding agent at work.</strong></p>
   <p>Live status, notifications, permission requests, and unified token usage for Claude Code, Codex, TRAE, WorkBuddy, and opencode.</p>
@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.6.3-F6A04A" alt="Version 1.6.3">
+    <img src="https://img.shields.io/badge/version-1.7.0-F6A04A" alt="Version 1.7.0">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -29,9 +29,10 @@ Switching between several agent windows just to check progress is distracting. W
 - **Custom expressions** — browse every state GIF, add rotating variants, replace or remove a selected item, or restore defaults.
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
 - **Unified usage view** — tokens, cache reads and writes, context windows, models, daily trends, and API-price estimates.
+- **Persistent Codex subscription quota** — startup automatically discovers the native Codex Desktop CLI, and the existing tray slot shows the masked current account, 5h / 7d remaining quota, reset times, and the last update. Account switches reconnect automatically, missing windows stay `--`, and no manual setup is required.
 - **Integration health and repair** — verify all five agents, then repair or remove WorkMeow-managed integrations from Settings.
 - **One-click privacy mode** — right-click the cat to toggle the compact ON/OFF control, or use Settings, while keeping essential state and usage visible.
-- **Local-first operation** — conversations and usage stay on the machine; the regular optional network request only downloads public model pricing from models.dev.
+- **Local-first operation** — conversations and usage stay on the machine; models.dev supplies public pricing while Codex authenticates and reads its own subscription quota.
 - **Desktop-friendly controls** — drag, edge snapping, work peek, action center, system tray, auto-start, and scheduled break animations.
 
 ## Real state examples
@@ -51,7 +52,7 @@ Switching between several agent windows just to check progress is distracting. W
   </tr>
 </table>
 
-> The GIF artwork comes from the original “月薪喵” meme series by Douyin creator **@月薪喵**. The artwork is not covered by the project’s MIT License. See [asset credits and copyright information](assets/cat/CREDITS.md).
+> The GIF artwork and the generated static avatar derived from that character come from the original “月薪喵” series by Douyin creator **@月薪喵**. These assets are not covered by the project’s MIT License. See [asset credits and copyright information](assets/cat/CREDITS.md).
 
 ## Custom state expressions
 
@@ -70,7 +71,7 @@ WorkMeow stores only a processed copy under `~/.workmeow/pet-assets` for the cur
 | Agent | Integration | External configuration | In-pet approval |
 | --- | --- | --- | --- |
 | Claude Code | Lifecycle hooks, transcript, and process data | Merge-safe WorkMeow hook install/uninstall | Supported |
-| Codex | Incremental local rollout JSONL reader | Does not modify Codex configuration | Read-only alerts |
+| Codex | Incremental local rollout JSONL reader; official App Server quota notifications | Does not modify Codex configuration or read credential files | Read-only alerts |
 | TRAE | Local IDE logs and process data | Installs a merge-safe hook only when TRAE is detected | Read-only alerts |
 | WorkBuddy | Hooks, transcripts, and usage fields | Installs a merge-safe hook only when WorkBuddy is detected | Read-only alerts |
 | opencode | Official plugin mechanism, events, and usage file | Installs/removes one standalone plugin file | Read-only alerts |
@@ -83,41 +84,17 @@ On first launch, WorkMeow only integrates with tools already used by the current
 
 Once a version is published, download it from [GitHub Releases](https://github.com/vista-zhangg/WorkMeow/releases):
 
-- `WorkMeow-<version>-Windows-x64.exe` — Windows installer;
-- `WorkMeow-<version>-Windows-x64.zip` — portable build.
+- `WorkMeow-<version>-Windows-x64.exe` — the only supported Windows x64 NSIS installer.
 
-Fully extract the portable ZIP before running `WorkMeow.exe`. Do not launch it inside an archive preview or copy only the executable.
+Starting with 1.7.0, releases do not offer source/npm deployment or a portable ZIP. Install the EXE before use; do not run the app directly from an archive or source checkout.
 
-### Run from source
+### Development and contribution
 
-Requirements: Windows x64, Node.js 22.12 or newer, npm, and at least one supported agent.
+Source startup, testing, and local packaging commands are for developers and contributors only; see the [local development and packaging guide](docs/LOCAL_DEPLOYMENT.md).
 
-```powershell
-git clone https://github.com/vista-zhangg/WorkMeow.git
-cd WorkMeow
-npm ci
-npm test
-npm start
-```
+## Developer commands
 
-Keep Electron attached to the terminal while debugging:
-
-```powershell
-npm run start:console
-```
-
-## Common commands
-
-```powershell
-npm start                 # Start detached from the current terminal
-npm run start:console     # Start in the current terminal for debugging
-npm test                  # Run all 36 regression suites
-npm run install:hooks     # Install/reconcile hooks and plugins for detected tools
-npm run uninstall:hooks   # Back up and remove WorkMeow-managed integrations
-npm run meter:rebuild     # Recalculate local history using current prices
-npm run package:portable  # Build the Windows x64 portable ZIP
-npm run package:win       # Build installer, ZIP, and SHA-256 checksums
-```
+Developer `npm` commands, regression tests, and the EXE packaging flow are documented in the [local development and packaging guide](docs/LOCAL_DEPLOYMENT.md).
 
 ## Data and privacy
 
@@ -125,6 +102,7 @@ npm run package:win       # Build installer, ZIP, and SHA-256 checksums
 - Claude Code, Codex, TRAE, WorkBuddy, and opencode session data is read and processed locally.
 - The local HTTP service binds to loopback only, and write endpoints require a fresh per-run token.
 - models.dev synchronization downloads a public price list only; transcripts, rollouts, permission contents, and usage statistics are not uploaded.
+- Codex quota uses one long-lived `codex app-server --stdio` connection. WorkMeow confirms the current account with `account/read` before reading quota and listening for updates. Codex owns authentication and upstream requests; WorkMeow does not read the contents of `~/.codex/auth.json` or call ChatGPT web endpoints. It only observes filesystem replacement events and reconnects when another Codex process changes the auth store, preventing stale cross-account display.
 - Privacy mode from the cat menu or Settings masks on-screen details only; local monitoring and usage accounting continue, and pending items return when it is disabled.
 - Displayed cost is an estimate based on public API prices, not a subscription bill or a provider’s final invoice.
 
@@ -138,6 +116,7 @@ Codex rollouts ───┼──> local server / watchers ──> adapter / cor
 TRAE logs ────────┤                                      └────────> unified usage ledger
 WorkBuddy ────────┤
 opencode plugin ──┘
+Codex App Server ─────> existing tray slot (5h / 7d) + low-quota bubble
 ```
 
 The main process owns watcher lifecycles, the tray, and windows. The backend state machine aggregates concurrent sessions. Renderers only receive a reduced status and event protocol. State vocabulary and priority are defined once in [`shared/states.js`](shared/states.js).
@@ -158,7 +137,7 @@ WorkMeow is derived from [LLMPET](https://github.com/myunwang/LLMPET), with subs
 - Source code is released under the [MIT License](LICENSE).
 - The root license retains the upstream `Copyright (c) 2026 myunwang` notice.
 - WorkMeow modifications remain copyright of their respective contributors.
-- The 月薪喵 GIFs remain copyright of Douyin creator **@月薪喵** and are not covered by the project’s MIT License.
+- The 月薪喵 GIFs and static derivative avatar retain the original character copyright of Douyin creator **@月薪喵** and are not covered by the project’s MIT License.
 
 ## Contributing
 

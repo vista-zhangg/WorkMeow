@@ -40,7 +40,6 @@ jobs:
           path: |
             dist/WorkMeow-*-Windows-x64.exe
             dist/WorkMeow-*-Windows-x64.exe.blockmap
-            dist/WorkMeow-*-Windows-x64.zip
             dist/latest.yml
             dist/SHA256SUMS.txt
           if-no-files-found: error
@@ -57,11 +56,12 @@ jobs:
       - name: Verify checksums
         working-directory: release
         run: sha256sum --check SHA256SUMS.txt
-      - name: Create release
+      - name: Create installer-only release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "WorkMeow ${GITHUB_REF_NAME#v}" \
+            --notes "安装方式：仅提供 Windows x64 EXE 安装包。源码/npm 部署和 ZIP 便携运行不属于此 Release 的支持方式。" \
             --generate-notes

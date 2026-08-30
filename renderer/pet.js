@@ -9,7 +9,7 @@ const cat = document.getElementById('cat');
 
 // 状态 GIF 缺失或加载失败时使用仓库自带的静态猫图。
 const catImg = document.getElementById('cat-img');
-const CAT_FALLBACK = '../assets/tray-cat.svg';
+const CAT_FALLBACK = '../assets/salary-cat.png';
 if (catImg) {
   catImg.onerror = () => {
     if (!catAssetMatches(CAT_FALLBACK)) catImg.src = CAT_FALLBACK;
@@ -1683,6 +1683,10 @@ window.pet.onEvent((ev) => {
     case 'longcmd':
       if (state !== 'waiting') showBubble(t('bub.slowCmd'), 3000);
       break;
+    case 'quota-alert':
+      // 额度提醒复用现有气泡，不创建新的猫咪状态，也不打断当前稳态。
+      if (ev.text) showBubble(ev.text, 6500, true);
+      break;
   }
 });
 
@@ -1802,7 +1806,7 @@ function renderContextCapsule(s) {
     title = '最近一轮任务已完成';
   } else if (info.kind === 'sleeping') {
     label = '💤 休息中';
-    title = '没有活动任务，本喵正在休息';
+    title = '没有活动任务，喵正在休息';
   } else {
     label = '🌿 待命';
     title = '当前没有活动任务';

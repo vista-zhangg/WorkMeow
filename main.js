@@ -41,6 +41,8 @@ const { focusSession } = require('./backend/focus');
 const { createCodexWatch } = require('./backend/codex-watch');
 const { createTraeWatch } = require('./backend/trae-watch');
 const { createCodexMetering } = require('./backend/codex-metering');
+const { createCodexRateLimits, unavailableState: unavailableCodexQuota } = require('./backend/codex-rate-limits');
+const codexQuotaTray = require('./backend/codex-quota-tray');
 const { createWorkbuddyMetering } = require('./backend/workbuddy-metering');
 const { createTraeMetering } = require('./backend/trae-metering');
 const { createOpenCodeMetering } = require('./backend/opencode-metering');
@@ -61,7 +63,27 @@ const petAssetStore = new PetAssetStore();
 // 让 GUI 进程脱离启动它的控制台，关闭终端后桌宠仍继续运行。
 
 const PRELOAD = path.join(__dirname, 'preload.js');
+const WINDOW_ICON_PATH = path.join(__dirname, 'assets', 'salary-cat.ico');
+const WINDOW_ICON_PNG_PATH = path.join(__dirname, 'assets', 'salary-cat.png');
+const WINDOW_ICON_FILE = nativeImage.createFromPath(WINDOW_ICON_PATH);
+const WINDOW_ICON = WINDOW_ICON_FILE.isEmpty()
+  ? nativeImage.createFromPath(WINDOW_ICON_PNG_PATH)
+  : WINDOW_ICON_FILE;
 const BASE_W = 320, BASE_H = 340;
+
+function applyWindowBranding(win) {
+  if (!win || win.isDestroyed()) return;
+  try { win.setIcon(WINDOW_ICON); } catch {}
+  if (process.platform === 'win32' && typeof win.setAppDetails === 'function') {
+    try {
+      win.setAppDetails({
+        appId: BRAND.appId,
+        appIconPath: WINDOW_ICON_PATH,
+        appIconIndex: 0,
+      });
+    } catch {}
+  }
+}
 
 // 单宠模型（2026-08-07 起）：
 //   只有一只「打工喵」(mergedWin, agent='all')，统一展示和统计所有 AI 工具；
@@ -82,6 +104,8 @@ let stopWatcher = null;
 let codexWatch = null;  // Codex rollout 只读监听器
 let traeWatch = null;   // TRAE SOLO CN 日志只读监听器
 let codexMetering = null; // Codex rollout 累计 token 台账（与状态 watcher 解耦）
+let codexRateLimits = null; // Codex App Server 订阅额度（独立于 rollout token 台账）
+let codexQuotaState = unavailableCodexQuota('idle');
 let workbuddyMetering = null; // WorkBuddy 转录 token 台账（只读，从 ~/.workbuddy/projects 扫描）
 let traeMetering = null; // TRAE agent 日志 token 台账（只读，从 Trae CN logs 扫描）
 let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.workmeow/opencode-usage.jsonl）
@@ -97,6 +121,9 @@ let lastStats = null;   // 全量快照（面板与桌宠共用）
 let statsTimer = null;
 let emitDebounce = null;
 const recentOps = []; // ring for the panel "操作流"; newest first, capped
+const pendingQuotaAlerts = [];
+const quotaAlertBatch = [];
+let quotaAlertTimer = null;
 
 // ── window geometry ───────────────────────────────────────────────────────────
   // customSize is set by the renderer to fit an open popup exactly (dynamic
@@ -187,6 +214,7 @@ function makePetWindow(agent) {
   }
 
   const win = new BrowserWindow({
+    icon: WINDOW_ICON,
     width: BASE_W,
     height: BASE_H,
     x, y,
@@ -205,6 +233,7 @@ function makePetWindow(agent) {
       autoplayPolicy: 'no-user-gesture-required',
     },
   });
+  applyWindowBranding(win);
   win.setAlwaysOnTop(true, 'floating');
   try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch {}
   hardenWindow(win, path.join(__dirname, 'renderer', 'pet.html'));
@@ -234,6 +263,7 @@ function makePetWindow(agent) {
   win.webContents.on('did-finish-load', () => {
     sendWin(win, IPC.XIABAN_SCHEDULE, getXiabanSchedule());
     if (core) sendWin(win, IPC.PET_STATS, buildStats(st.agent));
+    while (pendingQuotaAlerts.length) sendWin(win, IPC.PET_EVENT, pendingQuotaAlerts.shift());
   });
   return win;
 }
@@ -246,6 +276,7 @@ function openPanel() {
   }
   panelHeight = 0;
   const win = new BrowserWindow({
+    icon: WINDOW_ICON,
     width: 580,
     height: 850,
     minHeight: 500,
@@ -262,6 +293,7 @@ function openPanel() {
       sandbox: true,
     },
   });
+  applyWindowBranding(win);
   hardenWindow(win, path.join(__dirname, 'renderer', 'panel.html'));
   panelWin = win;
   win.loadFile(path.join(__dirname, 'renderer', 'panel.html'), { query: { agent: 'all' } });
@@ -289,6 +321,7 @@ function openSettings() {
     return;
   }
   const win = new BrowserWindow({
+    icon: WINDOW_ICON,
     width: 840,
     height: 760,
     minWidth: 720,
@@ -309,6 +342,7 @@ function openSettings() {
       sandbox: true,
     },
   });
+  applyWindowBranding(win);
   hardenWindow(win, path.join(__dirname, 'renderer', 'settings.html'));
   settingsWin = win;
   win.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
@@ -554,6 +588,45 @@ function sendPetEvent(ev) {
   sendPet(IPC.PET_EVENT, privacy.protectEvent(ev, config.get().privacyMode === true));
 }
 
+function quotaAlertEvent(alert) {
+  const remaining = codexQuotaTray.percentText(alert);
+  const reset = codexQuotaTray.resetText(alert, alert.kind);
+  const key = alert.kind === 'weekly' ? 'quota.alertWeekly' : 'quota.alertFiveHour';
+  return {
+    kind: 'quota-alert',
+    text: t(key, { remaining, reset }),
+    agent: 'codex',
+    ts: Date.now(),
+  };
+}
+
+function deliverQuotaAlerts() {
+  quotaAlertTimer = null;
+  const alerts = quotaAlertBatch.splice(0);
+  if (!alerts.length) return;
+  const events = alerts.map(quotaAlertEvent);
+  const event = privacy.protectEvent({
+    ...events[0],
+    text: events.map((item) => item.text).join('\n'),
+  }, config.get().privacyMode === true);
+  const win = firstAlivePetWin();
+  const loading = win && win.webContents && typeof win.webContents.isLoadingMainFrame === 'function'
+    ? win.webContents.isLoadingMainFrame()
+    : !win;
+  if (win && !loading) sendWin(win, IPC.PET_EVENT, event);
+  else {
+    pendingQuotaAlerts.push(event);
+    if (pendingQuotaAlerts.length > 4) pendingQuotaAlerts.shift();
+  }
+}
+
+function showQuotaAlert(alert) {
+  quotaAlertBatch.push(alert);
+  if (quotaAlertTimer) return;
+  quotaAlertTimer = setTimeout(deliverQuotaAlerts, 80);
+  if (quotaAlertTimer.unref) quotaAlertTimer.unref();
+}
+
 // 没有计量数据源的工具（未来工具）用的空台账
 function emptyMeter() {
   return {
@@ -676,6 +749,20 @@ function bootBackend() {
       sessionsDir: codexDir,
     });
     codexWatch.start();
+
+    if (!env.flag('NO_NET')) {
+      // One official, long-lived App Server owns Codex authentication and emits
+      // rate-limit updates. No auth.json or ChatGPT web endpoint is read here.
+      codexRateLimits = createCodexRateLimits({
+        version: require('./package.json').version,
+        onUpdate: (next) => {
+          codexQuotaState = next;
+          refreshTrayMenu();
+        },
+        onAlert: showQuotaAlert,
+      });
+      codexRateLimits.start();
+    }
   }
 
   metering = createMetering();
@@ -718,8 +805,8 @@ function bootBackend() {
   // user override. Public-data only — no credentials, no API calls.
   // On a fresh sync: reload the in-memory price table (so new prices apply this
   // run, not next restart) and push the updated source line to the panel.
-  // WORKMEOW_NO_NET=1 keeps the app fully offline (the pricing fetch is the ONLY
-  // outbound request WorkMeow ever makes) — falls back to the built-in price table.
+  // WORKMEOW_NO_NET=1 keeps WorkMeow fully offline: pricing uses the built-in
+  // table and the Codex quota rows remain unavailable (`--`).
   if (!env.flag('NO_NET')) {
     pricingSync = createPricingSync({
       onStatus: () => {
@@ -1060,8 +1147,8 @@ function reconcilePets() {
 function buildTray() {
   let img;
   try {
-    // 使用透明背景的打工喵头像，resize 到 tray 适合的尺寸。
-    img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-cat.png'));
+    // 托盘始终使用月薪喵头像；额度只在右键菜单里展示。
+    img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'salary-cat-tray.png'));
     if (img && !img.isEmpty()) {
       img = img.resize({ width: 32, height: 32 });
     }
@@ -1186,12 +1273,33 @@ function setPrivacyMode(enabled) {
   return actual;
 }
 
+function quotaStatusLabel(quota) {
+  if (quota.status === 'ready') return t('tray.quotaStatusReady');
+  if (quota.status === 'connecting') return t('tray.quotaStatusConnecting');
+  if (quota.error === 'codex-not-found') return t('tray.quotaStatusCodexMissing');
+  if (quota.error === 'not-signed-in') return t('tray.quotaStatusSignedOut');
+  if (quota.error === 'chatgpt-account-required') return t('tray.quotaStatusChatgptRequired');
+  return t('tray.quotaStatusUnavailable');
+}
+
 function refreshTrayMenu() {
   if (!tray) return;
   const privacyMode = config.get().privacyMode === true;
-  tray.setToolTip(t(privacyMode ? 'tray.tooltipPrivate' : 'tray.tooltip'));
+  const quota = codexQuotaTray.displayRows(codexQuotaState);
+  const baseTooltip = t(privacyMode ? 'tray.tooltipPrivate' : 'tray.tooltip');
+  tray.setToolTip(baseTooltip);
   const petVisible = !!(mergedWin && !mergedWin.isDestroyed() && mergedWin.isVisible());
   const items = [
+    { label: t('tray.quotaTitle', { account: quota.account }), enabled: false },
+    { type: 'separator' },
+    { label: t('tray.quotaWindow', quota.fiveHour), enabled: false },
+    { label: t('tray.quotaWindow', quota.weekly), enabled: false },
+    { type: 'separator' },
+    { label: t('tray.quotaUpdated', { time: quota.updated }), enabled: false },
+    ...(quota.status === 'ready' ? [] : [
+      { label: t('tray.quotaStatus', { status: quotaStatusLabel(quota) }), enabled: false },
+    ]),
+    { type: 'separator' },
     { label: t('tray.panel'), click: () => openPanel() },
     { label: petVisible ? t('tray.hidePet') : t('tray.showPet'), click: () => (petVisible ? hidePet() : showPet()) },
     { type: 'separator' },
@@ -1256,7 +1364,9 @@ if (!gotTheLock) {
 app.on('window-all-closed', () => { /* tray app: stay alive */ });
 
 app.on('before-quit', () => {
+  try { if (quotaAlertTimer) clearTimeout(quotaAlertTimer); } catch {}
   try { if (codexWatch) codexWatch.stop(); } catch {}
+  try { if (codexRateLimits) codexRateLimits.stop(); } catch {}
   try { if (traeWatch) traeWatch.stop(); } catch {}
   try { if (stopWatcher) stopWatcher(); } catch {}
   try { if (permissions) permissions.cleanup(); } catch {}

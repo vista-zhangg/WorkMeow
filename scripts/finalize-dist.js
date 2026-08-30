@@ -7,10 +7,9 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
 const pkg = require(path.join(root, 'package.json'));
-const portableOnly = process.argv.includes('--portable');
 const prefix = `WorkMeow-${pkg.version}-Windows-x64`;
-const artifacts = portableOnly ? [`${prefix}.zip`] : [`${prefix}.exe`, `${prefix}.zip`];
-const updateArtifacts = portableOnly ? [] : ['latest.yml', `${prefix}.exe.blockmap`];
+const artifacts = [`${prefix}.exe`];
+const updateArtifacts = ['latest.yml', `${prefix}.exe.blockmap`];
 const requiredArtifacts = [...artifacts, ...updateArtifacts];
 
 if (!fs.existsSync(dist)) throw new Error(`Missing build directory: ${dist}`);

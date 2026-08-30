@@ -6,11 +6,9 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 
-function artifactNames(version, portableOnly = false) {
+function artifactNames(version) {
   const prefix = `WorkMeow-${version}-Windows-x64`;
-  return portableOnly
-    ? [`${prefix}.zip`, 'SHA256SUMS.txt']
-    : [`${prefix}.exe`, `${prefix}.exe.blockmap`, `${prefix}.zip`, 'latest.yml', 'SHA256SUMS.txt'];
+  return [`${prefix}.exe`, `${prefix}.exe.blockmap`, 'latest.yml', 'SHA256SUMS.txt'];
 }
 
 function parseChecksums(text) {
@@ -31,8 +29,7 @@ function sha256(file) {
 function verifyDist(options = {}) {
   const dist = options.dist || path.join(root, 'dist');
   const version = options.version || require(path.join(root, 'package.json')).version;
-  const portableOnly = options.portableOnly === true;
-  const expected = artifactNames(version, portableOnly).sort();
+  const expected = artifactNames(version).sort();
   if (!fs.existsSync(dist)) throw new Error(`Missing build directory: ${dist}`);
 
   const entries = fs.readdirSync(dist, { withFileTypes: true });
@@ -54,26 +51,24 @@ function verifyDist(options = {}) {
     if (sha256(file) !== checksums.get(name)) throw new Error(`SHA256 mismatch: ${name}`);
   }
 
-  if (!portableOnly) {
-    const prefix = `WorkMeow-${version}-Windows-x64`;
-    const updateInfo = fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8');
-    if (!new RegExp(`^version: ${version.replace(/\./g, '\\.')}$`, 'm').test(updateInfo)) {
-      throw new Error(`latest.yml version is not ${version}`);
-    }
-    if (!updateInfo.includes(`url: ${prefix}.exe`) || !updateInfo.includes(`path: ${prefix}.exe`)) {
-      throw new Error('latest.yml does not point to the current EXE installer');
-    }
-    const exeSize = fs.statSync(path.join(dist, `${prefix}.exe`)).size;
-    if (!updateInfo.includes(`size: ${exeSize}`)) throw new Error('latest.yml EXE size is stale');
+  const prefix = `WorkMeow-${version}-Windows-x64`;
+  const updateInfo = fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8');
+  if (!new RegExp(`^version: ${version.replace(/\./g, '\\.')}$`, 'm').test(updateInfo)) {
+    throw new Error(`latest.yml version is not ${version}`);
   }
+  if (!updateInfo.includes(`url: ${prefix}.exe`) || !updateInfo.includes(`path: ${prefix}.exe`)) {
+    throw new Error('latest.yml does not point to the current EXE installer');
+  }
+  const exeSize = fs.statSync(path.join(dist, `${prefix}.exe`)).size;
+  if (!updateInfo.includes(`size: ${exeSize}`)) throw new Error('latest.yml EXE size is stale');
 
-  const result = { dist, version, portableOnly, files: actual };
+  const result = { dist, version, files: actual };
   if (options.quiet !== true) console.log(`Verified ${actual.length} WorkMeow ${version} dist file(s)`);
   return result;
 }
 
 if (require.main === module) {
-  verifyDist({ portableOnly: process.argv.includes('--portable') });
+  verifyDist();
 }
 
 module.exports = { artifactNames, parseChecksums, verifyDist };

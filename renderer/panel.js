@@ -11,7 +11,6 @@ let usageRange = 'today';
 
 const THEME = {
   name: '打工喵',
-  logo: '🐱',
   color: '#3b82f6',
   barGradient: 'linear-gradient(180deg, #7fb3f8, #3b82f6)',
   nowGradient: 'linear-gradient(180deg, #bfdcff, #60a5fa)',
@@ -45,7 +44,6 @@ let lastStats = null;
 
 function applyAgentTheme() {
   // 主题已由 panel.css 的淡蓝配色承担，这里只填品牌与静态文案。
-  $('brand-logo').textContent = THEME.logo;
   $('brand-title').textContent = THEME.name;
   const badge = $('agent-badge');
   if (badge) badge.classList.add('hidden');

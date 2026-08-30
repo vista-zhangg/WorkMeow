@@ -1,6 +1,6 @@
-# 将打工喵（WorkMeow）部署到用户本地
+# 在本地开发和制作打工喵（WorkMeow）EXE 安装包
 
-本文说明如何在 Windows 上从源码启动、测试打工喵（WorkMeow），并制作本地安装包。
+本文说明如何在 Windows 上进行源码开发、测试打工喵（WorkMeow），并制作本地 EXE 安装包。源码/npm 命令仅供开发者和贡献者使用，不是 Release 面向用户的安装方式。
 
 ## 支持范围
 
@@ -92,7 +92,7 @@ npm ci
 ```powershell
 $env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'
 $env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-builder-binaries/'
-npm run package:portable
+npm run package:win
 ```
 
 ## 制作本地安装包
@@ -104,7 +104,7 @@ npm ci
 npm test
 ```
 
-### Windows 安装包
+### Windows EXE 安装包
 
 在 Windows x64 环境中运行：
 
@@ -112,15 +112,7 @@ npm test
 npm run package:win
 ```
 
-产物位于 `dist/`，包括 NSIS `.exe` 安装包、`.zip` 免安装包和 `SHA256SUMS.txt`。构建中间目录与调试配置会在成功打包后自动清理。
-
-只生成便于分发给普通用户的 Windows x64 ZIP：
-
-```powershell
-npm run package:portable
-```
-
-接收者必须完整解压 ZIP，然后双击解压目录中的 `WorkMeow.exe`。便携版会使用 Electron 内置的 Node 模式执行展开到 `~/.workmeow/hook-runtime/` 的 hook，不要求接收者安装 Node.js。
+产物位于 `dist/`，包括 NSIS `.exe` 安装包、自动更新元数据和 `SHA256SUMS.txt`。构建中间目录与调试配置会在成功打包后自动清理。Release 仅发布 EXE 安装器；不提供 ZIP 便携包。
 
 ## 卸载
 

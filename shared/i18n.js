@@ -23,6 +23,16 @@
     'tray.panel': '详情面板',
     'tray.showPet': '显示打工喵',
     'tray.hidePet': '藏起打工喵',
+    'tray.quotaTitle': 'Codex　账户 {account}',
+    'tray.quotaWindow': '{label}　剩余 {remaining}　{reset} 刷新',
+    'tray.quotaUpdated': '更新于 {time}',
+    'tray.quotaStatus': '状态　{status}',
+    'tray.quotaStatusReady': '实时同步中',
+    'tray.quotaStatusConnecting': '正在同步当前账户…',
+    'tray.quotaStatusCodexMissing': '未找到 Codex，正在自动重试',
+    'tray.quotaStatusSignedOut': 'Codex 尚未登录 ChatGPT',
+    'tray.quotaStatusChatgptRequired': '当前账户没有订阅额度',
+    'tray.quotaStatusUnavailable': '暂时不可用，正在自动重试',
     'tray.settings': '设置',
     'tray.quit': '退出',
 
@@ -204,6 +214,10 @@
     'err.maxTokens': '✂️ 输出超长被截断',
     'err.default': '😵 出了点状况，在想办法…',
 
+    // ── Codex subscription quota ───────────────────────────────────────────
+    'quota.alertFiveHour': 'Codex 5 小时额度剩余 {remaining}，{reset} 刷新',
+    'quota.alertWeekly': 'Codex 周额度剩余 {remaining}，{reset} 刷新',
+
     // ── permission / ask cards ──────────────────────────────────────────────
     'perm.runCommand': '运行命令：',
     'perm.editFile': '修改文件：',
@@ -274,21 +288,21 @@
     'bub.needReply': '💬 {project} 等你回复',
     'bub.greet': '👋 {project} 新会话，你好！',
     'bub.slowCmd': '💦 这条命令有点久，稍等…',
-    'bub.online': '🐱 打工喵上线，开始盯所有 AI 任务啦！',
+    'bub.online': '打工喵上线，开始盯所有 AI 任务啦！',
 
     // ── purr payday easter egg ──────────────────────────────────────────────
     'purr.title': '🐾 今日工资条',
     'purr.first': '呼噜……今天陪你跑了 {rounds} 轮，处理 {tokens} tokens，缓存命中 {cacheRate}%。摸鱼许可已批准五分钟。',
-    'purr.empty': '呼噜……今天还没开工，本喵先陪你坐会儿。',
-    'purr.repeat': '呼噜……今日工资条已经发过啦，本喵继续陪你待命。',
-    'purr.titleAttr': '长按本喵查看今日陪伴工资条',
+    'purr.empty': '呼噜……今天还没开工，喵先陪你坐会儿。',
+    'purr.repeat': '呼噜……今日工资条已经发过啦，喵继续陪你待命。',
+    'purr.titleAttr': '长按喵查看今日陪伴工资条',
 
     // ── radial menu ─────────────────────────────────────────────────────────
     'bub.xiabanLunch1': '🍚 午饭铃响啦！保存好进度，先去干饭～',
     'bub.xiabanLunch2': '🍱 上午巡逻结束，工位我看着，你去吃饭吧！',
     'bub.xiabanLunch3': '🥢 到饭点啦，代码不会趁你吃饭时长腿跑掉的。',
     'bub.xiabanEvening1': '🍜 下班时间到！今天的 bug 留给明天，先去干饭～',
-    'bub.xiabanEvening2': '🌃 工位已由本喵接管，放心下班，记得按时吃饭！',
+    'bub.xiabanEvening2': '🌃 工位已由喵接管，放心下班，记得按时吃饭！',
     'bub.xiabanEvening3': '🔔 收工收工！再不走，晚饭就要开始等你回复了。',
 
     // ── left-click work peek ───────────────────────────────────────────────
@@ -300,7 +314,7 @@
     'peek.panel': '查看详情',
     'peek.idleTitle': '暂时没有任务',
     'peek.idleSub': '打工喵正在待命',
-    'peek.sleepingSub': '工位已由本喵接管',
+    'peek.sleepingSub': '工位已由喵接管',
     'peek.multiTitle': '{count} 个任务正在进行',
     'peek.attentionTitle': '{count} 件事需要你处理',
     'peek.errorTitle': '{count} 个任务遇到问题',

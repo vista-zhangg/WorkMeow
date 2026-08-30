@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/tray-cat.svg" width="112" alt="打工喵图标">
+  <img src="assets/salary-cat.png" width="112" alt="月薪喵头像">
   <h1>打工喵（WorkMeow）</h1>
   <p><strong>让一只喵替你盯住所有正在工作的 AI 编程助手。</strong></p>
   <p>实时聚合 Claude Code、Codex、TRAE、WorkBuddy 与 opencode 的状态、提醒、权限请求和 token 用量。</p>
@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.6.3-F6A04A" alt="Version 1.6.3">
+    <img src="https://img.shields.io/badge/version-1.7.0-F6A04A" alt="Version 1.7.0">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -31,9 +31,10 @@
 - **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
+- **Codex 订阅额度常驻**：启动时自动发现桌面 Codex 自带的 CLI，复用现有托盘位显示当前脱敏账户、5h / 7d 剩余量、刷新点和更新时间；切换账户后自动重连，缺失窗口明确显示 `--`，无需手动配置。
 - **接入自检与修复**：在设置中核对五个 Agent 的 Hook、插件或只读监听状态，可一键修复或卸载 WorkMeow 接入。
 - **一键隐私模式**：右键打工喵通过 ON/OFF 快速切换，也可在设置中控制；隐藏敏感明细但保留必要状态和用量。
-- **本地优先**：会话与统计数据留在本机；唯一的常规外联是下载 models.dev 公共模型价目表。
+- **本地优先**：会话与统计数据留在本机；公共价格由 models.dev 提供，订阅额度由 Codex 自己认证并读取。
 - **轻量桌面交互**：拖动、贴边、工作速览、行动中心、系统托盘、开机启动和下班彩蛋。
 
 ## 真实状态示例
@@ -53,7 +54,7 @@
   </tr>
 </table>
 
-> GIF 素材来自抖音博主 @月薪喵 的原创“月薪喵”表情系列。素材版权不包含在本项目 MIT License 中；完整来源与版权说明见 [素材署名](assets/cat/CREDITS.md)。
+> GIF 素材及以该角色为参考生成的静态头像来自抖音博主 @月薪喵 的原创“月薪喵”形象。相关素材版权不包含在本项目 MIT License 中；完整来源与版权说明见 [素材署名](assets/cat/CREDITS.md)。
 
 ## 自定义状态表情
 
@@ -72,7 +73,7 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 | Agent | 接入方式 | 是否修改外部配置 | 桌宠内授权 |
 | --- | --- | --- | --- |
 | Claude Code | `hook/workmeow-hook.js` 生命周期 hook、transcript、进程信息 | 合并安装/卸载 WorkMeow hook，不覆盖已有 hook | 支持 |
-| Codex | 增量读取本机 rollout JSONL | 不修改 Codex 配置 | 只读提醒 |
+| Codex | 增量读取本机 rollout JSONL；官方 App Server 订阅额度通知 | 不修改 Codex 配置、不读取凭据文件 | 只读提醒 |
 | TRAE | 读取本机 IDE 日志与进程信息 | 仅在检测到 TRAE 后合并安装 hook | 只读提醒 |
 | WorkBuddy | hook、transcript 与用量字段 | 仅在检测到 WorkBuddy 后合并安装 hook | 只读提醒 |
 | opencode | 官方插件机制、事件与用量文件 | 安装/卸载一个独立插件文件 | 只读提醒 |
@@ -85,41 +86,17 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 
 正式版本发布后，可从 [GitHub Releases](https://github.com/vista-zhangg/WorkMeow/releases) 下载：
 
-- `WorkMeow-<version>-Windows-x64.exe`：Windows 安装包；
-- `WorkMeow-<version>-Windows-x64.zip`：免安装便携版。
+- `WorkMeow-<version>-Windows-x64.exe`：唯一支持的 Windows x64 NSIS 安装包。
 
-便携版必须**完整解压**后再运行 `WorkMeow.exe`，不要在压缩软件预览窗口中启动，也不要只复制单个 EXE。
+1.7.0 起，Release 不再提供源码/npm 部署入口或 ZIP 便携包；请安装 EXE 后使用，不要从压缩包或源码目录直接运行。
 
-### 从源码运行
+### 开发与贡献
 
-要求：Windows x64、Node.js 22.12 或更高版本、npm，以及至少一个受支持的 Agent。
+源码启动、测试和本地打包命令仅供开发者与贡献者使用，不属于 Release 安装方式；请参阅[本地开发与打包手册](docs/LOCAL_DEPLOYMENT.md)。
 
-```powershell
-git clone https://github.com/vista-zhangg/WorkMeow.git
-cd WorkMeow
-npm ci
-npm test
-npm start
-```
+## 开发者命令
 
-调试时让 Electron 保持在当前终端：
-
-```powershell
-npm run start:console
-```
-
-## 常用命令
-
-```powershell
-npm start                 # 脱离当前终端启动
-npm run start:console     # 在当前终端启动，便于调试
-npm test                  # 运行 36 套回归测试
-npm run install:hooks     # 对已检测到的工具安装/对账 hook 与插件
-npm run uninstall:hooks   # 备份后卸载 WorkMeow 写入的 hook 与插件
-npm run meter:rebuild     # 用当前价格重新计算本机历史台账
-npm run package:portable  # 构建 Windows x64 便携 ZIP
-npm run package:win       # 构建安装包、ZIP 与 SHA-256 校验值
-```
+开发者使用的 `npm` 命令、回归测试和 EXE 打包流程统一记录在[本地开发与打包手册](docs/LOCAL_DEPLOYMENT.md)中。
 
 ## 数据与隐私
 
@@ -127,6 +104,7 @@ npm run package:win       # 构建安装包、ZIP 与 SHA-256 校验值
 - Claude Code、Codex、TRAE、WorkBuddy 与 opencode 的会话数据只在本机读取和处理。
 - 本地 HTTP 服务只监听 loopback，写接口要求每次运行随机生成的令牌。
 - models.dev 同步只下载公开价目表，不上传 transcript、rollout、权限内容或统计数据。
+- Codex 额度通过一个长生命周期的 `codex app-server --stdio` 连接读取；WorkMeow 会先用 `account/read` 确认当前账户，再读取额度并监听更新。认证与上游请求均由 Codex 负责；WorkMeow 不读取 `~/.codex/auth.json` 的内容，也不访问 ChatGPT 网页接口。其他 Codex 进程替换认证存储时，只监听文件系统变更并重连，以避免继续显示旧账户数据。
 - 右键打工喵或在设置中开启「隐私模式」只会遮蔽屏幕展示；监控与用量统计继续在本机运行，关闭后未处理事项自动恢复。
 - 面板费用是按公开 API 单价折算的估计值，不等同于订阅账单或厂商最终结算。
 
@@ -140,6 +118,7 @@ Codex rollout ───┼──> local server / watcher ──> adapter / core 
 TRAE 日志 ───────┤                                  └────────────> 统一用量台账
 WorkBuddy ───────┤
 opencode 插件 ───┘
+Codex App Server ───────> 现有托盘位（5h / 7d）+ 临界额度气泡
 ```
 
 主进程负责 watcher 生命周期、托盘和窗口；后端状态机聚合多会话；renderer 只接收收敛后的状态与事件协议。状态词汇和优先级由 [`shared/states.js`](shared/states.js) 统一定义。
@@ -160,7 +139,7 @@ WorkMeow 基于 [LLMPET](https://github.com/myunwang/LLMPET) 二次开发，并�
 - 源代码依照 [MIT License](LICENSE) 发布；
 - 根目录许可证保留上游 `Copyright (c) 2026 myunwang`；
 - WorkMeow 的修改部分版权归相应贡献者所有；
-- 月薪喵 GIF 版权归抖音博主 **@月薪喵** 所有，不适用本项目的 MIT License。
+- 月薪喵 GIF 及其静态衍生头像的原角色版权归抖音博主 **@月薪喵** 所有，不适用本项目的 MIT License。
 
 ## 参与贡献
 

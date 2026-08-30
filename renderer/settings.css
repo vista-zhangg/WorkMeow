@@ -26,7 +26,7 @@ body { padding: 0; }
   flex-shrink: 0;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.logo { font-size: 27px; line-height: 1; }
+.logo { width: 36px; height: 36px; flex: 0 0 auto; object-fit: contain; }
 .brand-title { font-size: 15px; font-weight: 700; color: #1e3a5f; }
 .brand-sub { font-size: 11px; color: #6485a8; margin-top: 3px; }
 .icon-button {

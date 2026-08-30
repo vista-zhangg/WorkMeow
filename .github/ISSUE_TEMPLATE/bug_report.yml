@@ -21,8 +21,6 @@ body:
       label: 运行方式 / Installation
       options:
         - Windows installer
-        - Portable ZIP
-        - Source / 源码
     validations:
       required: true
   - type: input

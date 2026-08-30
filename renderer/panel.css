@@ -31,7 +31,7 @@ html, body {
   padding: 14px 16px 10px;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.logo { font-size: 26px; }
+.logo { width: 34px; height: 34px; flex: 0 0 auto; object-fit: contain; }
 .brand-title { font-size: 15px; font-weight: 700; color: #1e3a5f; }
 .brand-sub { font-size: 11px; color: #6485a8; margin-top: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
