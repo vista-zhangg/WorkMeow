@@ -22,8 +22,9 @@
     "install:hooks": "node backend/hooks-cli.js",
     "uninstall:hooks": "node backend/hooks-cli.js --uninstall",
     "meter:rebuild": "node backend/meter-rebuild.js",
-    "package:portable": "electron-builder --win zip --x64 --publish never && node scripts/finalize-dist.js --portable",
-    "package:win": "electron-builder --win --x64 --publish never && node scripts/finalize-dist.js",
+    "package:portable": "electron-builder --win zip --x64 --publish never && node scripts/finalize-dist.js --portable && node scripts/verify-dist.js --portable",
+    "package:win": "electron-builder --win --x64 --publish never && node scripts/finalize-dist.js && node scripts/verify-dist.js",
+    "verify:dist": "node scripts/verify-dist.js",
     "test": "node test/run-all.js"
   },
   "devDependencies": {

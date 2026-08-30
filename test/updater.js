@@ -148,6 +148,8 @@ async function run() {
   const settings = read('renderer/settings.html');
   const preload = read('preload.js');
   assert(pkg.dependencies['electron-updater'], 'electron-updater must ship with the application');
+  assert.strictEqual(pkg.build.electronDist, 'node_modules/electron/dist',
+    'packaging must reuse the Electron runtime already installed by npm');
   assert.strictEqual(pkg.build.publish[0].provider, 'github');
   assert.strictEqual(pkg.build.publish[0].owner, 'vista-zhangg');
   assert(workflow.includes('dist/latest.yml') && workflow.includes('.exe.blockmap'),

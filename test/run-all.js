@@ -24,6 +24,7 @@ const TESTS = Object.freeze([
   'ipc-contract.js',
   'auto-launch.js',
   'updater.js',
+  'dist-verifier.js',
   'xiaban-schedule.js',
   'pet-assets.js',
   'settings-assets.js',
