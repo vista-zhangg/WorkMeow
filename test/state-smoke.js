@@ -624,6 +624,53 @@ async function main() {
       assert.strictEqual(mixed.elements('chip').dataset.context, 'active-working'));
   }
 
+  console.log('[R15] 隐私模式：立即清理屏幕敏感内容并保留状态');
+  {
+    const w = world();
+    w.handlers.stats(baseStats({ workingCount: 1 }));
+    w.handlers.event({ kind: 'say', text: '客户报价是 42 万', project: '秘密项目' });
+    check('开启前消息气泡正常显示', () => {
+      assert(!w.elements('bubble').classList.contains('hidden'));
+      assert(w.elements('bubble-text').textContent.includes('42 万'));
+    });
+    w.handlers.stats(baseStats({
+      privacyMode: true,
+      workingCount: 1,
+      sessions: [{ state: 'working', project: '私密任务', op: null }],
+    }));
+    check('隐私开启的同一帧立即隐藏旧消息', () =>
+      assert(w.elements('bubble').classList.contains('hidden')));
+    check('胶囊保留工作状态并显示锁标记', () => {
+      assert(w.elements('cat').classList.contains('working'));
+      assert(w.elements('chip-context').textContent.startsWith('🔒'));
+    });
+
+    const action = world();
+    const choice = {
+      kind: 'perm', sessionId: 'secret-session', permId: 'secret-permission',
+      project: '秘密项目', header: 'Bash', question: '运行秘密命令',
+      options: [{ key: 'allow', label: '允许' }, { key: 'deny', label: '拒绝' }],
+      allowInput: false,
+    };
+    action.handlers.stats(baseStats({
+      waitingCount: 1,
+      actions: [{ state: 'waiting', choice }],
+      sessions: [{ state: 'waiting', project: '秘密项目', choice }],
+    }));
+    check('开启前授权卡正常可见', () =>
+      assert(!action.elements('ask').classList.contains('hidden')));
+    action.handlers.stats(baseStats({
+      privacyMode: true,
+      waitingCount: 1,
+      actions: [{ state: 'waiting', choice: null }],
+      sessions: [{ state: 'waiting', project: '私密任务', choice: null }],
+    }));
+    check('隐私开启后关闭敏感卡片，但仍保留等待态', () => {
+      assert(action.elements('ask').classList.contains('hidden'));
+      assert(action.elements('cat').classList.contains('waiting'));
+    });
+  }
+
   console.log(`\n${failures === 0 ? '✅ RENDERER ALL PASS' : '❌ ' + failures + ' FAILURE(S)'}`);
   process.exit(failures === 0 ? 0 : 1);
 }

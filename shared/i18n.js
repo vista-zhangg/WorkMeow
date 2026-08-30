@@ -19,11 +19,12 @@
   const zh = {
     // ── tray ────────────────────────────────────────────────────────────────
     'tray.tooltip': '打工喵 WorkMeow — 盯所有 AI 工具的桌宠',
+    'tray.tooltipPrivate': '打工喵 WorkMeow — 隐私模式已开启',
     'tray.panel': '详情面板',
     'tray.showPet': '显示打工喵',
     'tray.hidePet': '藏起打工喵',
+    'tray.privacyMode': '隐私模式',
     'tray.settings': '设置',
-    'tray.integrations': 'AI 工具接入状态',
     'tray.uninstallHook': '卸载已安装的钩子和插件',
     'tray.quit': '退出',
 
@@ -37,7 +38,7 @@
     'dlg.integrationsMissing': '未检测到，安装或首次使用后会自动接入',
     'dlg.integrationsFailed': '已检测到，但接入尚未完成',
     'dlg.integrationsDisabled': '已停用，可在设置中重新接入',
-    'dlg.integrationsHint': '无需安装 Node.js。以后可以从托盘菜单再次查看接入状态。',
+    'dlg.integrationsHint': '无需安装 Node.js。以后可以在设置的 Agent 接入区域再次检查与修复。',
 
     // ── settings ────────────────────────────────────────────────────────────
     'settings.title': '打工喵 · 设置',
@@ -160,6 +161,12 @@
     'background.tasks': '后台任务 {count} 项',
     'background.crons': '定时等待 {count} 项',
     'background.mixed': '后台 {tasks} 项 · 定时 {crons} 项',
+
+    // ── privacy mode ───────────────────────────────────────────────
+    'privacy.project': '私密任务',
+    'privacy.hiddenDetail': '详情已隐藏',
+    'privacy.newMessage': '收到一条新消息',
+    'privacy.enabled': '隐私模式已开启',
 
     // ── tool labels ─────────────────────────────────────────────────────────
     'tool.Edit': '编辑文件',

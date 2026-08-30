@@ -17,6 +17,7 @@ const TESTS = Object.freeze([
   'usage-stats.js',
   'source-registry.js',
   'integration-health.js',
+  'privacy-mode.js',
   'workmeow-migration.js',
   'config-external-write.js',
   'portable-runtime.js',

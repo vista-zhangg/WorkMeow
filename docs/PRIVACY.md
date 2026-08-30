@@ -30,6 +30,8 @@ WorkMeow 将配置、窗口位置、运行时令牌、模型价格缓存和用�
 
 ### 用户控制
 
+- 托盘右键菜单可一键开启「隐私模式」：桌宠和详情面板会隐藏项目/会话名、回复正文、授权命令、方案、问题选项与操作流明细，同时保留工作/等待/异常状态和用量汇总。
+- 隐私模式只是本机展示层遮蔽，不停止 watcher、hook、权限等待或用量统计。开启时当前气泡和敏感卡片会立即关闭；关闭后仍未处理的事项会恢复显示。
 - 退出 WorkMeow 即停止 watcher 与本地服务；
 - 可从托盘或 `npm run uninstall:hooks` 卸载本项目 hook/插件；
 - `~/.workmeow/` 包含用户配置和历史，只有确认不再需要时才应手动删除；
@@ -65,6 +67,8 @@ Displayed cost is calculated from public API prices for local trend analysis. It
 
 ### User control
 
+- Toggle **Privacy mode** from the tray context menu to hide project/session names, response text, permission commands, plans, question options, and operation details from the pet and details panel. Essential working/waiting/error state and aggregate usage remain visible.
+- Privacy mode masks the local presentation layer only. It does not stop watchers, hooks, pending permissions, or usage accounting. Existing bubbles and sensitive cards close immediately; unresolved items return after privacy mode is disabled.
 - Exiting WorkMeow stops its watchers and local service.
 - Use the tray action or `npm run uninstall:hooks` to remove WorkMeow-managed hooks and plugins.
 - `~/.workmeow/` contains user configuration and history; delete it manually only when that data is no longer needed.

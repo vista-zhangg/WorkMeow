@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.6.1-F6A04A" alt="Version 1.6.1">
+    <img src="https://img.shields.io/badge/version-1.6.2-F6A04A" alt="Version 1.6.2">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -32,6 +32,7 @@
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
 - **接入自检与修复**：在设置中核对五个 Agent 的 Hook、插件或只读监听状态，并一键修复已检测工具的异常接入。
+- **一键隐私模式**：从托盘右键菜单立即隐藏项目名、消息、命令、计划与操作明细，保留必要状态和用量。
 - **本地优先**：会话与统计数据留在本机；唯一的常规外联是下载 models.dev 公共模型价目表。
 - **轻量桌面交互**：拖动、贴边、工作速览、行动中心、系统托盘、开机启动和下班彩蛋。
 
@@ -112,7 +113,7 @@ npm run start:console
 ```powershell
 npm start                 # 脱离当前终端启动
 npm run start:console     # 在当前终端启动，便于调试
-npm test                  # 运行 30 套回归测试
+npm test                  # 运行 36 套回归测试
 npm run install:hooks     # 对已检测到的工具安装/对账 hook 与插件
 npm run uninstall:hooks   # 备份后卸载 WorkMeow 写入的 hook 与插件
 npm run meter:rebuild     # 用当前价格重新计算本机历史台账
@@ -126,6 +127,7 @@ npm run package:win       # 构建安装包、ZIP 与 SHA-256 校验值
 - Claude Code、Codex、TRAE、WorkBuddy 与 opencode 的会话数据只在本机读取和处理。
 - 本地 HTTP 服务只监听 loopback，写接口要求每次运行随机生成的令牌。
 - models.dev 同步只下载公开价目表，不上传 transcript、rollout、权限内容或统计数据。
+- 托盘的「隐私模式」只遮蔽屏幕展示；监控与用量统计继续在本机运行，关闭后未处理事项自动恢复。
 - 面板费用是按公开 API 单价折算的估计值，不等同于订阅账单或厂商最终结算。
 
 完整说明见 [隐私与数据边界](docs/PRIVACY.md)。

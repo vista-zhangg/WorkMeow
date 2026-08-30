@@ -28,7 +28,7 @@ for (const key of zhKeys) {
 }
 
 const SOURCES = [
-  'main.js', 'backend/adapter.js', 'renderer/pet.js', 'renderer/panel.js',
+  'main.js', 'backend/adapter.js', 'backend/privacy.js', 'renderer/pet.js', 'renderer/panel.js',
   'renderer/settings.js',
 ];
 const DOTTED = /^[a-z]+\.[A-Za-z]\w*$/;

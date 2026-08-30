@@ -52,6 +52,7 @@ const env = require('./backend/env');
 const { migrateLegacyState } = require('./backend/paths');
 const i18n = require('./shared/i18n');
 const { createUpdateService } = require('./backend/updater');
+const privacy = require('./backend/privacy');
 
 const t = i18n.t;
 const petAssetStore = new PetAssetStore();
@@ -529,7 +530,7 @@ function combinedPriceInfo() {
 
 // 单宠：所有事件都发给这唯一的一只打工喵。
 function sendPetEvent(ev) {
-  sendPet(IPC.PET_EVENT, ev);
+  sendPet(IPC.PET_EVENT, privacy.protectEvent(ev, config.get().privacyMode === true));
 }
 
 // 没有计量数据源的工具（未来工具）用的空台账
@@ -600,11 +601,12 @@ function buildStats(agent = 'all', snapshot = null, cachedMeter = null) {
 
   const pending = permissions.getPending();
   const ops = recentOps.slice(0, 30);
-  return adapter.buildPetStats(snap, pending, meter, {
+  const stats = adapter.buildPetStats(snap, pending, meter, {
     lastOps: ops,
     codexUsage,
     usageProvider: 'all',
   });
+  return privacy.protectStats(stats, config.get().privacyMode === true);
 }
 
 
@@ -1139,17 +1141,26 @@ function setXiabanSchedule(schedule) {
   return { ok, schedule: actual, error: ok ? null : 'write' };
 }
 
+function setPrivacyMode(enabled) {
+  const saved = config.save({ privacyMode: enabled === true });
+  const actual = saved && saved.privacyMode === true;
+  refreshTrayMenu();
+  if (core) emitStats();
+  return actual;
+}
+
 function refreshTrayMenu() {
   if (!tray) return;
-  tray.setToolTip(t('tray.tooltip'));
+  const privacyMode = config.get().privacyMode === true;
+  tray.setToolTip(t(privacyMode ? 'tray.tooltipPrivate' : 'tray.tooltip'));
   const petVisible = !!(mergedWin && !mergedWin.isDestroyed() && mergedWin.isVisible());
   const items = [
     { label: t('tray.panel'), click: () => openPanel() },
     { label: petVisible ? t('tray.hidePet') : t('tray.showPet'), click: () => (petVisible ? hidePet() : showPet()) },
+    { label: t('tray.privacyMode'), type: 'checkbox', checked: privacyMode, click: (item) => setPrivacyMode(item.checked) },
     { type: 'separator' },
     { label: t('tray.settings'), click: () => openSettings() },
     { type: 'separator' },
-    { label: t('tray.integrations'), click: () => showIntegrationStatus() },
     { label: t('tray.uninstallHook'), click: () => {
       try { if (stopWatcher) { stopWatcher(); stopWatcher = null; } } catch {}
       hooks.uninstall();

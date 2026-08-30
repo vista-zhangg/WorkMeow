@@ -20,6 +20,7 @@ const DEFAULTS = Object.freeze({
   onboardingVersion: 0,  // portable integration summary shown once
   hooksEnabled: true,
   autoUpdateEnabled: true,
+  privacyMode: false,
   xiabanTimes: DEFAULT_XIABAN_TIMES,
 });
 
@@ -40,6 +41,7 @@ function sanitize(raw) {
   }
   if (typeof raw.hooksEnabled === 'boolean') out.hooksEnabled = raw.hooksEnabled;
   if (typeof raw.autoUpdateEnabled === 'boolean') out.autoUpdateEnabled = raw.autoUpdateEnabled;
+  if (typeof raw.privacyMode === 'boolean') out.privacyMode = raw.privacyMode;
   if (raw.xiabanTimes && isClockTime(raw.xiabanTimes.lunch) && isClockTime(raw.xiabanTimes.evening)) {
     out.xiabanTimes = {
       lunch: raw.xiabanTimes.lunch,

@@ -19,7 +19,11 @@ assert(/require\('\.\/backend\/codex-watch'\)/.test(main), 'main process must lo
 assert(/codexWatch\s*=\s*createCodexWatch\(/.test(main), 'main process must create the Codex watcher');
 assert(/codexWatch\.start\(\)/.test(main), 'main process must start the Codex watcher');
 assert(/if \(codexWatch\) codexWatch\.stop\(\)/.test(main), 'app shutdown must stop the Codex watcher');
-assert(/function sendPetEvent\(ev\)/.test(main) && /sendPet\(IPC\.PET_EVENT, ev\)/.test(main), 'Codex events must reach the single unified pet');
+assert(
+  /function sendPetEvent\(ev\)/.test(main)
+    && /sendPet\(IPC\.PET_EVENT, privacy\.protectEvent\(ev, config\.get\(\)\.privacyMode === true\)\)/.test(main),
+  'Codex events must reach the single unified pet through the privacy boundary',
+);
 assert(/function createPetWindows\(\)/.test(main) && /makePetWindow\('all'\)/.test(main), 'single-pet mode must create exactly one unified pet');
 assert(!/dedicatedWins/.test(main), 'per-tool dedicated pets must be gone (single unified pet only)');
 assert(/petPosition: null/.test(config) && !/petMode|dedicatedAgents|petPositionCodex|petPositions|skinCodex|budget5h/.test(config), 'Codex pet settings must use the fixed cat without legacy selectors');

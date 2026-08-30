@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.6.1-F6A04A" alt="Version 1.6.1">
+    <img src="https://img.shields.io/badge/version-1.6.2-F6A04A" alt="Version 1.6.2">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -30,6 +30,7 @@ Switching between several agent windows just to check progress is distracting. W
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
 - **Unified usage view** — tokens, cache reads and writes, context windows, models, daily trends, and API-price estimates.
 - **Integration health and repair** — verify hooks, plugins, and read-only watchers for all five agents, then repair detected integrations in one click.
+- **One-click privacy mode** — hide project names, messages, commands, plans, and operation details from the tray menu while keeping essential state and usage visible.
 - **Local-first operation** — conversations and usage stay on the machine; the regular optional network request only downloads public model pricing from models.dev.
 - **Desktop-friendly controls** — drag, edge snapping, work peek, action center, system tray, auto-start, and scheduled break animations.
 
@@ -110,7 +111,7 @@ npm run start:console
 ```powershell
 npm start                 # Start detached from the current terminal
 npm run start:console     # Start in the current terminal for debugging
-npm test                  # Run all 29 regression suites
+npm test                  # Run all 36 regression suites
 npm run install:hooks     # Install/reconcile hooks and plugins for detected tools
 npm run uninstall:hooks   # Back up and remove WorkMeow-managed integrations
 npm run meter:rebuild     # Recalculate local history using current prices
@@ -124,6 +125,7 @@ npm run package:win       # Build installer, ZIP, and SHA-256 checksums
 - Claude Code, Codex, TRAE, WorkBuddy, and opencode session data is read and processed locally.
 - The local HTTP service binds to loopback only, and write endpoints require a fresh per-run token.
 - models.dev synchronization downloads a public price list only; transcripts, rollouts, permission contents, and usage statistics are not uploaded.
+- Tray privacy mode masks on-screen details only; local monitoring and usage accounting continue, and pending items return when privacy mode is disabled.
 - Displayed cost is an estimate based on public API prices, not a subscription bill or a provider’s final invoice.
 
 See [Privacy and data boundaries](docs/PRIVACY.md) for the complete bilingual policy.

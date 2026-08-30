@@ -692,6 +692,7 @@ function refreshAsk(stats) {
     : (stats.sessions || []).filter((x) => (x.state === 'waiting' || x.state === 'needsinput') && x.choice);
   const items = actionSource
     .map((x) => x.choice)
+    .filter(Boolean)
     .filter((c) => (c.options && c.options.length) || c.allowInput);
   const present = new Set(items.map(choiceKey));
   for (const k of [...answered]) if (!present.has(k)) answered.delete(k); // 已消失=已答完，清理
@@ -1806,6 +1807,11 @@ function renderContextCapsule(s) {
     title = '当前没有活动任务';
   }
 
+  if (s.privacyMode) {
+    label = `🔒 ${label}`;
+    title = `${t('privacy.enabled')} · ${title}`;
+  }
+
   chip.dataset.context = showDone
     ? 'done'
     : (info.kind === 'active' ? `active-${info.state}` : info.kind);
@@ -1850,6 +1856,14 @@ function triggerPurrPayday() {
 
 function applyStats(s) {
   if (!s) return;
+  const enteringPrivacy = s.privacyMode === true && !(lastStats && lastStats.privacyMode === true);
+  if (enteringPrivacy) {
+    clearPurrPayday();
+    clearTransient();
+    hideBubble();
+    if (askActive) hideAsk();
+    if (actionPopOpen) closeActionPop();
+  }
   lastStats = s;
   renderContextCapsule(s);
   renderSessions(s.sessions || []);
