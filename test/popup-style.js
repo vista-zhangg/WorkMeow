@@ -62,6 +62,9 @@ assert(/ipcMain\.handle\(IPC\.GET_WINDOW_METRICS/.test(main), 'main process must
 const radialSource = js.match(/const MENU = \[[\s\S]*?\n\];/)?.[0] || '';
 assert(!/menu\.(?:pending|background)/.test(radialSource), 'radial menu must remove duplicate panel entries');
 assert.strictEqual((radialSource.match(/window\.pet\.openPanel\(/g) || []).length, 1, 'radial menu must keep one detail entry');
+assert(/menu\.privacy/.test(radialSource) && /'ON'[\s\S]*'OFF'/.test(radialSource),
+  'radial menu must show the compact privacy ON/OFF action');
+assert(!/menu\.quit|window\.pet\.quit/.test(radialSource), 'radial menu must leave whole-app quit in the tray');
 assert(/#stage\.edge-(?:left|right) \.chip[\s\S]*?width:\s*120px[\s\S]*?justify-content:\s*center/.test(css), 'edge token chip must stay centred under the cat');
 // 单宠时代（2026-08-07 起）：不再有 per-tool 名牌，agent-tag 样式必须整体移除
 assert(!/agent-tag/.test(css), 'per-tool agent tag styles must be gone (single unified pet)');

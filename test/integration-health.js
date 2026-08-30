@@ -110,14 +110,20 @@ const css = read('renderer/settings.css');
 const main = read('main.js');
 const preload = read('preload.js');
 for (const id of ['integrations-section', 'integration-summary', 'integration-list',
-  'integration-refresh', 'integration-repair']) {
+  'integration-refresh', 'integration-repair', 'integration-uninstall']) {
   assert(html.includes(`id="${id}"`), `settings must expose ${id}`);
 }
-assert(/getIntegrationHealth/.test(preload) && /repairIntegrations/.test(preload),
-  'sandboxed settings bridge must expose health check and repair');
+assert(/getIntegrationHealth/.test(preload) && /repairIntegrations/.test(preload) && /uninstallIntegrations/.test(preload),
+  'sandboxed settings bridge must expose health check, repair, and uninstall');
 assert(/e\.sender !== settingsWin\.webContents/.test(main),
-  'integration repair IPC must reject non-settings renderers');
-assert(/integration-row/.test(css) && /integration-state\.needs-repair/.test(css),
+  'integration mutation IPC must reject non-settings renderers');
+assert(/function uninstallIntegrationHealth\(\)[\s\S]*?stopWatcher\(\)[\s\S]*?hooks\.uninstall\(\)/.test(main),
+  'settings uninstall must stop reconciliation before removing managed integrations');
+assert(/uninstallRetryable:\s*!ok/.test(main) && /report\.uninstallRetryable === true/.test(js),
+  'a partial uninstall must remain retryable from Settings');
+assert(/integrationsUninstallConfirm/.test(js) && /loadIntegrationHealth|renderIntegrationHealth/.test(js),
+  'settings uninstall must confirm and refresh the health report');
+assert(/integration-row/.test(css) && /integration-state\.needs-repair/.test(css) && /subtle-button\.danger/.test(css),
   'settings must distinguish compact ready and repair states');
 assert(/replaceChildren\(\)/.test(js) && /document\.createElement/.test(js),
   'integration rows must render without interpolating status data as HTML');

@@ -392,6 +392,21 @@ function repairIntegrationHealth() {
   };
 }
 
+function uninstallIntegrationHealth() {
+  try {
+    if (stopWatcher) {
+      stopWatcher();
+      stopWatcher = null;
+    }
+  } catch {}
+
+  let results = null;
+  try { results = hooks.uninstall(); } catch {}
+  const health = currentIntegrationHealth();
+  const ok = Array.isArray(results) && results.every((result) => result !== null);
+  return { ...health, ok, error: ok ? null : 'partial', uninstallRetryable: !ok };
+}
+
 // 显示/藏起打工喵（单宠：只有一个开关）。
 function showPet() {
   if (!mergedWin || mergedWin.isDestroyed()) reconcilePets();
@@ -436,6 +451,12 @@ function publishPetAssets(catalog = petAssetStore.catalog()) {
 
 function publishUpdateState(state) {
   sendWin(settingsWin, IPC.UPDATE_STATE, state);
+  return state;
+}
+
+function publishPrivacyState(enabled = config.get().privacyMode === true) {
+  const state = { enabled: enabled === true };
+  sendWin(settingsWin, IPC.PRIVACY_STATE, state);
   return state;
 }
 
@@ -879,6 +900,16 @@ function registerIpc() {
   ipcMain.on(IPC.CLOSE_PANEL, closePanel);
   ipcMain.handle(IPC.GET_AUTO_LAUNCH, () => getAutoLaunchStatus());
   ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_e, enabled) => setAutoLaunch(enabled));
+  ipcMain.handle(IPC.GET_PRIVACY_MODE, (e) => {
+    const fromSettings = settingsWin && !settingsWin.isDestroyed() && e.sender === settingsWin.webContents;
+    if (!fromSettings && !stateOfSender(e.sender)) return { ok: false, error: 'forbidden' };
+    return { ok: true, enabled: config.get().privacyMode === true };
+  });
+  ipcMain.handle(IPC.SET_PRIVACY_MODE, (e, enabled) => {
+    const fromSettings = settingsWin && !settingsWin.isDestroyed() && e.sender === settingsWin.webContents;
+    if (!fromSettings && !stateOfSender(e.sender)) return { ok: false, error: 'forbidden' };
+    return { ok: true, enabled: setPrivacyMode(enabled === true) };
+  });
   ipcMain.handle(IPC.GET_INTEGRATION_HEALTH, (e) => {
     if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
       return { ok: false, error: 'forbidden' };
@@ -890,6 +921,12 @@ function registerIpc() {
       return { ok: false, error: 'forbidden' };
     }
     return repairIntegrationHealth();
+  });
+  ipcMain.handle(IPC.UNINSTALL_INTEGRATIONS, (e) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
+      return { ok: false, error: 'forbidden' };
+    }
+    return uninstallIntegrationHealth();
   });
   ipcMain.handle(IPC.GET_UPDATE_STATE, () => updateService ? updateService.snapshot() : null);
   ipcMain.handle(IPC.CHECK_FOR_UPDATES, (e) => {
@@ -972,7 +1009,6 @@ function registerIpc() {
     win.setBounds({ x: b.x, y: b.y, width: b.width, height: clamped });
   });
 
-  ipcMain.on(IPC.QUIT_APP, () => app.quit());
   // 收起 = 隐藏唯一的一只打工喵（托盘菜单可重新显示）。
   ipcMain.on(IPC.CLOSE_PET, (e) => {
     const st = stateOfSender(e.sender);
@@ -1145,6 +1181,7 @@ function setPrivacyMode(enabled) {
   const saved = config.save({ privacyMode: enabled === true });
   const actual = saved && saved.privacyMode === true;
   refreshTrayMenu();
+  publishPrivacyState(actual);
   if (core) emitStats();
   return actual;
 }
@@ -1157,14 +1194,9 @@ function refreshTrayMenu() {
   const items = [
     { label: t('tray.panel'), click: () => openPanel() },
     { label: petVisible ? t('tray.hidePet') : t('tray.showPet'), click: () => (petVisible ? hidePet() : showPet()) },
-    { label: t('tray.privacyMode'), type: 'checkbox', checked: privacyMode, click: (item) => setPrivacyMode(item.checked) },
     { type: 'separator' },
     { label: t('tray.settings'), click: () => openSettings() },
     { type: 'separator' },
-    { label: t('tray.uninstallHook'), click: () => {
-      try { if (stopWatcher) { stopWatcher(); stopWatcher = null; } } catch {}
-      hooks.uninstall();
-    } },
     { label: t('tray.quit'), click: () => app.quit() },
   ];
   tray.setContextMenu(Menu.buildFromTemplate(items));

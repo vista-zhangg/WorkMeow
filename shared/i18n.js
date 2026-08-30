@@ -23,9 +23,7 @@
     'tray.panel': '详情面板',
     'tray.showPet': '显示打工喵',
     'tray.hidePet': '藏起打工喵',
-    'tray.privacyMode': '隐私模式',
     'tray.settings': '设置',
-    'tray.uninstallHook': '卸载已安装的钩子和插件',
     'tray.quit': '退出',
 
     // ── dialogs ─────────────────────────────────────────────────────────────
@@ -42,7 +40,7 @@
 
     // ── settings ────────────────────────────────────────────────────────────
     'settings.title': '打工喵 · 设置',
-    'settings.subtitle': '调整启动、更新方式和每种状态的喵咪表情',
+    'settings.subtitle': '调整隐私、接入、更新方式和喵咪表情',
     'settings.generalTab': '常规',
     'settings.expressionsTab': '喵咪表情',
     'settings.startupSection': '启动设置',
@@ -55,6 +53,14 @@
     'settings.failed': '保存失败，请重试',
     'settings.unsupported': '当前系统不支持此设置',
     'settings.hint': '修改会立即生效，下次登录 Windows 时自动运行。',
+    'settings.privacySection': '隐私保护',
+    'settings.privacyTitle': '隐私模式',
+    'settings.privacyDescription': '隐藏项目名、消息、命令和操作明细，保留状态与用量',
+    'settings.privacyEnabled': '已开启，屏幕内容已遮蔽',
+    'settings.privacyDisabled': '已关闭，正常显示任务详情',
+    'settings.privacySaving': '正在切换隐私模式…',
+    'settings.privacyFailed': '切换失败，请重试',
+    'settings.privacyHint': '也可以右键打工喵，通过 ON/OFF 快速切换。',
     'settings.integrationsSection': 'Agent 接入',
     'settings.integrationsTitle': '接入健康检查',
     'settings.integrationsDescription': '核对各工具的 Hook、插件或只读监听器是否正常',
@@ -72,13 +78,18 @@
     'settings.integrationsLastEvent': '最后事件 {time}',
     'settings.integrationsNoEvent': '尚无会话事件',
     'settings.integrationsRefresh': '重新检查',
+    'settings.integrationsUninstall': '卸载接入',
     'settings.integrationsRepairAll': '一键修复',
     'settings.integrationsRepairing': '正在修复接入…',
     'settings.integrationsRepaired': '接入已恢复',
     'settings.integrationsPartial': '仍有接入未恢复，请重启对应工具后再检查',
     'settings.integrationsCheckFailed': '检查失败，请重试',
     'settings.integrationsEnvDisabled': '当前运行模式禁止修改 Hook',
-    'settings.integrationsHint': '只修复已检测到的工具，不会为未安装的 Agent 创建配置目录。',
+    'settings.integrationsUninstallConfirm': '卸载 WorkMeow 已写入的 Hook 和插件吗？\n\n不会卸载 AI Agent 本身；之后可以通过“一键修复”重新接入。',
+    'settings.integrationsUninstalling': '正在卸载 WorkMeow 接入…',
+    'settings.integrationsUninstalled': 'WorkMeow 接入已卸载，可随时一键修复',
+    'settings.integrationsUninstallPartial': '部分接入未能卸载，请关闭对应 Agent 后重试',
+    'settings.integrationsHint': '修复只处理已检测工具；卸载只移除 WorkMeow 写入的 Hook 和插件，不影响 Agent 本身。',
     'settings.updateSection': '版本更新',
     'settings.autoUpdateTitle': '自动检查更新',
     'settings.installerUpdateDescription': '自动检查并下载 EXE 安装版更新，安装前会请你确认',
@@ -311,7 +322,7 @@
     'peek.unknownProject': '未命名会话',
 
     'menu.panel': '详情',
-    'menu.quit': '退出',
+    'menu.privacy': '隐私',
     'menu.collapse': '收起',
 
     // ── action center ───────────────────────────────────────────────────────

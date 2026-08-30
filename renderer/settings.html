@@ -13,7 +13,7 @@
           <span class="logo" aria-hidden="true">🐱</span>
           <div>
             <div class="brand-title" data-i18n="settings.title">打工喵 · 设置</div>
-            <div class="brand-sub" data-i18n="settings.subtitle">调整启动方式和每种状态的喵咪表情</div>
+            <div class="brand-sub" data-i18n="settings.subtitle">调整隐私、接入、更新方式和喵咪表情</div>
           </div>
         </div>
         <button id="close" class="icon-button" data-i18n-title="settings.close" title="关闭" aria-label="关闭">✕</button>
@@ -41,6 +41,21 @@
           <p class="hint" data-i18n="settings.hint">修改会立即生效，下次登录 Windows 时自动运行。</p>
         </section>
 
+        <section class="settings-section" id="privacy-section">
+          <div class="section-kicker" data-i18n="settings.privacySection">隐私保护</div>
+          <div class="setting-card">
+            <div class="setting-copy">
+              <div class="setting-title" data-i18n="settings.privacyTitle">隐私模式</div>
+              <div class="setting-description" data-i18n="settings.privacyDescription">隐藏项目名、消息、命令和操作明细，保留状态与用量</div>
+            </div>
+            <button id="privacy-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="隐私模式">
+              <span class="switch-thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div id="privacy-status" class="setting-status" aria-live="polite"></div>
+          <p class="hint" data-i18n="settings.privacyHint">也可以右键打工喵，通过 ON/OFF 快速切换。</p>
+        </section>
+
         <section class="settings-section" id="integrations-section">
           <div class="section-kicker" data-i18n="settings.integrationsSection">Agent 接入</div>
           <div class="integration-card">
@@ -56,10 +71,11 @@
               <div id="integration-status" class="setting-status" aria-live="polite"></div>
               <div class="action-buttons">
                 <button id="integration-refresh" class="subtle-button" type="button" data-i18n="settings.integrationsRefresh">重新检查</button>
+                <button id="integration-uninstall" class="subtle-button danger" type="button" data-i18n="settings.integrationsUninstall" disabled>卸载接入</button>
                 <button id="integration-repair" class="done-button" type="button" data-i18n="settings.integrationsRepairAll" disabled>一键修复</button>
               </div>
             </div>
-            <p class="hint" data-i18n="settings.integrationsHint">只修复已检测到的工具，不会为未安装的 Agent 创建配置目录。</p>
+            <p class="hint" data-i18n="settings.integrationsHint">修复只处理已检测工具；卸载只移除 WorkMeow 写入的 Hook 和插件，不影响 Agent 本身。</p>
           </div>
         </section>
 

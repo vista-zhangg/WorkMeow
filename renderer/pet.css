@@ -402,6 +402,14 @@ html, body {
 .radial:not(.hidden) .radial-item { opacity: 1; transform: scale(1); }
 .radial-item .ri-ic { font-size: 19px; line-height: 1; color: #5a3a2a; }
 .radial-item:hover .ri-ic { color: #d97757; }
+.radial-item .ri-state {
+  color: #7b7f86; font-size: 11px; font-weight: 800; letter-spacing: 0.6px; line-height: 1;
+}
+.radial-item.radial-toggle[data-enabled="true"] .ri-state { color: #d46643; }
+.radial-item.radial-toggle[data-enabled="true"] {
+  border-color: rgba(217, 119, 87, 0.48);
+  background: rgba(255, 247, 242, 0.98);
+}
 .radial-item .ri-lb {
   font-size: 8.5px; color: #8a5a44; line-height: 1;
   /* 中文标签保持在圆形按钮内，避免菜单项彼此重叠。 */

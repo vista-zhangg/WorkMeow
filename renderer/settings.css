@@ -147,6 +147,8 @@ main { padding: 10px 18px 0; flex: 1; }
   cursor: pointer; font-size: 11px;
 }
 .subtle-button:hover { background: rgba(255, 255, 255, 0.84); color: #2f66a2; }
+.subtle-button.danger { border-color: rgba(190, 58, 68, 0.22); color: #b34851; }
+.subtle-button.danger:hover { background: rgba(255, 232, 234, 0.84); color: #a43640; }
 .subtle-button:disabled, .done-button:disabled { cursor: wait; opacity: 0.56; }
 
 .switch {

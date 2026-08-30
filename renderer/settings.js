@@ -6,6 +6,8 @@ const $ = (id) => document.getElementById(id);
 
 const toggle = $('auto-launch-toggle');
 const statusEl = $('setting-status');
+const privacyToggle = $('privacy-toggle');
+const privacyStatusEl = $('privacy-status');
 const updateToggle = $('auto-update-toggle');
 const updateModeDescription = $('update-mode-description');
 const currentVersionEl = $('current-version');
@@ -21,6 +23,7 @@ const integrationList = $('integration-list');
 const integrationStatusEl = $('integration-status');
 const integrationRefresh = $('integration-refresh');
 const integrationRepair = $('integration-repair');
+const integrationUninstall = $('integration-uninstall');
 const lunchTime = $('xiaban-lunch-time');
 const eveningTime = $('xiaban-evening-time');
 const xiabanStatusEl = $('xiaban-status');
@@ -38,6 +41,8 @@ const DEFAULT_XIABAN_TIMES = Object.freeze({ lunch: '10:55', evening: '16:55' })
 let enabled = false;
 let supported = true;
 let busy = false;
+let privacyEnabled = false;
+let privacyBusy = false;
 let updateBusy = false;
 let updateState = null;
 let integrationBusy = false;
@@ -106,6 +111,37 @@ async function toggleAutoLaunch() {
   finally { busy = false; toggle.disabled = !supported; }
 }
 
+function renderPrivacyStatus(messageKey = null, kind = '') {
+  privacyToggle.setAttribute('aria-checked', String(privacyEnabled));
+  privacyToggle.disabled = privacyBusy;
+  privacyStatusEl.className = `setting-status${kind ? ` ${kind}` : ''}`;
+  privacyStatusEl.textContent = messageKey
+    ? t(messageKey)
+    : t(privacyEnabled ? 'settings.privacyEnabled' : 'settings.privacyDisabled');
+}
+
+function applyPrivacyState(result, messageKey = null, kind = '') {
+  if (result && typeof result.enabled === 'boolean') privacyEnabled = result.enabled;
+  const failed = !result || result.ok === false;
+  renderPrivacyStatus(messageKey || (failed ? 'settings.privacyFailed' : null), kind || (failed ? 'error' : ''));
+}
+
+async function loadPrivacyMode() {
+  try { applyPrivacyState(await window.pet.getPrivacyMode()); }
+  catch { renderPrivacyStatus('settings.privacyFailed', 'error'); }
+}
+
+async function togglePrivacyMode() {
+  if (privacyBusy) return;
+  privacyBusy = true;
+  renderPrivacyStatus('settings.privacySaving');
+  try {
+    const result = await window.pet.setPrivacyMode(!privacyEnabled);
+    applyPrivacyState(result, result && result.ok ? null : 'settings.privacyFailed', result && result.ok ? '' : 'error');
+  } catch { renderPrivacyStatus('settings.privacyFailed', 'error'); }
+  finally { privacyBusy = false; privacyToggle.disabled = false; }
+}
+
 function integrationModeLabel(mode) {
   if (mode === 'watcher') return t('settings.integrationsWatcher');
   if (mode === 'plugin') return t('settings.integrationsPlugin');
@@ -128,6 +164,12 @@ function integrationEventLabel(row) {
   return `${integrationModeLabel(row.mode)} · ${t('settings.integrationsLastEvent', { time })}`;
 }
 
+function canUninstallIntegrations(report = integrationHealth) {
+  const enabledOrRetryable = report && (report.hooksEnabled !== false || report.uninstallRetryable === true);
+  return !!(enabledOrRetryable && report.integrations.some((row) =>
+    row.detected && (row.mode === 'hook' || row.mode === 'plugin')));
+}
+
 function renderIntegrationHealth(report, messageKey = null, kind = '') {
   integrationHealth = report && Array.isArray(report.integrations) ? report : null;
   integrationList.replaceChildren();
@@ -137,6 +179,7 @@ function renderIntegrationHealth(report, messageKey = null, kind = '') {
     integrationStatusEl.className = `setting-status${kind ? ` ${kind}` : ''}`;
     integrationRefresh.disabled = integrationBusy;
     integrationRepair.disabled = true;
+    integrationUninstall.disabled = true;
     return;
   }
 
@@ -168,6 +211,7 @@ function renderIntegrationHealth(report, messageKey = null, kind = '') {
   integrationStatusEl.className = `setting-status${kind ? ` ${kind}` : ''}`;
   integrationRefresh.disabled = integrationBusy;
   integrationRepair.disabled = integrationBusy || !(summary.repairable > 0);
+  integrationUninstall.disabled = integrationBusy || !canUninstallIntegrations();
 }
 
 async function loadIntegrationHealth(messageKey = null, kind = '') {
@@ -176,6 +220,7 @@ async function loadIntegrationHealth(messageKey = null, kind = '') {
   integrationSummary.textContent = t('settings.integrationsChecking');
   integrationRefresh.disabled = true;
   integrationRepair.disabled = true;
+  integrationUninstall.disabled = true;
   try {
     const report = await window.pet.getIntegrationHealth();
     if (!report || report.error === 'forbidden') throw new Error('health unavailable');
@@ -211,6 +256,36 @@ async function repairIntegrations() {
     if (integrationHealth) {
       integrationRefresh.disabled = false;
       integrationRepair.disabled = !(integrationHealth.summary.repairable > 0);
+      integrationUninstall.disabled = !canUninstallIntegrations();
+    }
+  }
+}
+
+async function uninstallIntegrations() {
+  if (integrationBusy || !canUninstallIntegrations()) return;
+  if (!window.confirm(t('settings.integrationsUninstallConfirm'))) return;
+  integrationBusy = true;
+  integrationStatusEl.textContent = t('settings.integrationsUninstalling');
+  integrationStatusEl.className = 'setting-status';
+  integrationRefresh.disabled = true;
+  integrationRepair.disabled = true;
+  integrationUninstall.disabled = true;
+  try {
+    const report = await window.pet.uninstallIntegrations();
+    if (!report || report.error === 'forbidden') throw new Error('uninstall unavailable');
+    renderIntegrationHealth(
+      report,
+      report.ok ? 'settings.integrationsUninstalled' : 'settings.integrationsUninstallPartial',
+      report.ok ? '' : 'error',
+    );
+  } catch {
+    renderIntegrationHealth(integrationHealth, 'settings.integrationsUninstallPartial', 'error');
+  } finally {
+    integrationBusy = false;
+    if (integrationHealth) {
+      integrationRefresh.disabled = false;
+      integrationRepair.disabled = !(integrationHealth.summary.repairable > 0);
+      integrationUninstall.disabled = !canUninstallIntegrations();
     }
   }
 }
@@ -620,8 +695,10 @@ async function loadAssetCatalog() {
 }
 
 toggle.addEventListener('click', toggleAutoLaunch);
+privacyToggle.addEventListener('click', togglePrivacyMode);
 integrationRefresh.addEventListener('click', () => loadIntegrationHealth());
 integrationRepair.addEventListener('click', repairIntegrations);
+integrationUninstall.addEventListener('click', uninstallIntegrations);
 updateToggle.addEventListener('click', toggleAutoUpdate);
 updateCheck.addEventListener('click', checkUpdatesNow);
 updateAction.addEventListener('click', runUpdateAction);
@@ -637,6 +714,11 @@ if (window.pet.onPetAssets) window.pet.onPetAssets((catalog) => {
   renderAssets();
 });
 if (window.pet.onUpdateState) window.pet.onUpdateState(renderUpdateState);
+if (window.pet.onPrivacyMode) window.pet.onPrivacyMode((state) => {
+  if (!state || typeof state.enabled !== 'boolean') return;
+  privacyEnabled = state.enabled;
+  renderPrivacyStatus();
+});
 $('close').addEventListener('click', () => window.pet.closeSettings());
 $('done').addEventListener('click', () => window.pet.closeSettings());
 document.addEventListener('keydown', (event) => {
@@ -648,6 +730,7 @@ document.addEventListener('keydown', (event) => {
 applyStaticI18n();
 setTab('general');
 loadSettings();
+loadPrivacyMode();
 loadIntegrationHealth();
 loadUpdateState();
 loadXiabanSchedule();

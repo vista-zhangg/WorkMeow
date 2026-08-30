@@ -1692,6 +1692,7 @@ function perfNow() {
 
 // ---------- 统计 + 聚合状态 ----------
 let lastStats = null; // 最近一次快照：transient 到期时用它立即重算聚合态
+let privacyModeCache = false;
 let sayToken = 0;     // say 接棒 happy 的排队令牌（新事件作废旧排队）
 function compactTokens(value) {
   const n = Number(value) || 0;
@@ -1856,6 +1857,7 @@ function triggerPurrPayday() {
 
 function applyStats(s) {
   if (!s) return;
+  privacyModeCache = s.privacyMode === true;
   const enteringPrivacy = s.privacyMode === true && !(lastStats && lastStats.privacyMode === true);
   if (enteringPrivacy) {
     clearPurrPayday();
@@ -2163,12 +2165,31 @@ document.addEventListener('keydown', (e) => {
 // ---------- 泡泡菜单 ----------
 let radialOpenSeq = 0;
 let lastRadialMetrics = null;
+
+function privacyModeEnabled() {
+  return privacyModeCache;
+}
+
+async function readPrivacyMode() {
+  const result = await window.pet.getPrivacyMode();
+  if (result && result.ok && typeof result.enabled === 'boolean') privacyModeCache = result.enabled;
+  return privacyModeCache;
+}
+
+async function togglePrivacyMode() {
+  try {
+    const current = await readPrivacyMode();
+    const result = await window.pet.setPrivacyMode(!current);
+    if (result && result.ok && typeof result.enabled === 'boolean') privacyModeCache = result.enabled;
+  } catch {}
+}
+
 // labelKey (not label): buildRadial resolves Chinese labels at render time.
 const MENU = [
   { ic: 'chart',  labelKey: 'menu.panel', act: () => window.pet.openPanel(AGENT) },
-  // 收起 = 隐藏这只打工喵（托盘可重新显示）；退出 = 退出整个 app。
+  // 收起只隐藏桌宠（托盘可重新显示）；应用退出保留在托盘中。
   { ic: 'minus',  labelKey: 'menu.collapse', act: () => window.pet.closePet() },
-  { ic: 'power', labelKey: 'menu.quit', act: () => window.pet.quit() },
+  { labelKey: 'menu.privacy', status: () => privacyModeEnabled() ? 'ON' : 'OFF', act: togglePrivacyMode },
 ];
 
 function usableRadialMetrics(metrics) {
@@ -2258,9 +2279,18 @@ function buildRadial(metrics = lastRadialMetrics) {
     b.style.left = x + 'px';
     b.style.top = y + 'px';
     b.style.transitionDelay = i * 0.03 + 's';
-    const icName = it.ic;
-    const icHtml = (window.WorkMeowIcons && window.WorkMeowIcons.icon(icName)) || '';
-    b.innerHTML = `<span class="ri-ic oi">${icHtml}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
+    const status = typeof it.status === 'function' ? it.status() : '';
+    if (status) {
+      const enabled = status === 'ON';
+      b.classList.add('radial-toggle');
+      b.dataset.enabled = String(enabled);
+      b.setAttribute('aria-pressed', String(enabled));
+      b.setAttribute('aria-label', `${t(it.labelKey)} ${status}`);
+      b.innerHTML = `<span class="ri-state">${esc(status)}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
+    } else {
+      const icHtml = (window.WorkMeowIcons && window.WorkMeowIcons.icon(it.ic)) || '';
+      b.innerHTML = `<span class="ri-ic oi">${icHtml}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
+    }
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       closeRadial();
@@ -2276,6 +2306,8 @@ async function openRadial() {
   if (peekOpen) closePeek();
   radialOpen = true;
   bubble.classList.add('hidden');
+  try { await readPrivacyMode(); } catch {}
+  if (seq !== radialOpenSeq || !radialOpen) return;
   // closeActionPop 会异步把 BrowserWindow 从弹层尺寸缩回基础
   // 尺寸。必须等窗口和 DOM 都归位后再布局，否则菜单会按旧大窗坐标生成，
   // 随后的缩窗会把按钮直接裁出可见区域。
