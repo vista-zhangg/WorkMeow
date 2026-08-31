@@ -671,6 +671,52 @@ async function main() {
     });
   }
 
+  console.log('[R16] 额度提醒：不抢弹层或隐藏窗口，实际显示后才回执');
+  {
+    const action = world();
+    const choice = {
+      kind: 'perm', sessionId: 'quota-session', permId: 'quota-permission',
+      project: '额度测试', header: 'Bash', question: '继续执行？',
+      options: [{ key: 'allow', label: '允许' }, { key: 'deny', label: '拒绝' }],
+      allowInput: false,
+    };
+    action.handlers.event({ kind: 'waiting', choice, project: choice.project });
+    action.handlers.event({
+      kind: 'quota-alert', ts: 1,
+      quotaAlerts: [{ id: 'codex:300|1', text: 'Codex 5 小时额度剩余 5%' }],
+    });
+    await sleep(40);
+    check('授权弹层打开时额度提醒只排队', () => {
+      assert(!action.elements('ask').classList.contains('hidden'));
+      assert(!action.calls.some((call) => call[0] === 'quotaAlertShown'));
+    });
+    clickCat(action);
+    await sleep(300);
+    check('弹层关闭后显示额度并回执', () => {
+      assert(action.elements('bubble-text').textContent.includes('5%'));
+      assert.strictEqual(action.calls.find((call) => call[0] === 'quotaAlertShown')[1][0].join(','), 'codex:300|1');
+    });
+
+    const hidden = world();
+    await sleep(20); // let the startup greeting settle, then clear it deterministically
+    hidden.handlers.stats(baseStats({ privacyMode: true }));
+    hidden.document.hidden = true;
+    hidden.handlers.event({
+      kind: 'quota-alert', ts: 2,
+      quotaAlerts: [{ id: 'codex:10080|2', text: 'Codex 周额度剩余 10%' }],
+    });
+    await sleep(40);
+    check('桌宠隐藏时额度提醒不回执', () =>
+      assert(!hidden.calls.some((call) => call[0] === 'quotaAlertShown')));
+    hidden.document.hidden = false;
+    hidden.document.dispatch('visibilitychange');
+    await sleep(300);
+    check('桌宠重新可见后补显并回执', () => {
+      assert(hidden.elements('bubble-text').textContent.includes('10%'));
+      assert(hidden.calls.some((call) => call[0] === 'quotaAlertShown'));
+    });
+  }
+
   console.log(`\n${failures === 0 ? '✅ RENDERER ALL PASS' : '❌ ' + failures + ' FAILURE(S)'}`);
   process.exit(failures === 0 ? 0 : 1);
 }

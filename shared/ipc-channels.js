@@ -45,6 +45,7 @@ const IPC = Object.freeze({
   SET_PET_SIZE: 'set-pet-size',
   PET_BLUR: 'pet-blur',
   SET_IGNORE_MOUSE: 'set-ignore-mouse',
+  QUOTA_ALERT_SHOWN: 'quota-alert:shown',
 });
 
 const PUSH_CHANNELS = Object.freeze([
@@ -63,7 +64,7 @@ const INVOKE_CHANNELS = Object.freeze([
 const COMMAND_CHANNELS = Object.freeze([
   'SET_WIN_POS', 'END_WIN_DRAG', 'OPEN_PANEL', 'CLOSE_PANEL', 'CLOSE_SETTINGS', 'SET_PANEL_HEIGHT',
   'CLOSE_PET', 'SET_PET_SIZE', 'PET_BLUR',
-  'SET_IGNORE_MOUSE',
+  'SET_IGNORE_MOUSE', 'QUOTA_ALERT_SHOWN',
 ]);
 
 module.exports = { IPC, PUSH_CHANNELS, INVOKE_CHANNELS, COMMAND_CHANNELS };

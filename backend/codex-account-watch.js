@@ -1,9 +1,12 @@
 'use strict';
 
-// Account changes made by another Codex App Server are process-external, so
-// its account/updated notification cannot reach our stdio connection. Watch
-// only the auth store's directory entry (never its contents) and ask our App
-// Server client to reconnect when Codex replaces it.
+// Fast path for file-backed authentication only. Account changes made by
+// another Codex App Server are process-external, so its account/updated
+// notification cannot reach our stdio connection. Watch only auth.json's
+// directory entry (never its contents) and reconnect when Codex replaces it.
+// Keyring/auto/ephemeral auth has no file event contract; the App Server
+// account/read poll and bounded session recycle in codex-rate-limits.js are
+// the correctness fallback for those modes.
 
 const fs = require('fs');
 const path = require('path');

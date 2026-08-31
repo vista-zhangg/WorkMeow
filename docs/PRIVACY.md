@@ -23,7 +23,7 @@ WorkMeow 将配置、窗口位置、运行时令牌、模型价格缓存、用�
 
 常规运行中，WorkMeow 会从 [models.dev](https://models.dev) 下载公共模型价目表。Windows 版使用 Electron 网络层并继承系统代理或 PAC 设置；启动时同步一次，成功后每 24 小时刷新，失败时自动重试。该请求不携带 transcript、rollout、权限内容或用量统计。设置 `WORKMEOW_NO_NET=1` 会禁用价格同步和 Codex 额度上游连接，使 WorkMeow 保持完全离线；额度显示为 `--`。
 
-Codex 订阅额度通过官方 `codex app-server --stdio` 读取。WorkMeow 完成 App Server 初始化后先调用 `account/read`，再调用 `account/rateLimits/read` 并监听 `account/updated` 与 `account/rateLimits/updated`；认证和上游访问由 Codex 负责。为识别其他 Codex 进程执行的账户切换，WorkMeow 只监听 `~/.codex/` 中认证存储目录项的替换事件并重启自己的 App Server，不打开或解析凭据文件。WorkMeow 不保存 Codex 邮箱或凭据，也不调用 ChatGPT 网页接口。退出 WorkMeow 时会终止它启动的 App Server 子进程。
+Codex 订阅额度通过官方 `codex app-server --stdio` 读取。WorkMeow 完成 App Server 初始化后先调用 `account/read`，再调用 `account/rateLimits/read` 并监听 `account/updated` 与 `account/rateLimits/updated`；认证和上游访问由 Codex 负责。WorkMeow 只监听 `~/.codex/auth.json` 目录项的替换，将它作为 file auth 的快速重连信号，且不打开或解析凭据文件。keyring / auto / ephemeral 没有对应的文件 watcher 保证，账户变化依靠 App Server 通知、周期性 `account/read` 与定期重建连接收敛；界面表示 WorkMeow 自己这条连接当前可见的账户。WorkMeow 不保存 Codex 邮箱或凭据，也不调用 ChatGPT 网页接口。退出 WorkMeow 时会终止它启动的 App Server 子进程。
 
 本地服务只监听 loopback。写接口校验 Host、Origin、请求体大小、字段形状和每次运行随机生成的令牌。
 
@@ -63,7 +63,7 @@ Configuration, window position, runtime token, model-price cache, usage ledgers,
 
 During normal operation, WorkMeow may download the public model price list from [models.dev](https://models.dev). On Windows it uses Electron's network stack and follows the system proxy or PAC configuration; it syncs at startup, refreshes every 24 hours after success, and retries transient failures. Transcripts, rollouts, permission contents, and usage statistics are not attached to that request. Set `WORKMEOW_NO_NET=1` to disable both pricing synchronization and the Codex quota upstream connection, keeping WorkMeow fully offline; quota displays `--`.
 
-Codex subscription quota is read through the official `codex app-server --stdio` transport. WorkMeow initializes App Server, calls `account/read` before `account/rateLimits/read`, and listens for both account and rate-limit updates; Codex owns authentication and upstream access. To detect account switches performed by another Codex process, WorkMeow observes replacement events for the auth-store directory entry and restarts its own App Server without opening or parsing credential files. WorkMeow does not persist the Codex email or credentials and does not call ChatGPT web endpoints. Exiting WorkMeow terminates the App Server child process it started.
+Codex subscription quota is read through the official `codex app-server --stdio` transport. WorkMeow initializes App Server, calls `account/read` before `account/rateLimits/read`, and listens for both account and rate-limit updates; Codex owns authentication and upstream access. WorkMeow watches replacement of the `~/.codex/auth.json` directory entry only as a fast reconnect signal for file auth, without opening or parsing the credential file. Keyring, auto, and ephemeral auth have no corresponding file-watcher guarantee; account changes converge through App Server notifications, periodic `account/read`, and scheduled connection recycling, and the UI represents the account visible to WorkMeow's own connection. WorkMeow does not persist the Codex email or credentials and does not call ChatGPT web endpoints. Exiting WorkMeow terminates the App Server child process it started.
 
 The local service binds to loopback only. Write endpoints validate Host, Origin, body size, field shape, and a fresh random token generated for each run.
 

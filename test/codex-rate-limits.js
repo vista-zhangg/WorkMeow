@@ -82,6 +82,14 @@ async function main() {
     'newer multi-bucket responses must use the canonical codex bucket');
   assert.strictEqual(byLimitId.windows.weekly.windowId, proLike.windows.weekly.windowId,
     'window identity must not depend on the primary/secondary slot');
+  const conflictingViews = normalizeRateLimits({
+    rateLimits: { limitId: 'codex', primary: window(90, 300, reset5h), secondary: null },
+    rateLimitsByLimitId: {
+      codex: { limitId: 'codex', primary: window(10, 300, reset5h), secondary: null },
+    },
+  });
+  assert.strictEqual(conflictingViews.windows.fiveHour.remainingPercent, 90,
+    'the canonical codex bucket must take precedence over the legacy single-bucket view');
   const unknown = normalizeRateLimits(payload(window(10, 60, reset5h), null));
   assert.strictEqual(unknown.windows.fiveHour, null, 'an unknown duration must not be guessed as 5h');
   assert.strictEqual(unknown.windows.weekly, null, 'an unknown duration must not be guessed as weekly');
@@ -118,8 +126,12 @@ async function main() {
   service._accept(payload(window(80, 300, reset5h), null), true);
   service._accept({ rateLimits: { primary: { usedPercent: 90 } } }, false);
   assert.strictEqual(alerts.length, 1, 'one window/reset cycle may alert only once');
+  assert.strictEqual(fs.existsSync(dedupePath), false,
+    'an alert must not be claimed before the UI acknowledges that it was shown');
+  assert.strictEqual(service.acknowledgeAlert(alerts[0].alertId), true);
   service._accept(payload(window(90, 300, reset5h + 18000), null), true);
   assert.strictEqual(alerts.length, 2, 'a new resetsAt value starts a new alert cycle');
+  assert.strictEqual(service.acknowledgeAlert(alerts[1].alertId), true);
   assert(fs.existsSync(dedupePath), 'alert dedupe must survive an app restart');
   const afterRestartAlerts = [];
   const restarted = createCodexRateLimits({
@@ -129,6 +141,15 @@ async function main() {
   });
   restarted._accept(payload(window(95, 300, reset5h + 18000), null), true);
   assert.strictEqual(afterRestartAlerts.length, 0, 'persisted dedupe must suppress the same cycle after restart');
+
+  const unseenPath = path.join(temp, 'unseen-alerts.json');
+  const unseenAlerts = [];
+  createCodexRateLimits({ dedupePath: unseenPath, onAlert: (alert) => unseenAlerts.push(alert) })
+    ._accept(payload(window(90, 300, reset5h), null), true);
+  assert.strictEqual(fs.existsSync(unseenPath), false, 'an unseen alert must remain unclaimed on disk');
+  createCodexRateLimits({ dedupePath: unseenPath, onAlert: (alert) => unseenAlerts.push(alert) })
+    ._accept(payload(window(90, 300, reset5h), null), true);
+  assert.strictEqual(unseenAlerts.length, 2, 'an unseen cycle must be offered again after restart');
 
   const boundedPath = path.join(temp, 'bounded-alerts.json');
   const boundedDeduper = createAlertDeduper({ file: boundedPath, now: () => Date.now() });

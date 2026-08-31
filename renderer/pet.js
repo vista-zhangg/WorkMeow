@@ -1578,6 +1578,63 @@ function showBubble(text, holdMs = 3200, force = false) {
   bubbleTimer = setTimeout(hideBubble, holdMs);
 }
 
+const pendingQuotaAlerts = new Map();
+let quotaAlertRetryTimer = null;
+let quotaAlertDisplaying = false;
+function quotaAlertUiBusy() {
+  return document.hidden === true || radialOpen || askActive || actionPopOpen || peekOpen
+    || !bubble.classList.contains('hidden');
+}
+function scheduleQuotaAlertRetry() {
+  if (!quotaAlertRetryTimer) quotaAlertRetryTimer = setTimeout(flushQuotaAlerts, 250);
+}
+function flushQuotaAlerts() {
+  quotaAlertRetryTimer = null;
+  if (!pendingQuotaAlerts.size || quotaAlertDisplaying) return;
+  if (quotaAlertUiBusy()) {
+    scheduleQuotaAlertRetry();
+    return;
+  }
+  const entries = [...pendingQuotaAlerts.entries()];
+  const text = entries.map(([, alert]) => alert.text).join('\n');
+  quotaAlertDisplaying = true;
+  showBubble(text, 6500);
+  // Do not claim on a synchronous DOM mutation alone. Wait until a paint can
+  // happen, then verify the window stayed visible and the bubble was not
+  // replaced by a higher-priority event.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    quotaAlertDisplaying = false;
+    const visible = document.hidden !== true && !bubble.classList.contains('hidden')
+      && bubbleText.textContent === text;
+    if (!visible) {
+      scheduleQuotaAlertRetry();
+      return;
+    }
+    const alertIds = [];
+    for (const [key, alert] of entries) {
+      pendingQuotaAlerts.delete(key);
+      if (alert.id) alertIds.push(alert.id);
+    }
+    if (alertIds.length) window.pet.quotaAlertShown(alertIds);
+    if (pendingQuotaAlerts.size) scheduleQuotaAlertRetry();
+  }));
+}
+function enqueueQuotaAlert(ev) {
+  const alerts = Array.isArray(ev && ev.quotaAlerts) ? ev.quotaAlerts : [];
+  for (const alert of alerts) {
+    if (!alert || typeof alert.id !== 'string' || !alert.id || typeof alert.text !== 'string') continue;
+    pendingQuotaAlerts.set(alert.id, alert);
+  }
+  if (!pendingQuotaAlerts.size && ev && ev.text) {
+    // Compatibility with an in-flight event from an older main process.
+    pendingQuotaAlerts.set(`legacy:${ev.ts || Date.now()}`, { id: null, text: ev.text });
+  }
+  if (!quotaAlertRetryTimer && !quotaAlertDisplaying) flushQuotaAlerts();
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && pendingQuotaAlerts.size && !quotaAlertRetryTimer) flushQuotaAlerts();
+});
+
 function requestSessionFocus(sessionId) {
   if (!sessionId) return;
   Promise.resolve(window.pet.focusSession(sessionId))
@@ -1595,6 +1652,12 @@ function hideBubble() {
 const curSkinEl = () => cat;
 
 window.pet.onEvent((ev) => {
+  if (ev.kind === 'quota-alert') {
+    // Queue first: hidden windows and active popups must defer the bubble, not
+    // consume the only alert for this reset cycle.
+    enqueueQuotaAlert(ev);
+    return;
+  }
   // 需要人处理或出错时，优先让出工作速览，保持原有卡片/气泡路径。
   if (peekOpen && (ev.kind === 'waiting' || ev.kind === 'needsinput' || ev.kind === 'error')) closePeek();
   // 你正在答面板/打字时：新的待答任务只悄悄进队列(不抢面板)，其余动画/彩带/气泡/状态变化一律不打断
@@ -1682,10 +1745,6 @@ window.pet.onEvent((ev) => {
       break;
     case 'longcmd':
       if (state !== 'waiting') showBubble(t('bub.slowCmd'), 3000);
-      break;
-    case 'quota-alert':
-      // 额度提醒复用现有气泡，不创建新的猫咪状态，也不打断当前稳态。
-      if (ev.text) showBubble(ev.text, 6500, true);
       break;
   }
 });

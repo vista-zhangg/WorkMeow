@@ -77,11 +77,11 @@ function mergeRateLimitPayload(previous, incoming, replace = false) {
 
 function canonicalLimit(payload) {
   if (!payload || typeof payload !== 'object') return null;
-  if (payload.rateLimits && typeof payload.rateLimits === 'object') return payload.rateLimits;
   const byId = payload.rateLimitsByLimitId;
   if (byId && typeof byId === 'object' && byId.codex && typeof byId.codex === 'object') {
     return byId.codex;
   }
+  if (payload.rateLimits && typeof payload.rateLimits === 'object') return payload.rateLimits;
   return null;
 }
 
@@ -197,10 +197,20 @@ function createAlertDeduper(options = {}) {
   let records = readAlertRecords(file);
   const seen = new Set(records.map((record) => record.key));
 
-  function claim(window) {
+  function keyFor(window) {
     if (!window || typeof window.windowId !== 'string' || !window.windowId) return false;
     if (!Number.isFinite(window.resetsAt)) return false;
-    const key = `${window.windowId}|${window.resetsAt}`;
+    return `${window.windowId}|${window.resetsAt}`;
+  }
+
+  function has(window) {
+    const key = keyFor(window);
+    return !!key && seen.has(key);
+  }
+
+  function claim(window) {
+    const key = keyFor(window);
+    if (!key) return false;
     if (seen.has(key)) return false;
     seen.add(key);
     records.push({ key, resetsAt: window.resetsAt });
@@ -210,7 +220,7 @@ function createAlertDeduper(options = {}) {
     return true;
   }
 
-  return { claim, records: () => records.slice() };
+  return { keyFor, has, claim, records: () => records.slice() };
 }
 
 function createCodexRateLimits(options = {}) {
@@ -258,6 +268,7 @@ function createCodexRateLimits(options = {}) {
   let pollTimer = null;
   let recycleTimer = null;
   let syncQueued = false;
+  const pendingAlerts = new Map();
 
   const accountWatch = options.watchAccount === false
     ? null
@@ -275,9 +286,25 @@ function createCodexRateLimits(options = {}) {
     for (const [kind, window] of Object.entries(next.windows || {})) {
       if (!window || !Number.isFinite(window.remainingPercent)) continue;
       if (window.remainingPercent > AMBER_REMAINING_PERCENT) continue;
-      if (!deduper.claim(window)) continue;
-      try { onAlert({ kind, ...window }); } catch {}
+      const alertId = deduper.keyFor(window);
+      if (!alertId || deduper.has(window) || pendingAlerts.has(alertId)) continue;
+      pendingAlerts.set(alertId, window);
+      try {
+        // The UI acknowledges only after the bubble is actually visible. Until
+        // then this cycle remains unclaimed and can be retried after a restart.
+        onAlert({ kind, ...window, alertId });
+      } catch {
+        pendingAlerts.delete(alertId);
+      }
     }
+  }
+
+  function acknowledgeAlert(alertId) {
+    const window = typeof alertId === 'string' ? pendingAlerts.get(alertId) : null;
+    if (!window) return false;
+    if (!deduper.claim(window) && !deduper.has(window)) return false;
+    pendingAlerts.delete(alertId);
+    return true;
   }
 
   function accept(payload, replace) {
@@ -632,6 +659,7 @@ function createCodexRateLimits(options = {}) {
   return {
     start,
     stop,
+    acknowledgeAlert,
     getState: () => state,
     _accept: accept,
     _handleMessage: (message) => handleMessage(message, generation),

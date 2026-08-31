@@ -31,7 +31,7 @@
 - **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
-- **Codex 订阅额度常驻**：启动时自动发现桌面 Codex 自带的 CLI，复用现有托盘位显示当前脱敏账户、5h / 7d 剩余量、刷新点和更新时间；切换账户后自动重连，缺失窗口明确显示 `--`，无需手动配置。
+- **无需打开 Codex 即可查额度**：启动时自动发现桌面 Codex 自带的 CLI；托盘始终使用月薪喵头像，右键 WorkMeow 托盘图标即可查看当前脱敏账户、5h / 7d 剩余量、刷新点和更新时间。缺失窗口明确显示 `--`，无需手动配置。
 - **接入自检与修复**：在设置中核对五个 Agent 的 Hook、插件或只读监听状态，可一键修复或卸载 WorkMeow 接入。
 - **一键隐私模式**：右键打工喵通过 ON/OFF 快速切换，也可在设置中控制；隐藏敏感明细但保留必要状态和用量。
 - **本地优先**：会话与统计数据留在本机；公共价格由 models.dev 提供，订阅额度由 Codex 自己认证并读取。
@@ -104,7 +104,7 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 - Claude Code、Codex、TRAE、WorkBuddy 与 opencode 的会话数据只在本机读取和处理。
 - 本地 HTTP 服务只监听 loopback，写接口要求每次运行随机生成的令牌。
 - models.dev 同步只下载公开价目表，不上传 transcript、rollout、权限内容或统计数据。
-- Codex 额度通过一个长生命周期的 `codex app-server --stdio` 连接读取；WorkMeow 会先用 `account/read` 确认当前账户，再读取额度并监听更新。认证与上游请求均由 Codex 负责；WorkMeow 不读取 `~/.codex/auth.json` 的内容，也不访问 ChatGPT 网页接口。其他 Codex 进程替换认证存储时，只监听文件系统变更并重连，以避免继续显示旧账户数据。
+- Codex 额度通过一个长生命周期的 `codex app-server --stdio` 连接读取；WorkMeow 会先用 `account/read` 确认当前账户，再读取额度并监听更新。认证与上游请求均由 Codex 负责；WorkMeow 不读取 `~/.codex/auth.json` 的内容，也不访问 ChatGPT 网页接口。文件认证下，`auth.json` 被替换会触发立即重连；keyring / auto / ephemeral 没有可监听的文件事件，账户切换依赖 App Server 的账户通知、周期性 `account/read` 和定期重建连接收敛。因此界面表示的是 WorkMeow 自己这条 App Server 连接当前可见的账户，不承诺另一进程中的非文件认证切换能被文件 watcher 即时发现。
 - 右键打工喵或在设置中开启「隐私模式」只会遮蔽屏幕展示；监控与用量统计继续在本机运行，关闭后未处理事项自动恢复。
 - 面板费用是按公开 API 单价折算的估计值，不等同于订阅账单或厂商最终结算。
 
@@ -118,7 +118,7 @@ Codex rollout ───┼──> local server / watcher ──> adapter / core 
 TRAE 日志 ───────┤                                  └────────────> 统一用量台账
 WorkBuddy ───────┤
 opencode 插件 ───┘
-Codex App Server ───────> 现有托盘位（5h / 7d）+ 临界额度气泡
+Codex App Server ───────> 托盘右键菜单（5h / 7d）+ 临界额度气泡
 ```
 
 主进程负责 watcher 生命周期、托盘和窗口；后端状态机聚合多会话；renderer 只接收收敛后的状态与事件协议。状态词汇和优先级由 [`shared/states.js`](shared/states.js) 统一定义。

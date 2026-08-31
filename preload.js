@@ -23,7 +23,7 @@ const IPC = Object.freeze({
   CLOSE_SETTINGS: 'close-settings',
   SET_PANEL_HEIGHT: 'set-panel-height', CLOSE_PET: 'close-pet',
   PERMISSION_DECIDE: 'permission-decide', FOCUS_SESSION: 'focus-session', SET_PET_SIZE: 'set-pet-size',
-  PET_BLUR: 'pet-blur', SET_IGNORE_MOUSE: 'set-ignore-mouse',
+  PET_BLUR: 'pet-blur', SET_IGNORE_MOUSE: 'set-ignore-mouse', QUOTA_ALERT_SHOWN: 'quota-alert:shown',
 });
 
 contextBridge.exposeInMainWorld('pet', {
@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld('pet', {
   focusSession: (sessionId) => ipcRenderer.invoke(IPC.FOCUS_SESSION, sessionId),
   // 透明空白处点击穿透：渲染端命中测试后切换（true=穿透，鼠标事件仍转发回来）
   setIgnoreMouse: (ignore) => ipcRenderer.send(IPC.SET_IGNORE_MOUSE, ignore),
+  quotaAlertShown: (alertIds) => ipcRenderer.send(IPC.QUOTA_ALERT_SHOWN, alertIds),
   // 按弹层内容精确定高（动态，避免固定大窗口留白）；w/h<=0 复位
   setPetSize: (w, h, anchor) => ipcRenderer.send(IPC.SET_PET_SIZE, w, h, anchor),
   // 详情面板按内容高度自适应，避免底部留白 / 内容多时被切

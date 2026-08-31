@@ -121,8 +121,7 @@ let lastStats = null;   // 全量快照（面板与桌宠共用）
 let statsTimer = null;
 let emitDebounce = null;
 const recentOps = []; // ring for the panel "操作流"; newest first, capped
-const pendingQuotaAlerts = [];
-const quotaAlertBatch = [];
+const pendingQuotaAlerts = new Map();
 let quotaAlertTimer = null;
 
 // ── window geometry ───────────────────────────────────────────────────────────
@@ -263,7 +262,7 @@ function makePetWindow(agent) {
   win.webContents.on('did-finish-load', () => {
     sendWin(win, IPC.XIABAN_SCHEDULE, getXiabanSchedule());
     if (core) sendWin(win, IPC.PET_STATS, buildStats(st.agent));
-    while (pendingQuotaAlerts.length) sendWin(win, IPC.PET_EVENT, pendingQuotaAlerts.shift());
+    deliverQuotaAlerts(win);
   });
   return win;
 }
@@ -444,7 +443,10 @@ function uninstallIntegrationHealth() {
 // 显示/藏起打工喵（单宠：只有一个开关）。
 function showPet() {
   if (!mergedWin || mergedWin.isDestroyed()) reconcilePets();
-  if (mergedWin && !mergedWin.isDestroyed()) mergedWin.show();
+  if (mergedWin && !mergedWin.isDestroyed()) {
+    mergedWin.show();
+    deliverQuotaAlerts(mergedWin);
+  }
   refreshTrayMenu();
 }
 function hidePet() {
@@ -600,28 +602,27 @@ function quotaAlertEvent(alert) {
   };
 }
 
-function deliverQuotaAlerts() {
+function deliverQuotaAlerts(targetWin = null) {
+  if (quotaAlertTimer) clearTimeout(quotaAlertTimer);
   quotaAlertTimer = null;
-  const alerts = quotaAlertBatch.splice(0);
+  const alerts = [...pendingQuotaAlerts.values()];
   if (!alerts.length) return;
   const events = alerts.map(quotaAlertEvent);
   const event = privacy.protectEvent({
     ...events[0],
     text: events.map((item) => item.text).join('\n'),
+    quotaAlerts: events.map((item, index) => ({ id: alerts[index].alertId, text: item.text })),
   }, config.get().privacyMode === true);
-  const win = firstAlivePetWin();
+  const win = targetWin || firstAlivePetWin();
   const loading = win && win.webContents && typeof win.webContents.isLoadingMainFrame === 'function'
     ? win.webContents.isLoadingMainFrame()
     : !win;
   if (win && !loading) sendWin(win, IPC.PET_EVENT, event);
-  else {
-    pendingQuotaAlerts.push(event);
-    if (pendingQuotaAlerts.length > 4) pendingQuotaAlerts.shift();
-  }
 }
 
 function showQuotaAlert(alert) {
-  quotaAlertBatch.push(alert);
+  if (!alert || typeof alert.alertId !== 'string' || !alert.alertId) return;
+  pendingQuotaAlerts.set(alert.alertId, alert);
   if (quotaAlertTimer) return;
   quotaAlertTimer = setTimeout(deliverQuotaAlerts, 80);
   if (quotaAlertTimer.unref) quotaAlertTimer.unref();
@@ -1122,6 +1123,15 @@ function registerIpc() {
     applyPetSize(st, anchor);
   });
   ipcMain.on(IPC.PET_BLUR, (e) => { const w = senderPetWin(e); if (w) { w.blur(); } });
+  ipcMain.on(IPC.QUOTA_ALERT_SHOWN, (e, alertIds) => {
+    const st = stateOfSender(e.sender);
+    if (!st || !codexRateLimits || typeof codexRateLimits.acknowledgeAlert !== 'function') return;
+    const ids = Array.isArray(alertIds) ? alertIds : [alertIds];
+    for (const alertId of ids) {
+      if (typeof alertId !== 'string' || !pendingQuotaAlerts.has(alertId)) continue;
+      if (codexRateLimits.acknowledgeAlert(alertId)) pendingQuotaAlerts.delete(alertId);
+    }
+  });
 
   // Click-through: the renderer hit-tests the cursor and toggles this so the
   // transparent parts of the pet window let clicks reach apps behind it.

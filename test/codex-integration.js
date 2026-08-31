@@ -46,8 +46,9 @@ assert(/tray\.setToolTip\(baseTooltip\)/.test(main) && !/quotaTooltip/.test(main
   'tray hover text must not expose quota details');
 assert(/quota\.status === 'ready' \? \[\] :/.test(main),
   'healthy quota layout must stay compact and reserve the status row for failures');
-assert(/case 'quota-alert':[\s\S]*?showBubble\(/.test(pet) && !/quota[^\n]*setState\(/.test(pet),
-  'quota alerts must reuse the current bubble without adding a pet state');
+assert(/function enqueueQuotaAlert\(ev\)/.test(pet) && /showBubble\(text, 6500\)/.test(pet)
+  && !/quota[^\n]*setState\(/.test(pet),
+  'quota alerts must queue for the current bubble without adding a pet state');
 assert(
   /function sendPetEvent\(ev\)/.test(main)
     && /sendPet\(IPC\.PET_EVENT, privacy\.protectEvent\(ev, config\.get\(\)\.privacyMode === true\)\)/.test(main),

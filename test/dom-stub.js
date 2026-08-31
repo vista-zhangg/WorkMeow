@@ -93,6 +93,7 @@ function createStubWorld() {
   // pet.html gives these real tags/ids; pre-seed the img so src logic works
   const catImg = byId('cat-img');
   catImg.setAttribute('src', '../assets/cat/cat-idle.gif');
+  byId('bubble').classList.add('hidden');
 
   // Only the [data-*] attribute selectors applyStaticI18n() uses. The stub has
   // no parsed markup, so this scans the elements pet.js actually created — real
@@ -112,6 +113,7 @@ function createStubWorld() {
     body: makeElement('body'),
     documentElement: makeElement('html'),
     activeElement: null,
+    hidden: false,
     elementFromPoint: () => null,
     addEventListener: (ev, fn) => { (documentListeners[ev] = documentListeners[ev] || []).push(fn); },
     dispatch: (ev, arg) => {
@@ -145,6 +147,7 @@ function createStubWorld() {
     getPrivacyMode: () => Promise.resolve({ ok: true, enabled: false }),
     setPrivacyMode: (...a) => { calls.push(['setPrivacyMode', a]); return Promise.resolve({ ok: true, enabled: !!a[0] }); },
     focusSession: (...a) => { calls.push(['focusSession', a]); return Promise.resolve(behavior.focusResult); },
+    quotaAlertShown: (...a) => calls.push(['quotaAlertShown', a]),
     blurPet: () => calls.push(['blurPet']),
     decidePermission: (...a) => { calls.push(['decidePermission', a]); return Promise.resolve(true); },
   };

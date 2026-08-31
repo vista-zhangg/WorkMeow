@@ -29,7 +29,7 @@ Switching between several agent windows just to check progress is distracting. W
 - **Custom expressions** — browse every state GIF, add rotating variants, replace or remove a selected item, or restore defaults.
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
 - **Unified usage view** — tokens, cache reads and writes, context windows, models, daily trends, and API-price estimates.
-- **Persistent Codex subscription quota** — startup automatically discovers the native Codex Desktop CLI, and the existing tray slot shows the masked current account, 5h / 7d remaining quota, reset times, and the last update. Account switches reconnect automatically, missing windows stay `--`, and no manual setup is required.
+- **Check Codex quota without opening Codex** — startup automatically discovers the native Codex Desktop CLI. The tray always keeps the salary-cat avatar; right-click the WorkMeow tray icon to see the masked current account, 5h / 7d remaining quota, reset times, and the last update. Missing windows stay `--`, with no manual setup required.
 - **Integration health and repair** — verify all five agents, then repair or remove WorkMeow-managed integrations from Settings.
 - **One-click privacy mode** — right-click the cat to toggle the compact ON/OFF control, or use Settings, while keeping essential state and usage visible.
 - **Local-first operation** — conversations and usage stay on the machine; models.dev supplies public pricing while Codex authenticates and reads its own subscription quota.
@@ -102,7 +102,7 @@ Developer `npm` commands, regression tests, and the EXE packaging flow are docum
 - Claude Code, Codex, TRAE, WorkBuddy, and opencode session data is read and processed locally.
 - The local HTTP service binds to loopback only, and write endpoints require a fresh per-run token.
 - models.dev synchronization downloads a public price list only; transcripts, rollouts, permission contents, and usage statistics are not uploaded.
-- Codex quota uses one long-lived `codex app-server --stdio` connection. WorkMeow confirms the current account with `account/read` before reading quota and listening for updates. Codex owns authentication and upstream requests; WorkMeow does not read the contents of `~/.codex/auth.json` or call ChatGPT web endpoints. It only observes filesystem replacement events and reconnects when another Codex process changes the auth store, preventing stale cross-account display.
+- Codex quota uses one long-lived `codex app-server --stdio` connection. WorkMeow confirms the current account with `account/read` before reading quota and listening for updates. Codex owns authentication and upstream requests; WorkMeow does not read the contents of `~/.codex/auth.json` or call ChatGPT web endpoints. With file auth, replacing `auth.json` triggers an immediate reconnect. Keyring, auto, and ephemeral auth have no watchable file-event contract, so account changes converge through App Server account notifications, periodic `account/read`, and scheduled connection recycling. The UI therefore represents the account visible to WorkMeow's own App Server connection; it does not promise that a non-file auth switch in another process is detected immediately by the file watcher.
 - Privacy mode from the cat menu or Settings masks on-screen details only; local monitoring and usage accounting continue, and pending items return when it is disabled.
 - Displayed cost is an estimate based on public API prices, not a subscription bill or a provider’s final invoice.
 
@@ -116,7 +116,7 @@ Codex rollouts ───┼──> local server / watchers ──> adapter / cor
 TRAE logs ────────┤                                      └────────> unified usage ledger
 WorkBuddy ────────┤
 opencode plugin ──┘
-Codex App Server ─────> existing tray slot (5h / 7d) + low-quota bubble
+Codex App Server ─────> tray context menu (5h / 7d) + low-quota bubble
 ```
 
 The main process owns watcher lifecycles, the tray, and windows. The backend state machine aggregates concurrent sessions. Renderers only receive a reduced status and event protocol. State vocabulary and priority are defined once in [`shared/states.js`](shared/states.js).
