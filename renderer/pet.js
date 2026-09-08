@@ -1812,15 +1812,42 @@ function clearPurrPayday() {
 
 function renderContextCapsule(s) {
   if (!chip || !chipContext || !s || !petInsights || typeof petInsights.context !== 'function') return;
+  const display = s.chipDisplay || { showQuota: true, showTokens: false, showCost: false };
+  chipTokens.hidden = !display.showTokens;
+  chipCost.hidden = !display.showCost;
+  document.getElementById('chip-tokens-sep').hidden = !display.showTokens;
+  document.getElementById('chip-cost-sep').hidden = !display.showCost;
+  const quotaEl = document.getElementById('chip-quota');
+  quotaEl.hidden = !display.showQuota;
+  const quota = s.codexQuota || {};
+  const quotaDetails = [];
+  quotaEl.innerHTML = '';
+  for (const [key, label] of [['fiveHour', '5h'], ['weekly', '7d']]) {
+    const w = quota.windows && quota.windows[key];
+    const remaining = w && Number.isFinite(w.remainingPercent) ? Math.max(0, Math.min(100, w.remainingPercent)) : null;
+    const badge = document.createElement('span');
+    badge.className = 'quota-badge';
+    badge.dataset.level = remaining === null ? 'unknown' : remaining <= 5 ? 'red' : remaining <= 20 ? 'amber' : 'normal';
+    badge.dataset.period = label;
+    badge.textContent = remaining === null ? '--' : Math.round(remaining) + '%';
+    badge.style.setProperty('--quota-remaining', `${remaining === null ? 0 : remaining}%`);
+    badge.setAttribute('aria-label', `${label} 剩余 ${badge.textContent}`);
+    const reset = w && Number.isFinite(w.resetsAt) ? new Date(w.resetsAt * 1000) : null;
+    quotaDetails.push(`${label} 剩余 ${remaining === null ? '--' : Math.round(remaining) + '%'} · 重置 ${reset && Number.isFinite(reset.getTime()) ? reset.toLocaleString() : '--'}`);
+    quotaEl.appendChild(badge);
+  }
+  if (quota.status !== 'ready') quotaDetails.push(quota.statusText || '额度暂不可用');
+  if (Number.isFinite(quota.updatedAt)) quotaDetails.push(`更新于 ${new Date(quota.updatedAt).toLocaleString()}`);
+  quotaEl.title = `Codex 订阅额度\n${quotaDetails.join('\n')}`;
   const now = perfNow();
   const purrVisible = purrPaydaySummary && purrPaydayUntil > now && purrEnvironmentClear(s);
   if (purrVisible) {
     const purr = purrPaydaySummary;
     chip.dataset.context = 'purr';
     chipContext.textContent = t('purr.title');
-    chipTokens.textContent = `${purr.rounds} 轮`;
-    chipCost.textContent = `${compactTokens(purr.tokens)} tokens`;
-    chip.title = purr.copy || t('purr.titleAttr');
+    chipTokens.textContent = `${compactTokens(purr.tokens)} tokens`;
+    chipCost.textContent = '$' + (Number(purr.cost) || 0).toFixed(3);
+    chip.title = (purr.copy || t('purr.titleAttr')) + (display.showQuota ? '\n' + quotaEl.title : '');
     chip.setAttribute('aria-label', chip.title);
     return;
   }
@@ -1832,7 +1859,8 @@ function renderContextCapsule(s) {
     tokens: Number(s.today && s.today.tokens) || 0,
     cost: Number(s.today && s.today.cost) || 0,
   };
-  const detail = `${compactTokens(usage.tokens)} tokens · $${usage.cost.toFixed(3)}`;
+  const detail = [display.showTokens ? `${compactTokens(usage.tokens)} tokens` : '',
+    display.showCost ? `API 等价估算 $${usage.cost.toFixed(3)}` : ''].filter(Boolean).join(' · ');
   let label = '';
   let title = '';
   // A done badge is only the primary capsule state when no higher-priority
@@ -1885,7 +1913,7 @@ function renderContextCapsule(s) {
   const purrHint = !showDone && (info.kind === 'idle' || info.kind === 'sleeping')
     ? ` · ${t('purr.titleAttr')}`
     : '';
-  chip.title = `${title} · 今日 ${detail}${purrHint}`;
+  chip.title = `${title}${detail ? ` · 今日 ${detail}` : ''}${purrHint}${display.showQuota ? '\n' + quotaEl.title : ''}`;
   chip.setAttribute('aria-label', chip.title);
 }
 

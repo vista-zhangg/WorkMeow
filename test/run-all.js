@@ -37,6 +37,7 @@ const TESTS = Object.freeze([
   'i18n.js',
   'pet-geometry.js',
   'pet-insights.js',
+  'chip-display.js',
   'popup-style.js',
   'branding.js',
   'opencode-plugin.js',

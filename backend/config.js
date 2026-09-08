@@ -21,6 +21,9 @@ const DEFAULTS = Object.freeze({
   hooksEnabled: true,
   autoUpdateEnabled: true,
   privacyMode: false,
+  showQuota: true,
+  showTokens: false,
+  showCost: false,
   xiabanTimes: DEFAULT_XIABAN_TIMES,
 });
 
@@ -42,6 +45,9 @@ function sanitize(raw) {
   if (typeof raw.hooksEnabled === 'boolean') out.hooksEnabled = raw.hooksEnabled;
   if (typeof raw.autoUpdateEnabled === 'boolean') out.autoUpdateEnabled = raw.autoUpdateEnabled;
   if (typeof raw.privacyMode === 'boolean') out.privacyMode = raw.privacyMode;
+  for (const key of ['showQuota', 'showTokens', 'showCost']) {
+    if (typeof raw[key] === 'boolean') out[key] = raw[key];
+  }
   if (raw.xiabanTimes && isClockTime(raw.xiabanTimes.lunch) && isClockTime(raw.xiabanTimes.evening)) {
     out.xiabanTimes = {
       lunch: raw.xiabanTimes.lunch,

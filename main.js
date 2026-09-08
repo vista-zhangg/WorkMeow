@@ -701,6 +701,9 @@ function buildStats(agent = 'all', snapshot = null, cachedMeter = null) {
     codexUsage,
     usageProvider: 'all',
   });
+  stats.chipDisplay = getChipDisplay();
+  stats.codexQuota = { windows: codexQuotaState.windows, status: codexQuotaState.status,
+    statusText: quotaStatusLabel(codexQuotaState), updatedAt: codexQuotaState.updatedAt };
   return privacy.protectStats(stats, config.get().privacyMode === true);
 }
 
@@ -759,6 +762,9 @@ function bootBackend() {
         onUpdate: (next) => {
           codexQuotaState = next;
           refreshTrayMenu();
+          // Publish the same quota snapshot immediately; do not wait for the
+          // periodic stats refresh to catch the capsule up with the tray.
+          emitStats();
         },
         onAlert: showQuotaAlert,
       });
@@ -987,6 +993,17 @@ function registerIpc() {
   ipcMain.on(IPC.OPEN_PANEL, (_e, agent) => openPanel(agent || 'all'));
   ipcMain.on(IPC.CLOSE_PANEL, closePanel);
   ipcMain.handle(IPC.GET_AUTO_LAUNCH, () => getAutoLaunchStatus());
+  ipcMain.handle(IPC.GET_CHIP_DISPLAY, () => getChipDisplay());
+  ipcMain.handle(IPC.SET_CHIP_DISPLAY, (e, value) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false };
+    const patch = {};
+    for (const key of ['showQuota', 'showTokens', 'showCost']) {
+      if (value && typeof value[key] === 'boolean') patch[key] = value[key];
+    }
+    config.save(patch);
+    emitStats();
+    return { ok: true, ...getChipDisplay() };
+  });
   ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_e, enabled) => setAutoLaunch(enabled));
   ipcMain.handle(IPC.GET_PRIVACY_MODE, (e) => {
     const fromSettings = settingsWin && !settingsWin.isDestroyed() && e.sender === settingsWin.webContents;
@@ -1281,6 +1298,11 @@ function setPrivacyMode(enabled) {
   publishPrivacyState(actual);
   if (core) emitStats();
   return actual;
+}
+
+function getChipDisplay() {
+  const { showQuota, showTokens, showCost } = config.get();
+  return { showQuota, showTokens, showCost };
 }
 
 function quotaStatusLabel(quota) {

@@ -41,6 +41,14 @@
           <p class="hint" data-i18n="settings.hint">修改会立即生效，下次登录 Windows 时自动运行。</p>
         </section>
 
+        <section class="settings-section" id="chip-display-section">
+          <div class="section-kicker">喵底部展示栏</div>
+          <div class="setting-card"><div class="setting-copy"><div class="setting-title">Codex 订阅额度</div><div class="setting-description">显示 5h、7d 剩余百分比，与托盘同步更新；悬停查看重置时间</div></div><button id="showQuota-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="显示 Codex 订阅额度"><span class="switch-thumb" aria-hidden="true"></span></button></div>
+          <div class="setting-card"><div class="setting-copy"><div class="setting-title">今日 Tokens</div><div class="setting-description">显示全部工具今日累计 Token 消耗</div></div><button id="showTokens-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="显示今日 Tokens"><span class="switch-thumb" aria-hidden="true"></span></button></div>
+          <div class="setting-card"><div class="setting-copy"><div class="setting-title">今日 API 等价费用</div><div class="setting-description">按 API 价格估算，不代表订阅实际扣费</div></div><button id="showCost-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="显示 API 等价费用"><span class="switch-thumb" aria-hidden="true"></span></button></div>
+          <div id="chip-display-status" class="setting-status" aria-live="polite"></div>
+          <p class="hint">修改立即生效并自动保存；完整用量仍可在统计面板查看。</p>
+        </section>
         <section class="settings-section" id="privacy-section">
           <div class="section-kicker" data-i18n="settings.privacySection">隐私保护</div>
           <div class="setting-card">

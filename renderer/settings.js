@@ -4,6 +4,31 @@ const { t } = window.WorkMeowI18n;
 const ASSETS = window.WorkMeowPetAssets;
 const $ = (id) => document.getElementById(id);
 
+async function initializeChipDisplay() {
+  const keys = ['showQuota', 'showTokens', 'showCost'];
+  const status = $('chip-display-status');
+  const render = (value) => keys.forEach(key => $(key + '-toggle').setAttribute('aria-checked', String(value[key] === true)));
+  keys.forEach(key => { $(key + '-toggle').disabled = true; });
+  try {
+    render(await window.pet.getChipDisplay());
+    keys.forEach(key => {
+      const button = $(key + '-toggle');
+      button.disabled = false;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          const result = await window.pet.setChipDisplay({ [key]: button.getAttribute('aria-checked') !== 'true' });
+          if (!result || !result.ok) throw new Error('save failed');
+          render(result);
+          status.textContent = '已保存，喵底部展示已更新';
+        } catch { status.textContent = '保存失败，请重试'; }
+        finally { button.disabled = false; }
+      });
+    });
+  } catch { status.textContent = '展示设置加载失败，请重新打开设置'; }
+}
+initializeChipDisplay();
+
 const toggle = $('auto-launch-toggle');
 const statusEl = $('setting-status');
 const privacyToggle = $('privacy-toggle');

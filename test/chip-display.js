@@ -1,0 +1,34 @@
+'use strict';
+const assert = require('assert');
+const config = require('../backend/config');
+const { loadRenderer } = require('./dom-stub');
+assert.strictEqual(config.sanitize({}).showQuota, true);
+assert.strictEqual(config.sanitize({}).showTokens, false);
+assert.strictEqual(config.sanitize({ showTokens: true }).showTokens, true);
+assert.strictEqual(config.sanitize({ showCost: 'true' }).showCost, false);
+const w = loadRenderer(['shared/i18n.js', 'shared/states.js', 'shared/pet-assets.js', 'shared/pet-insights.js', 'renderer/pet.js']);
+const stats = { today: { tokens: 1234, cost: 0.123 }, sessions: [], bg: {}, idleMs: 1000,
+  codexQuota: { status: 'ready', windows: { fiveHour: { remainingPercent: 20, resetsAt: 1800000000 }, weekly: { remainingPercent: 5 } } } };
+w.handlers.stats(stats);
+assert.strictEqual(w.elements('chip-tokens').hidden, true);
+assert.strictEqual(w.elements('chip-cost').hidden, true);
+assert.strictEqual(w.elements('chip-quota').children[0].textContent, '20%');
+assert.strictEqual(w.elements('chip-quota').children[0].dataset.level, 'amber');
+assert.strictEqual(w.elements('chip-quota').children[1].dataset.level, 'red');
+assert.strictEqual(w.elements('chip-quota').children[1].textContent, '5%');
+assert(w.elements('chip').title.includes('重置'));
+w.handlers.stats({ ...stats, codexQuota: { status: 'ready', windows: {
+  fiveHour: { remainingPercent: 75, resetsAt: 1800003600 }, weekly: { remainingPercent: 60 },
+} } });
+assert.strictEqual(w.elements('chip-quota').children[0].textContent, '75%');
+assert.strictEqual(w.elements('chip-quota').children[1].textContent, '60%');
+assert.strictEqual(w.elements('chip-quota').children[0].dataset.level, 'normal');
+w.handlers.stats({ ...stats, chipDisplay: { showQuota: false, showTokens: true, showCost: false } });
+assert.strictEqual(w.elements('chip-quota').hidden, true);
+assert.strictEqual(w.elements('chip-tokens').hidden, false);
+assert.strictEqual(w.elements('chip-cost-sep').hidden, true);
+assert(!w.elements('chip').title.includes('$'));
+w.handlers.stats({ ...stats, codexQuota: { status: 'unavailable' } });
+assert.strictEqual(w.elements('chip-quota').children[0].textContent, '--');
+console.log('chip display checks passed');
+process.exit(0);

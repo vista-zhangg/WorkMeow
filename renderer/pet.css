@@ -305,6 +305,49 @@ html, body {
   overflow: hidden;
 }
 #stage:hover .chip { opacity: 1; }
+.chip [hidden] { display: none !important; }
+.chip-quota { display: flex; gap: 5px; flex: 0 0 auto; }
+.quota-badge {
+  --quota-accent: #bce8d3;
+  position: relative;
+  display: inline-flex;
+  justify-content: space-between;
+  align-items: baseline;
+  box-sizing: border-box;
+  width: 62px;
+  padding: 3px 6px 5px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 6px;
+  background: rgba(255,255,255,.055);
+  color: var(--quota-accent);
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.quota-badge::before {
+  content: attr(data-period);
+  color: #dfd3cb;
+  font-size: 9px;
+  font-weight: 500;
+}
+.quota-badge::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--quota-accent) var(--quota-remaining, 0%), rgba(255,255,255,.12) var(--quota-remaining, 0%));
+  opacity: .7;
+}
+.quota-badge[data-level="amber"] { --quota-accent: #ffce83; background: rgba(255,176,32,.09); }
+.quota-badge[data-level="red"] { --quota-accent: #ffaba3; background: rgba(255,90,82,.12); }
+.quota-badge[data-level="unknown"] { --quota-accent: #c9beb8; }
+.quota-badge[data-level="unknown"]::after { opacity: .3; }
 .chip-context {
   /* The situation label is the primary signal. Keep it intact when the
      token/cost details need to yield on a narrow popup window. */
