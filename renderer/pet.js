@@ -1812,13 +1812,21 @@ function clearPurrPayday() {
 
 function renderContextCapsule(s) {
   if (!chip || !chipContext || !s || !petInsights || typeof petInsights.context !== 'function') return;
-  const display = s.chipDisplay || { showQuota: true, showTokens: false, showCost: false };
-  chipTokens.hidden = !display.showTokens;
-  chipCost.hidden = !display.showCost;
-  document.getElementById('chip-tokens-sep').hidden = !display.showTokens;
-  document.getElementById('chip-cost-sep').hidden = !display.showCost;
+  const display = s.chipDisplay || { showStatus: true, showQuota: true, showTokens: false, showCost: false };
+  const showStatus = display.showStatus !== false;
+  const showQuota = display.showQuota !== false;
+  const showTokens = display.showTokens === true;
+  const showCost = display.showCost === true;
+  chipContext.hidden = !showStatus;
+  chipTokens.hidden = !showTokens;
+  chipCost.hidden = !showCost;
   const quotaEl = document.getElementById('chip-quota');
-  quotaEl.hidden = !display.showQuota;
+  quotaEl.hidden = !showQuota;
+  // Separators belong to the item that follows them. This keeps the capsule
+  // clean when the user hides the state and/or quota while retaining tokens
+  // or cost on their own.
+  document.getElementById('chip-tokens-sep').hidden = !showTokens || !(showStatus || showQuota);
+  document.getElementById('chip-cost-sep').hidden = !showCost || !(showStatus || showQuota || showTokens);
   const quota = s.codexQuota || {};
   const quotaDetails = [];
   quotaEl.innerHTML = '';
@@ -1847,7 +1855,7 @@ function renderContextCapsule(s) {
     chipContext.textContent = t('purr.title');
     chipTokens.textContent = `${compactTokens(purr.tokens)} tokens`;
     chipCost.textContent = '$' + (Number(purr.cost) || 0).toFixed(3);
-    chip.title = (purr.copy || t('purr.titleAttr')) + (display.showQuota ? '\n' + quotaEl.title : '');
+    chip.title = (purr.copy || t('purr.titleAttr')) + (showQuota ? '\n' + quotaEl.title : '');
     chip.setAttribute('aria-label', chip.title);
     return;
   }
@@ -1859,8 +1867,8 @@ function renderContextCapsule(s) {
     tokens: Number(s.today && s.today.tokens) || 0,
     cost: Number(s.today && s.today.cost) || 0,
   };
-  const detail = [display.showTokens ? `${compactTokens(usage.tokens)} tokens` : '',
-    display.showCost ? `API 等价估算 $${usage.cost.toFixed(3)}` : ''].filter(Boolean).join(' · ');
+  const detail = [showTokens ? `${compactTokens(usage.tokens)} tokens` : '',
+    showCost ? `API 等价估算 $${usage.cost.toFixed(3)}` : ''].filter(Boolean).join(' · ');
   let label = '';
   let title = '';
   // A done badge is only the primary capsule state when no higher-priority
@@ -1913,7 +1921,7 @@ function renderContextCapsule(s) {
   const purrHint = !showDone && (info.kind === 'idle' || info.kind === 'sleeping')
     ? ` · ${t('purr.titleAttr')}`
     : '';
-  chip.title = `${title}${detail ? ` · 今日 ${detail}` : ''}${purrHint}${display.showQuota ? '\n' + quotaEl.title : ''}`;
+  chip.title = `${title}${detail ? ` · 今日 ${detail}` : ''}${purrHint}${showQuota ? '\n' + quotaEl.title : ''}`;
   chip.setAttribute('aria-label', chip.title);
 }
 

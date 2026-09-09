@@ -997,7 +997,7 @@ function registerIpc() {
   ipcMain.handle(IPC.SET_CHIP_DISPLAY, (e, value) => {
     if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false };
     const patch = {};
-    for (const key of ['showQuota', 'showTokens', 'showCost']) {
+    for (const key of ['showStatus', 'showQuota', 'showTokens', 'showCost']) {
       if (value && typeof value[key] === 'boolean') patch[key] = value[key];
     }
     config.save(patch);
@@ -1301,8 +1301,8 @@ function setPrivacyMode(enabled) {
 }
 
 function getChipDisplay() {
-  const { showQuota, showTokens, showCost } = config.get();
-  return { showQuota, showTokens, showCost };
+  const { showStatus, showQuota, showTokens, showCost } = config.get();
+  return { showStatus, showQuota, showTokens, showCost };
 }
 
 function quotaStatusLabel(quota) {

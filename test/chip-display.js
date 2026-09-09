@@ -2,6 +2,8 @@
 const assert = require('assert');
 const config = require('../backend/config');
 const { loadRenderer } = require('./dom-stub');
+assert.strictEqual(config.sanitize({}).showStatus, true);
+assert.strictEqual(config.sanitize({ showStatus: 'true' }).showStatus, true);
 assert.strictEqual(config.sanitize({}).showQuota, true);
 assert.strictEqual(config.sanitize({}).showTokens, false);
 assert.strictEqual(config.sanitize({ showTokens: true }).showTokens, true);
@@ -17,6 +19,14 @@ assert.strictEqual(w.elements('chip-quota').children[0].dataset.level, 'amber');
 assert.strictEqual(w.elements('chip-quota').children[1].dataset.level, 'red');
 assert.strictEqual(w.elements('chip-quota').children[1].textContent, '5%');
 assert(w.elements('chip').title.includes('重置'));
+w.handlers.stats({ ...stats, chipDisplay: { showStatus: false, showQuota: true, showTokens: false, showCost: false } });
+assert.strictEqual(w.elements('chip-context').hidden, true);
+assert.strictEqual(w.elements('chip-quota').hidden, false);
+assert.strictEqual(w.elements('chip-tokens-sep').hidden, true);
+w.handlers.stats({ ...stats, chipDisplay: { showStatus: false, showQuota: false, showTokens: false, showCost: true } });
+assert.strictEqual(w.elements('chip-context').hidden, true);
+assert.strictEqual(w.elements('chip-cost-sep').hidden, true);
+assert.strictEqual(w.elements('chip-cost').hidden, false);
 w.handlers.stats({ ...stats, codexQuota: { status: 'ready', windows: {
   fiveHour: { remainingPercent: 75, resetsAt: 1800003600 }, weekly: { remainingPercent: 60 },
 } } });

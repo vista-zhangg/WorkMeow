@@ -5,7 +5,7 @@ const ASSETS = window.WorkMeowPetAssets;
 const $ = (id) => document.getElementById(id);
 
 async function initializeChipDisplay() {
-  const keys = ['showQuota', 'showTokens', 'showCost'];
+  const keys = ['showStatus', 'showQuota', 'showTokens', 'showCost'];
   const status = $('chip-display-status');
   const render = (value) => keys.forEach(key => $(key + '-toggle').setAttribute('aria-checked', String(value[key] === true)));
   keys.forEach(key => { $(key + '-toggle').disabled = true; });
