@@ -100,6 +100,8 @@ assert(/shared\/pet-insights\.js/.test(petHtml), 'renderer must load the shared 
 assert(/const PURR_HOLD_MS = 1100;/.test(petJs), 'purr easter egg must use a long press');
 assert(/function triggerPurrPayday\(\)/.test(petJs), 'purr payday trigger must remain explicit');
 assert(/purr-payday-day/.test(petJs), 'purr payday must deduplicate its daily headline locally');
+assert(/const HIT_SEL = '#cat,#stage\.cat-hidden #chip,/.test(petJs),
+  'the hidden-cat capsule must remain a native hit target for drag and interaction');
 assert(/\.chip-context\s*\{[\s\S]*?flex:\s*0 0 auto;/.test(petCss),
   'primary situation label must not shrink before token/cost details');
 assert(/\.chip\s*\{[\s\S]*?flex:\s*0 0 auto;[\s\S]*?min-height:\s*21px;/.test(petCss),

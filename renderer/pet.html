@@ -81,22 +81,24 @@
       <div id="prop" class="prop"></div>
       <div id="sidekick" class="sidekick"><img src="../assets/salary-cat.png" alt="" aria-hidden="true" /></div>
 
-      <!-- 多会话状态点：每个点 = 一个并行任务，颜色 = 状态 -->
-      <div id="sessions" class="sessions"></div>
+      <div id="compact-row" class="compact-row">
+        <!-- 多会话状态点：每个点 = 一个并行任务，颜色 = 状态 -->
+        <div id="sessions" class="sessions"></div>
 
-      <!-- 唯一形象：月薪喵（每个状态一张 GIF，动效由 GIF 自带） -->
-      <div id="cat" class="cat idle" role="button" tabindex="0" aria-label="打工喵：打开当前状态；右键打开菜单">
-        <img id="cat-img" src="../assets/salary-cat.png" alt="cat" draggable="false" />
-      </div>
+        <!-- 唯一形象：月薪喵（每个状态一张 GIF，动效由 GIF 自带） -->
+        <div id="cat" class="cat idle" role="button" tabindex="0" aria-label="打工喵：打开当前状态；右键打开菜单">
+          <img id="cat-img" src="../assets/salary-cat.png" alt="cat" draggable="false" />
+        </div>
 
-      <!-- 常驻今日用量条 -->
-      <div id="chip" class="chip" role="status" aria-live="polite" data-i18n-title="purr.titleAttr" title="今日用量">
-        <span id="chip-context" class="chip-context">🐾 待命</span>
-        <span id="chip-quota" class="chip-quota" hidden></span>
-        <span id="chip-tokens-sep" class="chip-sep">·</span>
-        <span id="chip-tokens" class="chip-tokens">0 tokens</span>
-        <span id="chip-cost-sep" class="chip-sep">·</span>
-        <span id="chip-cost" class="chip-cost">$0.000</span>
+        <!-- 常驻今日用量条 -->
+        <div id="chip" class="chip" role="status" aria-live="polite" data-i18n-title="purr.titleAttr" title="今日用量">
+          <span id="chip-context" class="chip-context">🐾 待命</span>
+          <span id="chip-quota" class="chip-quota" hidden></span>
+          <span id="chip-tokens-sep" class="chip-sep">·</span>
+          <span id="chip-tokens" class="chip-tokens">0 tokens</span>
+          <span id="chip-cost-sep" class="chip-sep">·</span>
+          <span id="chip-cost" class="chip-cost">$0.000</span>
+        </div>
       </div>
 
       <!-- 记事本：有待处理事项时显示，点击打开行动中心 -->

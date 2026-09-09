@@ -1401,6 +1401,7 @@ const IDLE_SLEEP_MS = 6 * 60 * 1000;
 const PURR_HOLD_MS = 1100;
 const PURR_DISPLAY_MS = 6200;
 const PURR_DAY_STORAGE_KEY = 'workmeow.purr-payday-day';
+let catVisible = true;
 let purrPaydayUntil = 0;
 let purrPaydaySummary = null;
 let purrPaydayTimer = null;
@@ -1649,7 +1650,7 @@ function hideBubble() {
   if (!askActive && !actionPopOpen && !peekOpen) resetPetSize();
 }
 
-const curSkinEl = () => cat;
+const curSkinEl = () => catVisible ? cat : chip;
 
 window.pet.onEvent((ev) => {
   if (ev.kind === 'quota-alert') {
@@ -1812,7 +1813,11 @@ function clearPurrPayday() {
 
 function renderContextCapsule(s) {
   if (!chip || !chipContext || !s || !petInsights || typeof petInsights.context !== 'function') return;
-  const display = s.chipDisplay || { showStatus: true, showQuota: true, showTokens: false, showCost: false };
+  const display = s.chipDisplay || { showCat: true, showStatus: true, showQuota: true, showTokens: false, showCost: true };
+  const showCat = display.showCat !== false;
+  catVisible = showCat;
+  stage.classList.toggle('cat-hidden', !showCat);
+  cat.setAttribute('aria-hidden', String(!showCat));
   const showStatus = display.showStatus !== false;
   const showQuota = display.showQuota !== false;
   const showTokens = display.showTokens === true;
@@ -2130,9 +2135,10 @@ function finishDrag(el, e, cancelled) {
   }
 }
 
-function attachDrag(el) {
+function attachDrag(el, options = {}) {
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
+    if (options.hiddenOnly && catVisible) return;
     try { el.setPointerCapture(e.pointerId); } catch {}
     el.classList.add('dragging');
     const gesture = {
@@ -2186,11 +2192,15 @@ function attachDrag(el) {
   el.addEventListener('lostpointercapture', (e) => finishDrag(el, e, true));
   // 右键 = 泡泡菜单
   el.addEventListener('contextmenu', (e) => {
+    if (options.hiddenOnly && catVisible) return;
     e.preventDefault();
     toggleRadial();
   });
 }
 stateEls.forEach(attachDrag);
+// When the cat is hidden the capsule becomes the visible drag handle. It uses
+// the exact same gesture, edge anchoring, click and context-menu behaviour.
+attachDrag(chip, { hiddenOnly: true });
 cat.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
@@ -2459,7 +2469,10 @@ window.addEventListener('blur', () => {
 // 桌宠窗口是透明矩形，空白处不该拦住后面的应用。光标在内容(打工喵/卡片/菜单/记事本)
 // 上 → 接收点击；在透明区 → 让窗口穿透。forward:true 使穿透时 mousemove 仍回传，
 // 因此一旦光标回到内容上即可恢复可点。拖动中(g)始终保持可点。
-const HIT_SEL = '#cat,#radial,#notepad,#action-pop,#ask,#peek';
+// The capsule is interactive when the cat is hidden. Keep it in the hit-test
+// only in that mode so the visible capsule keeps the existing click-through
+// behavior while the hidden-cat layout can still receive pointer events.
+const HIT_SEL = '#cat,#stage.cat-hidden #chip,#radial,#notepad,#action-pop,#ask,#peek';
 let mouseIgnoring = false;
 function setMouseIgnore(on) {
   if (on === mouseIgnoring) return;
