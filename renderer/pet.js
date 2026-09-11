@@ -364,6 +364,14 @@ const chipCost = document.getElementById('chip-cost');
 const chipTokens = document.getElementById('chip-tokens');
 const chipContext = document.getElementById('chip-context');
 const chip = document.getElementById('chip');
+const quotaEl = document.getElementById('chip-quota');
+const quotaPopover = document.getElementById('quota-popover');
+const quotaPopoverTitle = document.getElementById('quota-popover-title');
+const quotaPopoverStatus = document.getElementById('quota-popover-status');
+const quotaPopoverRows = document.getElementById('quota-popover-rows');
+const quotaPopoverUpdated = document.getElementById('quota-popover-updated');
+const quotaPopoverHint = document.getElementById('quota-popover-hint');
+const quotaPopoverClose = document.getElementById('quota-popover-close');
 const sessionsEl = document.getElementById('sessions');
 const radial = document.getElementById('radial');
 const thinkEl = document.getElementById('think');
@@ -396,9 +404,15 @@ const peekTitle = document.getElementById('peek-title');
 const peekSubtitle = document.getElementById('peek-subtitle');
 const peekList = document.getElementById('peek-list');
 const peekSummary = document.getElementById('peek-summary');
+const peekHint = document.getElementById('peek-hint');
 const peekFocus = document.getElementById('peek-focus');
 const peekPanel = document.getElementById('peek-panel');
 const peekClose = document.getElementById('peek-close');
+
+// Keep the non-native details card closed even if a cached/older HTML shell
+// is ever loaded before the renderer finishes its first stats pass.
+quotaPopover.classList.add('hidden');
+quotaEl.setAttribute('aria-expanded', 'false');
 
 let askActive = false;
 let askQueue = []; // 当前所有待处理的选择/输入（每项含 project）
@@ -733,6 +747,7 @@ function enqueueChoice(c) {
 function showAskPanel() {
   const c = askQueue[askIdx];
   if (!c) { hideAsk(); return; }
+  if (quotaPopoverOpen) closeQuotaPopover();
   if (peekOpen) closePeek();
   const sess = c.sessionId ? ' · #' + String(c.sessionId).slice(-3) : '';
   const queue = askQueue.length > 1 ? `${askIdx + 1}/${askQueue.length} · ` : '';
@@ -1117,6 +1132,7 @@ function maybeCloseEmptyPop() {
 function openActionPop() {
   if (askActive) hideAsk(); // 别和选项面板抢窗口
   if (peekOpen) closePeek();
+  if (quotaPopoverOpen) closeQuotaPopover();
   renderActionPop();
   actionPop.classList.remove('hidden');
   actionPopOpen = true;
@@ -1317,11 +1333,15 @@ function renderPeek(stats) {
     });
   }
 
+  const showPurrHint = !running.length && !attention.length && !errors.length;
+  peekHint.hidden = !showPurrHint;
+  if (showPurrHint) peekHint.textContent = t('purr.hint');
+
   peekPrimarySessionId = primary && primary.focusable !== false && primary.sessionId ? primary.sessionId : '';
   peekFocus.classList.toggle('hidden', !peekPrimarySessionId);
   peekPanel.style.flex = peekPrimarySessionId ? '' : '1';
 
-  const layoutSig = [attention.length ? 'attention' : errors.length ? 'error' : running.length ? 'running' : 'idle', Math.min(rows.length, 3), !!peekPrimarySessionId].join(':');
+  const layoutSig = [attention.length ? 'attention' : errors.length ? 'error' : running.length ? 'running' : 'idle', Math.min(rows.length, 3), !!peekPrimarySessionId, showPurrHint].join(':');
   if (peekOpen && layoutSig !== peekLayoutSig) fitPopup(peekEl);
   peekLayoutSig = layoutSig;
 }
@@ -1338,6 +1358,7 @@ function armPeekTimer() {
 
 function openPeek() {
   if (!lastStats || askActive || actionPopOpen || radialOpen) return;
+  if (quotaPopoverOpen) closeQuotaPopover();
   clearTimeout(bubbleTimer);
   bubbleTimer = null;
   bubble.classList.add('hidden');
@@ -1363,6 +1384,7 @@ function handleCatClick() {
   if (radialOpen) { closeRadial(); return; }
   if (askActive) { hideAsk(); return; }
   if (actionPopOpen) { closeActionPop(); return; }
+  if (quotaPopoverOpen) { closeQuotaPopover(); return; }
   if (peekOpen) { closePeek(); return; }
 
   const acts = actionableItems();
@@ -1401,10 +1423,18 @@ const IDLE_SLEEP_MS = 6 * 60 * 1000;
 const PURR_HOLD_MS = 1100;
 const PURR_DISPLAY_MS = 6200;
 const PURR_DAY_STORAGE_KEY = 'workmeow.purr-payday-day';
+// 额度详情采用显式点击，而不是原生 title。离开触发区/详情卡后留一点缓冲，
+// 让鼠标可以从胶囊移动到卡片；卡片打开期间每 30 秒刷新一次倒计时文案。
+const QUOTA_POPOVER_LEAVE_MS = 900;
+const QUOTA_POPOVER_REFRESH_MS = 30 * 1000;
 let catVisible = true;
 let purrPaydayUntil = 0;
 let purrPaydaySummary = null;
 let purrPaydayTimer = null;
+let quotaPopoverOpen = false;
+let quotaPopoverCloseTimer = null;
+let quotaPopoverRefreshTimer = null;
+let quotaPopoverPointerInside = false;
 const stateEls = [cat];
 // ---------- 状态机（固定使用打工喵形象） ----------
 // 前端会 setState 的全部状态词（聚合态 + 短暂态 + 情绪态）——统一取自
@@ -1561,8 +1591,26 @@ function positionBubbleTip() {
   });
 }
 
+function positionQuotaPopoverTip() {
+  if (!quotaPopover || quotaPopover.classList.contains('hidden') || !quotaEl) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (quotaPopover.classList.contains('hidden')) return;
+      const sr = stage.getBoundingClientRect();
+      const triggerRect = quotaEl.getBoundingClientRect();
+      const popRect = quotaPopover.getBoundingClientRect();
+      const triggerCenterX = triggerRect.left - sr.left + triggerRect.width / 2;
+      const popLeft = popRect.left - sr.left;
+      const relX = triggerCenterX - popLeft;
+      const minX = 14;
+      const maxX = Math.max(minX + 1, popRect.width - 14);
+      quotaPopover.style.setProperty('--quota-tip-x', Math.min(Math.max(relX, minX), maxX) + 'px');
+    });
+  });
+}
+
 function showBubble(text, holdMs = 3200, force = false) {
-  if (!force && (radialOpen || askActive || peekOpen)) return; // 弹层开着时不用普通气泡盖住它
+  if (!force && (radialOpen || askActive || peekOpen || quotaPopoverOpen)) return; // 弹层开着时不用普通气泡盖住它
   // emoji → 内联 SVG（WorkMeowIcons 在 emoji 字符与 SVG 之间做安全替换；不可识别字符原样保留）
   if (window.WorkMeowIcons && window.WorkMeowIcons.hasMappedEmoji(text)) {
     window.WorkMeowIcons.setTextWithIcons(bubbleText, text);
@@ -1583,7 +1631,7 @@ const pendingQuotaAlerts = new Map();
 let quotaAlertRetryTimer = null;
 let quotaAlertDisplaying = false;
 function quotaAlertUiBusy() {
-  return document.hidden === true || radialOpen || askActive || actionPopOpen || peekOpen
+  return document.hidden === true || radialOpen || askActive || actionPopOpen || peekOpen || quotaPopoverOpen
     || !bubble.classList.contains('hidden');
 }
 function scheduleQuotaAlertRetry() {
@@ -1661,6 +1709,7 @@ window.pet.onEvent((ev) => {
   }
   // 需要人处理或出错时，优先让出工作速览，保持原有卡片/气泡路径。
   if (peekOpen && (ev.kind === 'waiting' || ev.kind === 'needsinput' || ev.kind === 'error')) closePeek();
+  if (quotaPopoverOpen && (ev.kind === 'waiting' || ev.kind === 'needsinput' || ev.kind === 'error')) closeQuotaPopover();
   // 你正在答面板/打字时：新的待答任务只悄悄进队列(不抢面板)，其余动画/彩带/气泡/状态变化一律不打断
   if (isInteracting()) {
     if ((ev.kind === 'waiting' || ev.kind === 'needsinput') && ev.choice) enqueueChoice(ev.choice);
@@ -1792,7 +1841,7 @@ function markPurrAnnounced(day) {
 
 function purrCanRun(stats) {
   if (!stats || !petInsights || typeof petInsights.hasActiveWork !== 'function') return false;
-  if (askActive || actionPopOpen || radialOpen || peekOpen) return false;
+  if (askActive || actionPopOpen || radialOpen || peekOpen || quotaPopoverOpen) return false;
   // Do not cut across a real completion/error/reply animation.
   if (perfNow() < transientUntil) return false;
   return !petInsights.hasActiveWork(stats, { sleepMs: IDLE_SLEEP_MS });
@@ -1800,7 +1849,7 @@ function purrCanRun(stats) {
 
 function purrEnvironmentClear(stats) {
   if (!stats || !petInsights || typeof petInsights.hasActiveWork !== 'function') return false;
-  if (askActive || actionPopOpen || radialOpen || peekOpen) return false;
+  if (askActive || actionPopOpen || radialOpen || peekOpen || quotaPopoverOpen) return false;
   return !petInsights.hasActiveWork(stats, { sleepMs: IDLE_SLEEP_MS });
 }
 
@@ -1809,6 +1858,179 @@ function clearPurrPayday() {
   purrPaydaySummary = null;
   clearTimeout(purrPaydayTimer);
   purrPaydayTimer = null;
+}
+
+function quotaRemainingPercent(w) {
+  return w && Number.isFinite(w.remainingPercent)
+    ? Math.max(0, Math.min(100, Number(w.remainingPercent)))
+    : null;
+}
+
+function quotaLevel(remaining) {
+  return remaining === null ? 'unknown' : remaining <= 5 ? 'red' : remaining <= 20 ? 'amber' : 'normal';
+}
+
+function quotaDurationText(ms) {
+  const minutes = Math.max(1, Math.ceil(Math.max(0, ms) / 60000));
+  if (minutes < 60) return t('quota.durationMinutes', { count: minutes });
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  if (hours < 24) {
+    return restMinutes
+      ? t('quota.durationHoursMinutes', { hours, minutes: restMinutes })
+      : t('quota.durationHours', { count: hours });
+  }
+  const days = Math.floor(hours / 24);
+  const restHours = hours % 24;
+  return restHours
+    ? t('quota.durationDaysHours', { days, hours: restHours })
+    : t('quota.durationDays', { count: days });
+}
+
+function quotaDateText(timestamp) {
+  const date = new Date(Number(timestamp) * 1000);
+  if (!Number.isFinite(date.getTime())) return '--';
+  return date.toLocaleString('zh-CN', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function quotaResetText(w, now = Date.now()) {
+  if (!w || !Number.isFinite(w.resetsAt)) return t('quota.resetUnknown');
+  const resetAt = Number(w.resetsAt) * 1000;
+  if (!Number.isFinite(resetAt)) return t('quota.resetUnknown');
+  const remainingMs = resetAt - now;
+  if (remainingMs <= 0) return t('quota.resetSoon');
+  return `${t('quota.resetIn', { time: quotaDurationText(remainingMs) })} · ${quotaDateText(w.resetsAt)}`;
+}
+
+function quotaUpdatedText(updatedAt) {
+  const date = new Date(Number(updatedAt));
+  if (!Number.isFinite(date.getTime())) return '--';
+  return date.toLocaleString('zh-CN', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function renderQuotaPopover(s) {
+  if (!quotaPopoverRows || !quotaPopoverStatus || !s) return;
+  const quota = s.codexQuota || {};
+  quotaPopoverTitle.textContent = t('quota.title');
+  quotaPopoverStatus.textContent = quota.status === 'ready'
+    ? t('quota.synced')
+    : (quota.statusText || t('quota.unavailable'));
+  quotaPopoverRows.innerHTML = '';
+
+  const windows = [
+    ['fiveHour', 'quota.fiveHour'],
+    ['weekly', 'quota.weekly'],
+  ];
+  for (const [key, labelKey] of windows) {
+    const w = quota.windows && quota.windows[key];
+    const remaining = quotaRemainingPercent(w);
+    const row = document.createElement('div');
+    row.className = 'quota-pop-row';
+    row.dataset.level = quotaLevel(remaining);
+
+    const period = document.createElement('div');
+    period.className = 'quota-pop-period';
+    period.textContent = t(labelKey);
+
+    const main = document.createElement('div');
+    main.className = 'quota-pop-main';
+    const value = document.createElement('div');
+    value.className = 'quota-pop-value';
+    value.textContent = t('quota.remaining', {
+      percent: remaining === null ? '--' : Math.round(remaining) + '%',
+    });
+    const reset = document.createElement('div');
+    reset.className = 'quota-pop-reset';
+    reset.textContent = quotaResetText(w);
+    main.appendChild(value);
+    main.appendChild(reset);
+
+    const bar = document.createElement('div');
+    bar.className = 'quota-pop-bar';
+    const fill = document.createElement('div');
+    fill.className = 'quota-pop-bar-fill';
+    fill.style.setProperty('--quota-remaining', `${remaining === null ? 0 : remaining}%`);
+    bar.appendChild(fill);
+
+    row.appendChild(period);
+    row.appendChild(main);
+    row.appendChild(bar);
+    quotaPopoverRows.appendChild(row);
+  }
+
+  quotaPopoverUpdated.textContent = Number.isFinite(quota.updatedAt)
+    ? t('quota.updatedAt', { time: quotaUpdatedText(quota.updatedAt) })
+    : (quota.statusText || t('quota.unavailable'));
+  quotaPopoverHint.textContent = t('quota.dismissHint');
+}
+
+function clearQuotaPopoverCloseTimer() {
+  if (quotaPopoverCloseTimer) clearTimeout(quotaPopoverCloseTimer);
+  quotaPopoverCloseTimer = null;
+}
+
+function keepQuotaPopoverOpen() {
+  quotaPopoverPointerInside = true;
+  clearQuotaPopoverCloseTimer();
+}
+
+function scheduleQuotaPopoverClose() {
+  clearQuotaPopoverCloseTimer();
+  if (!quotaPopoverOpen || quotaPopoverPointerInside) return;
+  quotaPopoverCloseTimer = setTimeout(() => {
+    const focused = document.activeElement;
+    const focusInside = focused === quotaEl || (quotaPopover && quotaPopover.contains(focused));
+    if (!quotaPopoverPointerInside && !focusInside) closeQuotaPopover();
+  }, QUOTA_POPOVER_LEAVE_MS);
+}
+
+function startQuotaPopoverClock() {
+  if (quotaPopoverRefreshTimer) clearInterval(quotaPopoverRefreshTimer);
+  quotaPopoverRefreshTimer = setInterval(() => {
+    if (quotaPopoverOpen && lastStats) renderQuotaPopover(lastStats);
+  }, QUOTA_POPOVER_REFRESH_MS);
+  if (quotaPopoverRefreshTimer && typeof quotaPopoverRefreshTimer.unref === 'function') quotaPopoverRefreshTimer.unref();
+}
+
+function closeQuotaPopover() {
+  clearQuotaPopoverCloseTimer();
+  if (quotaPopoverRefreshTimer) clearInterval(quotaPopoverRefreshTimer);
+  quotaPopoverRefreshTimer = null;
+  quotaPopoverPointerInside = false;
+  if (quotaPopover) quotaPopover.classList.add('hidden');
+  quotaPopoverOpen = false;
+  if (quotaEl) quotaEl.setAttribute('aria-expanded', 'false');
+  window.pet.blurPet();
+  resetPetSize();
+}
+
+function openQuotaPopover() {
+  if (!lastStats || !quotaEl || quotaEl.hidden || askActive) return false;
+  if (quotaPopoverOpen) return true;
+  if (radialOpen) closeRadial();
+  if (actionPopOpen) closeActionPop();
+  if (peekOpen) closePeek();
+  clearTimeout(bubbleTimer);
+  bubbleTimer = null;
+  bubble.classList.add('hidden');
+  renderQuotaPopover(lastStats);
+  quotaPopover.classList.remove('hidden');
+  quotaPopoverOpen = true;
+  quotaPopoverPointerInside = true;
+  quotaEl.setAttribute('aria-expanded', 'true');
+  startQuotaPopoverClock();
+  fitPopup(quotaPopover);
+  positionQuotaPopoverTip();
+  return true;
+}
+
+function toggleQuotaPopover() {
+  if (quotaPopoverOpen) closeQuotaPopover();
+  else openQuotaPopover();
 }
 
 function renderContextCapsule(s) {
@@ -1825,33 +2047,33 @@ function renderContextCapsule(s) {
   chipContext.hidden = !showStatus;
   chipTokens.hidden = !showTokens;
   chipCost.hidden = !showCost;
-  const quotaEl = document.getElementById('chip-quota');
   quotaEl.hidden = !showQuota;
+  if (!showQuota && quotaPopoverOpen) closeQuotaPopover();
   // Separators belong to the item that follows them. This keeps the capsule
   // clean when the user hides the state and/or quota while retaining tokens
   // or cost on their own.
   document.getElementById('chip-tokens-sep').hidden = !showTokens || !(showStatus || showQuota);
   document.getElementById('chip-cost-sep').hidden = !showCost || !(showStatus || showQuota || showTokens);
   const quota = s.codexQuota || {};
-  const quotaDetails = [];
   quotaEl.innerHTML = '';
   for (const [key, label] of [['fiveHour', '5h'], ['weekly', '7d']]) {
     const w = quota.windows && quota.windows[key];
-    const remaining = w && Number.isFinite(w.remainingPercent) ? Math.max(0, Math.min(100, w.remainingPercent)) : null;
+    const remaining = quotaRemainingPercent(w);
     const badge = document.createElement('span');
     badge.className = 'quota-badge';
-    badge.dataset.level = remaining === null ? 'unknown' : remaining <= 5 ? 'red' : remaining <= 20 ? 'amber' : 'normal';
+    badge.dataset.level = quotaLevel(remaining);
     badge.dataset.period = label;
     badge.textContent = remaining === null ? '--' : Math.round(remaining) + '%';
     badge.style.setProperty('--quota-remaining', `${remaining === null ? 0 : remaining}%`);
     badge.setAttribute('aria-label', `${label} 剩余 ${badge.textContent}`);
-    const reset = w && Number.isFinite(w.resetsAt) ? new Date(w.resetsAt * 1000) : null;
-    quotaDetails.push(`${label} 剩余 ${remaining === null ? '--' : Math.round(remaining) + '%'} · 重置 ${reset && Number.isFinite(reset.getTime()) ? reset.toLocaleString() : '--'}`);
     quotaEl.appendChild(badge);
   }
-  if (quota.status !== 'ready') quotaDetails.push(quota.statusText || '额度暂不可用');
-  if (Number.isFinite(quota.updatedAt)) quotaDetails.push(`更新于 ${new Date(quota.updatedAt).toLocaleString()}`);
-  quotaEl.title = `Codex 订阅额度\n${quotaDetails.join('\n')}`;
+  quotaEl.setAttribute('aria-label', t('quota.open'));
+  chip.removeAttribute('title');
+  if (quotaPopoverOpen) {
+    renderQuotaPopover(s);
+    positionQuotaPopoverTip();
+  }
   const now = perfNow();
   const purrVisible = purrPaydaySummary && purrPaydayUntil > now && purrEnvironmentClear(s);
   if (purrVisible) {
@@ -1860,8 +2082,7 @@ function renderContextCapsule(s) {
     chipContext.textContent = t('purr.title');
     chipTokens.textContent = `${compactTokens(purr.tokens)} tokens`;
     chipCost.textContent = '$' + (Number(purr.cost) || 0).toFixed(3);
-    chip.title = (purr.copy || t('purr.titleAttr')) + (showQuota ? '\n' + quotaEl.title : '');
-    chip.setAttribute('aria-label', chip.title);
+    chip.setAttribute('aria-label', purr.copy || t('purr.ariaLabel'));
     return;
   }
   if (purrPaydayUntil && !purrEnvironmentClear(s)) clearPurrPayday();
@@ -1923,11 +2144,7 @@ function renderContextCapsule(s) {
   chipContext.textContent = label;
   chipTokens.textContent = compactTokens(usage.tokens) + ' tokens';
   chipCost.textContent = '$' + usage.cost.toFixed(3);
-  const purrHint = !showDone && (info.kind === 'idle' || info.kind === 'sleeping')
-    ? ` · ${t('purr.titleAttr')}`
-    : '';
-  chip.title = `${title}${detail ? ` · 今日 ${detail}` : ''}${purrHint}${showQuota ? '\n' + quotaEl.title : ''}`;
-  chip.setAttribute('aria-label', chip.title);
+  chip.setAttribute('aria-label', `${title}${detail ? ` · 今日 ${detail}` : ''}`);
 }
 
 function triggerPurrPayday() {
@@ -2139,6 +2356,9 @@ function attachDrag(el, options = {}) {
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     if (options.hiddenOnly && catVisible) return;
+    // In compact mode the capsule remains a drag handle, but its quota group
+    // is a separate deliberate click target and must not start a drag gesture.
+    if (el === chip && e.target && e.target.closest && e.target.closest('#chip-quota')) return;
     try { el.setPointerCapture(e.pointerId); } catch {}
     el.classList.add('dragging');
     const gesture = {
@@ -2264,7 +2484,33 @@ peekPanel.addEventListener('click', (e) => {
 peekEl.addEventListener('pointerenter', clearPeekTimer);
 peekEl.addEventListener('pointerleave', armPeekTimer);
 peekEl.addEventListener('contextmenu', (e) => e.stopPropagation());
+quotaEl.addEventListener('click', (e) => { e.stopPropagation(); toggleQuotaPopover(); });
+quotaEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  e.stopPropagation();
+  toggleQuotaPopover();
+});
+quotaEl.addEventListener('pointerenter', keepQuotaPopoverOpen);
+quotaEl.addEventListener('pointerleave', () => {
+  quotaPopoverPointerInside = false;
+  scheduleQuotaPopoverClose();
+});
+quotaEl.addEventListener('focus', keepQuotaPopoverOpen);
+quotaPopover.addEventListener('pointerenter', keepQuotaPopoverOpen);
+quotaPopover.addEventListener('pointerleave', () => {
+  quotaPopoverPointerInside = false;
+  scheduleQuotaPopoverClose();
+});
+quotaPopover.addEventListener('focusin', keepQuotaPopoverOpen);
+quotaPopover.addEventListener('focusout', scheduleQuotaPopoverClose);
+quotaPopoverClose.addEventListener('click', (e) => { e.stopPropagation(); closeQuotaPopover(); });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && quotaPopoverOpen) {
+    e.preventDefault();
+    closeQuotaPopover();
+    return;
+  }
   if (e.key === 'Escape' && peekOpen) {
     e.preventDefault();
     closePeek();
@@ -2413,6 +2659,7 @@ async function openRadial() {
   const seq = ++radialOpenSeq;
   if (actionPopOpen) closeActionPop();
   if (peekOpen) closePeek();
+  if (quotaPopoverOpen) closeQuotaPopover();
   radialOpen = true;
   bubble.classList.add('hidden');
   try { await readPrivacyMode(); } catch {}
@@ -2442,6 +2689,7 @@ radial.addEventListener('click', () => closeRadial());
 window.addEventListener('blur', () => {
   if (radialOpen) closeRadial();
   if (peekOpen) closePeek();
+  if (quotaPopoverOpen) closeQuotaPopover();
 });
 
 // ---------- 初始化 ----------
@@ -2469,10 +2717,10 @@ window.addEventListener('blur', () => {
 // 桌宠窗口是透明矩形，空白处不该拦住后面的应用。光标在内容(打工喵/卡片/菜单/记事本)
 // 上 → 接收点击；在透明区 → 让窗口穿透。forward:true 使穿透时 mousemove 仍回传，
 // 因此一旦光标回到内容上即可恢复可点。拖动中(g)始终保持可点。
-// The capsule is interactive when the cat is hidden. Keep it in the hit-test
-// only in that mode so the visible capsule keeps the existing click-through
-// behavior while the hidden-cat layout can still receive pointer events.
-const HIT_SEL = '#cat,#stage.cat-hidden #chip,#radial,#notepad,#action-pop,#ask,#peek';
+// The capsule is still the drag handle when the cat is hidden, while the
+// quota group is a deliberate click target in either layout. The rest of the
+// visible capsule remains click-through so hovering it never creates a popup.
+const HIT_SEL = '#cat,#stage.cat-hidden #chip,#chip-quota,#quota-popover,#radial,#notepad,#action-pop,#ask,#peek';
 let mouseIgnoring = false;
 function setMouseIgnore(on) {
   if (on === mouseIgnoring) return;
@@ -2485,6 +2733,14 @@ window.addEventListener('mousemove', (e) => {
   // 命中测试权威同步悬停态：穿透切换时 pointerleave 可能漏发，会把 askHover 卡在 true，
   // 进而让 isInteracting() 永远为真、refreshAsk 永不对账（旧卡片冻结、新卡片进不来）。
   askHover = !!(el && el.closest('#ask'));
+  if (quotaPopoverOpen) {
+    const quotaHit = !!(el && (el.closest('#chip-quota') || el.closest('#quota-popover')));
+    if (quotaHit) keepQuotaPopoverOpen();
+    else {
+      quotaPopoverPointerInside = false;
+      scheduleQuotaPopoverClose();
+    }
+  }
   setMouseIgnore(!(el && el.closest(HIT_SEL)));
 }, true);
 // 启动即默认穿透（透明区不挡），光标移到内容上时由上面的命中测试恢复
@@ -2493,4 +2749,5 @@ setMouseIgnore(true);
 // 气泡和窗口自适应都可能改变本体在透明窗里的局部位置。
 window.addEventListener('resize', () => requestAnimationFrame(() => {
   positionBubbleTip();
+  positionQuotaPopoverTip();
 }));

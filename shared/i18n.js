@@ -217,6 +217,23 @@
     // ── Codex subscription quota ───────────────────────────────────────────
     'quota.alertFiveHour': 'Codex 5 小时额度剩余 {remaining}，{reset} 刷新',
     'quota.alertWeekly': 'Codex 周额度剩余 {remaining}，{reset} 刷新',
+    'quota.title': 'Codex 订阅额度',
+    'quota.open': '查看 Codex 订阅额度与刷新时间',
+    'quota.synced': '实时同步中',
+    'quota.unavailable': '额度暂不可用',
+    'quota.fiveHour': '5h',
+    'quota.weekly': '7d',
+    'quota.remaining': '剩余 {percent}',
+    'quota.resetUnknown': '刷新时间暂不可用',
+    'quota.resetSoon': '即将刷新',
+    'quota.resetIn': '约 {time}后刷新',
+    'quota.durationMinutes': '{count}分钟',
+    'quota.durationHoursMinutes': '{hours}小时{minutes}分',
+    'quota.durationHours': '{count}小时',
+    'quota.durationDaysHours': '{days}天{hours}小时',
+    'quota.durationDays': '{count}天',
+    'quota.updatedAt': '上次更新 {time}',
+    'quota.dismissHint': '鼠标移开后自动收起，也可按 Esc 关闭',
 
     // ── permission / ask cards ──────────────────────────────────────────────
     'perm.runCommand': '运行命令：',
@@ -295,7 +312,8 @@
     'purr.first': '呼噜……今天陪你跑了 {rounds} 轮，处理 {tokens} tokens，缓存命中 {cacheRate}%。摸鱼许可已批准五分钟。',
     'purr.empty': '呼噜……今天还没开工，喵先陪你坐会儿。',
     'purr.repeat': '呼噜……今日工资条已经发过啦，喵继续陪你待命。',
-    'purr.titleAttr': '长按喵查看今日陪伴工资条',
+    'purr.hint': '长按喵，可查看今日陪伴工资条',
+    'purr.ariaLabel': '今日陪伴工资条',
 
     // ── radial menu ─────────────────────────────────────────────────────────
     'bub.xiabanLunch1': '🍚 午饭铃响啦！保存好进度，先去干饭～',

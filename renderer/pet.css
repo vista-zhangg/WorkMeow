@@ -200,6 +200,11 @@ html, body {
   padding: 7px 9px; border-radius: 9px; background: rgba(90, 58, 42, 0.055);
   color: #8a6552; font-size: 10.5px; line-height: 1.35;
 }
+.peek-hint {
+  padding: 6px 9px; border-radius: 9px; background: rgba(217, 119, 87, 0.07);
+  color: #a06d55; font-size: 10.5px; line-height: 1.35;
+}
+.peek-hint.hidden { display: none; }
 .peek-actions { display: flex; gap: 7px; }
 .peek-actions button {
   min-height: 30px; padding: 6px 10px; border-radius: 9px; font-size: 11px;
@@ -312,6 +317,80 @@ html, body {
   pointer-events: none;
 }
 
+/* ---------- 订阅额度详情 ----------
+   额度不再依赖浏览器原生 title：只有点击 5h / 7d 指标时才展开，
+   并沿用弹层的边缘锚定与动态定高，避免无意间挡住后面的窗口。 */
+.quota-popover {
+  position: relative;
+  width: min(292px, calc(100vw - 24px));
+  margin-bottom: 10px;
+  padding: 11px 12px 10px;
+  box-sizing: border-box;
+  background: rgba(255, 252, 249, 0.985);
+  border: 1px solid rgba(217, 119, 87, 0.34);
+  border-radius: 15px;
+  box-shadow: 0 8px 24px rgba(120, 60, 35, 0.28);
+  color: #3a2a22;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+  animation: quotaPopoverIn 0.18s ease;
+}
+.quota-popover.hidden { display: none; }
+@keyframes quotaPopoverIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.quota-popover::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: var(--quota-tip-x, 50%);
+  transform: translateX(-50%);
+  border-width: 8px 7px 0 7px;
+  border-style: solid;
+  border-color: rgba(255, 252, 249, 0.985) transparent transparent transparent;
+}
+#stage.edge-below .quota-popover {
+  order: 4;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+#stage.edge-below .quota-popover::after {
+  top: -7px;
+  bottom: auto;
+  border-width: 0 7px 8px 7px;
+  border-color: transparent transparent rgba(255, 252, 249, 0.985) transparent;
+}
+.quota-popover-head { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.quota-popover-heading { flex: 1 1 auto; min-width: 0; }
+.quota-popover-title { font-size: 13px; font-weight: 750; line-height: 1.25; }
+.quota-popover-status { margin-top: 2px; color: #a06d55; font-size: 10px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quota-popover-close {
+  width: 23px; height: 23px; flex: 0 0 auto; padding: 0; border: none; border-radius: 7px;
+  background: rgba(217, 119, 87, 0.08); color: #a96b4d; cursor: pointer; -webkit-app-region: no-drag;
+}
+.quota-popover-close:hover { background: rgba(217, 119, 87, 0.18); color: #d15f3d; }
+.quota-popover-rows { display: flex; flex-direction: column; gap: 6px; }
+.quota-pop-row {
+  display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 7px;
+  padding: 7px 8px; border-radius: 10px; background: rgba(90, 58, 42, 0.055);
+}
+.quota-pop-period { color: #7b4e38; font-size: 11px; font-weight: 750; }
+.quota-pop-main { min-width: 0; }
+.quota-pop-value { font-size: 11.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.quota-pop-reset { margin-top: 2px; color: #9b725f; font-size: 10px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quota-pop-bar { grid-column: 1 / -1; height: 3px; border-radius: 3px; background: rgba(90, 58, 42, 0.13); overflow: hidden; }
+.quota-pop-bar-fill { height: 100%; width: var(--quota-remaining, 0%); border-radius: inherit; background: #80c6a1; }
+.quota-pop-row[data-level="amber"] .quota-pop-bar-fill { background: #e8ab52; }
+.quota-pop-row[data-level="red"] .quota-pop-bar-fill { background: #dc6f68; }
+.quota-pop-row[data-level="unknown"] .quota-pop-bar-fill { background: #b9aaa1; opacity: .55; }
+.quota-pop-row[data-level="amber"] .quota-pop-value { color: #a2661a; }
+.quota-pop-row[data-level="red"] .quota-pop-value { color: #b44d47; }
+.quota-popover-updated { color: #a98773; font-size: 10px; line-height: 1.3; }
+.quota-popover-hint { color: #b08a76; font-size: 10px; line-height: 1.3; }
+
 /* ---------- 今日用量小条 ---------- */
 .chip {
   /* The capsule is part of the resting frame, never a flex-space to reclaim
@@ -330,7 +409,7 @@ html, body {
   align-items: center;
   white-space: nowrap;
   -webkit-app-region: no-drag;
-  cursor: pointer;
+  cursor: default;
   opacity: 0.9;
   transition: opacity 0.25s ease;
   max-width: calc(100vw - 12px);
@@ -338,7 +417,12 @@ html, body {
 }
 #stage:hover .chip { opacity: 1; }
 .chip [hidden] { display: none !important; }
-.chip-quota { display: flex; gap: 5px; flex: 0 0 auto; }
+.chip-quota {
+  display: flex; gap: 5px; flex: 0 0 auto; cursor: pointer; border-radius: 8px;
+  padding: 2px; margin: -2px; transition: background 0.15s ease;
+}
+.chip-quota:hover { background: rgba(255, 255, 255, 0.09); }
+.chip-quota:focus-visible { outline: 2px solid rgba(255, 233, 220, 0.9); outline-offset: 2px; }
 .quota-badge {
   --quota-accent: #bce8d3;
   position: relative;

@@ -53,6 +53,7 @@
         </div>
         <div id="peek-list" class="peek-list"></div>
         <div id="peek-summary" class="peek-summary"></div>
+        <div id="peek-hint" class="peek-hint hidden"></div>
         <div class="peek-actions">
           <button id="peek-focus" class="peek-focus" type="button" data-i18n="peek.focus">打开当前会话</button>
           <button id="peek-panel" class="peek-panel" type="button" data-i18n="peek.panel">查看详情</button>
@@ -81,6 +82,20 @@
       <div id="prop" class="prop"></div>
       <div id="sidekick" class="sidekick"><img src="../assets/salary-cat.png" alt="" aria-hidden="true" /></div>
 
+      <!-- 订阅额度详情：点击胶囊上的 5h / 7d 后显示，避免原生 title 遮挡视野 -->
+      <div id="quota-popover" class="quota-popover hidden" role="dialog" aria-labelledby="quota-popover-title" aria-describedby="quota-popover-hint">
+        <div class="quota-popover-head">
+          <div class="quota-popover-heading">
+            <div id="quota-popover-title" class="quota-popover-title">Codex 订阅额度</div>
+            <div id="quota-popover-status" class="quota-popover-status"></div>
+          </div>
+          <button id="quota-popover-close" class="quota-popover-close" type="button" aria-label="关闭订阅额度详情">✕</button>
+        </div>
+        <div id="quota-popover-rows" class="quota-popover-rows"></div>
+        <div id="quota-popover-updated" class="quota-popover-updated"></div>
+        <div id="quota-popover-hint" class="quota-popover-hint">鼠标移开后自动收起，也可按 Esc 关闭</div>
+      </div>
+
       <div id="compact-row" class="compact-row">
         <!-- 多会话状态点：每个点 = 一个并行任务，颜色 = 状态 -->
         <div id="sessions" class="sessions"></div>
@@ -90,10 +105,10 @@
           <img id="cat-img" src="../assets/salary-cat.png" alt="cat" draggable="false" />
         </div>
 
-        <!-- 常驻今日用量条 -->
-        <div id="chip" class="chip" role="status" aria-live="polite" data-i18n-title="purr.titleAttr" title="今日用量">
+        <!-- 常驻今日用量条；额度区域是唯一的订阅详情入口，默认不弹系统 tooltip -->
+        <div id="chip" class="chip" aria-live="polite" aria-label="打工喵状态">
           <span id="chip-context" class="chip-context">🐾 待命</span>
-          <span id="chip-quota" class="chip-quota" hidden></span>
+          <span id="chip-quota" class="chip-quota" role="button" tabindex="0" aria-controls="quota-popover" aria-expanded="false" aria-label="查看订阅额度刷新时间" hidden></span>
           <span id="chip-tokens-sep" class="chip-sep">·</span>
           <span id="chip-tokens" class="chip-tokens">0 tokens</span>
           <span id="chip-cost-sep" class="chip-sep">·</span>
