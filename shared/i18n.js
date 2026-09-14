@@ -232,6 +232,8 @@
     'quota.durationHours': '{count}小时',
     'quota.durationDaysHours': '{days}天{hours}小时',
     'quota.durationDays': '{count}天',
+    'quota.estimate': '本周期已记录 {used} tokens（API 价 {cost}），按已用 {percent}％估算 7d 总量约 {total} tokens（{totalCost}）',
+    'quota.estimatePending': '本周期已记录 {used} tokens（API 价 {cost}），已用 {percent}％；数据积累后可估算总量',
     'quota.updatedAt': '上次更新 {time}',
     'quota.dismissHint': '鼠标移开后自动收起，也可按 Esc 关闭',
 

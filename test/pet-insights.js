@@ -112,7 +112,11 @@ assert(/\.sessions\s*\{[\s\S]*?flex:\s*0 0 auto;/.test(petCss),
   'session dots must not be compressed with the capsule');
 assert(/#cat\s*\{[\s\S]*?flex:\s*0 0 auto;/.test(petCss),
   'the cat frame must not be compressed with the capsule');
-assert(/\.chip-tokens, \.chip-cost\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?text-overflow:\s*ellipsis;/.test(petCss),
-  'token/cost details must yield and truncate inside a narrow capsule');
+assert(/\.chip-tokens, \.chip-cost\s*\{[\s\S]*?flex:\s*0 0 auto;[\s\S]*?overflow:\s*visible;/.test(petCss),
+  'token/cost details must retain their intrinsic width');
+assert(/function fitRestingFrame\(/.test(petJs) && /fitRestingFrame\(\);/.test(petJs),
+  'resting capsule width must be measured and applied dynamically');
+assert(/function positionProp\(\)[\s\S]*sessionRect[\s\S]*sessionRect\.left/.test(petJs),
+  'compact mode must position the live tool icon before the status dots');
 
 console.log('pet insight checks passed');

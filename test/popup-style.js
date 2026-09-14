@@ -65,7 +65,16 @@ assert.strictEqual((radialSource.match(/window\.pet\.openPanel\(/g) || []).lengt
 assert(/menu\.privacy/.test(radialSource) && /'ON'[\s\S]*'OFF'/.test(radialSource),
   'radial menu must show the compact privacy ON/OFF action');
 assert(!/menu\.quit|window\.pet\.quit/.test(radialSource), 'radial menu must leave whole-app quit in the tray');
-assert(/#stage\.edge-(?:left|right) \.chip[\s\S]*?width:\s*120px[\s\S]*?justify-content:\s*center/.test(css), 'edge token chip must stay centred under the cat');
+assert(/const COMPACT_MENU = \[MENU\[2\], MENU\[0\], MENU\[1\]\];/.test(js),
+  'hidden-cat actions must use their dedicated horizontal order');
+assert(/function buildCompactRadial\(\)/.test(js) && /dataset\.layout = 'compact'/.test(js),
+  'hidden-cat context menu must build a compact toolbar layout');
+assert(/\.radial\[data-layout="compact"\] \.radial-compact\s*\{[\s\S]*?display:\s*flex;/.test(css),
+  'hidden-cat context menu must render as a horizontal toolbar');
+assert(/\.sessions\s*\{[\s\S]*?min-width:\s*120px;/.test(css), 'session dots must retain a centred minimum width');
+assert(/#stage\.cat-hidden #compact-row \.sessions\s*\{[\s\S]*?min-width:\s*0;/.test(css),
+  'compact session dots must shrink to their intrinsic width beside the capsule');
+assert(/#stage\.edge-(?:left|right) \.chip[\s\S]*?justify-content:\s*center/.test(css), 'edge token chip must stay centred under the cat');
 // 单宠时代（2026-08-07 起）：不再有 per-tool 名牌，agent-tag 样式必须整体移除
 assert(!/agent-tag/.test(css), 'per-tool agent tag styles must be gone (single unified pet)');
 assert(/function positionProp\(\)[\s\S]*propEl\.style\.left/.test(js), 'action prop must use the visible cat geometry');

@@ -364,11 +364,13 @@ const chipCost = document.getElementById('chip-cost');
 const chipTokens = document.getElementById('chip-tokens');
 const chipContext = document.getElementById('chip-context');
 const chip = document.getElementById('chip');
+const compactRow = document.getElementById('compact-row');
 const quotaEl = document.getElementById('chip-quota');
 const quotaPopover = document.getElementById('quota-popover');
 const quotaPopoverTitle = document.getElementById('quota-popover-title');
 const quotaPopoverStatus = document.getElementById('quota-popover-status');
 const quotaPopoverRows = document.getElementById('quota-popover-rows');
+const quotaPopoverInsight = document.getElementById('quota-popover-insight');
 const quotaPopoverUpdated = document.getElementById('quota-popover-updated');
 const quotaPopoverHint = document.getElementById('quota-popover-hint');
 const quotaPopoverClose = document.getElementById('quota-popover-close');
@@ -586,8 +588,47 @@ function setRequestedPetSize(w, h, options = {}) {
     ? popupEdgeLayout(height, options.popupHeight)
     : restingEdgeLayout();
   const anchor = anchoredLayoutPayload(nextLayout);
-  try { window.pet.setPetSize(width, height, anchor); } catch {}
+  try { window.pet.setPetSize(width, height, anchor, options.popup ? 'popup' : 'resting'); } catch {}
 }
+
+// The resting pet window used to stay at BASE_W even when the capsule grew
+// past it. Keep the capsule uncompressed and let the transparent frame follow
+// its real intrinsic width so the cat and the session dots remain centred on
+// the same visual stack.
+const CAPSULE_FRAME_MIN_W = 320;
+const CAPSULE_FRAME_MAX_W = 900;
+const CAPSULE_FRAME_GUTTER = 24;
+let restingFitFrame = null;
+
+function measuredRestingWidth() {
+  const widths = [];
+  for (const el of [compactRow, chip, sessionsEl]) {
+    if (!el || el.hidden) continue;
+    const rect = typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null;
+    const rectWidth = rect && Number(rect.width);
+    const scrollWidth = Number(el.scrollWidth);
+    if (Number.isFinite(rectWidth) && rectWidth > 0) widths.push(rectWidth);
+    if (Number.isFinite(scrollWidth) && scrollWidth > 0) widths.push(scrollWidth);
+  }
+  return widths.length ? Math.max(...widths) : CAPSULE_FRAME_MIN_W;
+}
+
+function fitRestingFrame(force = false, allowOverlays = false) {
+  if (restingFitFrame) cancelAnimationFrame(restingFitFrame);
+  restingFitFrame = requestAnimationFrame(() => {
+    restingFitFrame = null;
+    if (!allowOverlays && (askActive || actionPopOpen || peekOpen || quotaPopoverOpen || radialOpen)) return;
+    const measured = measuredRestingWidth();
+    const width = Math.min(
+      CAPSULE_FRAME_MAX_W,
+      Math.max(CAPSULE_FRAME_MIN_W, Math.ceil(measured + CAPSULE_FRAME_GUTTER)),
+    );
+    const current = Number(window.innerWidth) || CAPSULE_FRAME_MIN_W;
+    if (!force && Math.abs(current - width) <= 2) return;
+    setRequestedPetSize(width, BASE_PET_FRAME_H);
+  });
+}
+
 function fitPopup(el) {
   if (!el) return;
   const seq = ++fitPopupSeq;
@@ -618,14 +659,17 @@ function fitPopup(el) {
 }
 function resetPetSize() {
   fitPopupSeq++;
-  setRequestedPetSize(0, 0);
+  fitRestingFrame(true);
 }
 
 function settleEdgeLayout() {
   // No screen coordinates in the headless renderer tests; the real Electron
   // window always has them. This also avoids inventing a desktop in Node.
   if (!petGeometrySnapshot()) return;
-  setRequestedPetSize(0, 0);
+  // Keep the intrinsic capsule width while re-evaluating the edge anchor.
+  // Resetting to the old 320px base here would briefly reintroduce clipping
+  // after a drag or immediately before the radial menu is laid out.
+  fitRestingFrame(true, true);
 }
 
 // Switch the internal top/bottom anchor *during* a drag, just before the
@@ -1473,6 +1517,9 @@ function positionProp() {
   if (!el || !propEl) return;
   const stageRect = stage.getBoundingClientRect();
   const petRect = el.getBoundingClientRect();
+  const sessionRect = !catVisible && sessionsEl && sessionsEl.children.length
+    ? sessionsEl.getBoundingClientRect()
+    : null;
   const size = 28;
   const gap = 7;
   const viewportW = Math.max(1, stageRect.width || window.innerWidth || 320);
@@ -1482,8 +1529,23 @@ function positionProp() {
   const petRight = petLeft + petRect.width;
   const preferRight = edgeLayout.horizontal === 'left'
     || (edgeLayout.horizontal === 'center' && petLeft + petRect.width / 2 < viewportW / 2);
-  let left = preferRight ? petRight + gap : petLeft - size - gap;
-  if (left < 4 || left + size > viewportW - 4) {
+  // In compact mode the row is [session dots][capsule]. The tool prop must
+  // sit before that whole cluster, not between the dots and the capsule.
+  // Read the live dots rect each time so a changing parallel-session count
+  // moves the prop with the first dot instead of covering it.
+  const insideViewport = (value) => value >= 4 && value + size <= viewportW - 4;
+  let left;
+  if (sessionRect && sessionRect.width > 0) {
+    const beforeDots = sessionRect.left - stageRect.left - size - gap;
+    const afterCapsule = petRight + gap;
+    const beforeCapsule = petLeft - size - gap;
+    // The first candidate is the requested position. The fallbacks keep the
+    // prop away from the dots when there is no outside room at an edge.
+    left = [beforeDots, afterCapsule, beforeCapsule].find(insideViewport) ?? beforeDots;
+  } else {
+    left = preferRight ? petRight + gap : petLeft - size - gap;
+  }
+  if (!insideViewport(left)) {
     left = preferRight ? petLeft - size - gap : petRight + gap;
   }
   const top = Math.max(4, Math.min(viewportH - size - 4, petTop + petRect.height * 0.18));
@@ -1861,8 +1923,12 @@ function clearPurrPayday() {
 }
 
 function quotaRemainingPercent(w) {
-  return w && Number.isFinite(w.remainingPercent)
-    ? Math.max(0, Math.min(100, Number(w.remainingPercent)))
+  if (!w || typeof w !== 'object') return null;
+  if (Number.isFinite(w.remainingPercent)) {
+    return Math.max(0, Math.min(100, Number(w.remainingPercent)));
+  }
+  return Number.isFinite(w.usedPercent)
+    ? Math.max(0, Math.min(100, 100 - Number(w.usedPercent)))
     : null;
 }
 
@@ -1912,19 +1978,69 @@ function quotaUpdatedText(updatedAt) {
   });
 }
 
+function quotaWindowEntries(quota) {
+  const windows = quota && quota.windows && typeof quota.windows === 'object' ? quota.windows : {};
+  const weekly = windows.weekly;
+  const hasWeekly = quotaRemainingPercent(weekly) !== null;
+  const fiveHour = windows.fiveHour;
+  const hasFiveHour = quotaRemainingPercent(fiveHour) !== null;
+  // Pro accounts expose a weekly window but no 5h window. Do not leave a
+  // misleading empty badge/card beside the real 7d value in that case.
+  return [
+    ['fiveHour', 'quota.fiveHour'],
+    ['weekly', 'quota.weekly'],
+  ].filter(([key]) => key !== 'fiveHour' || hasFiveHour || !hasWeekly);
+}
+
+function quotaCostText(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? '$' + n.toFixed(3) : '--';
+}
+
+function quotaPlanText(quota) {
+  const plan = quota && quota.account && typeof quota.account.planType === 'string'
+    ? quota.account.planType.trim()
+    : '';
+  return plan ? ` · ${plan.slice(0, 1).toUpperCase()}${plan.slice(1)}` : '';
+}
+
+function renderQuotaEstimate(quota) {
+  if (!quotaPopoverInsight) return;
+  const estimate = quota && quota.estimate;
+  if (!estimate || (!Number.isFinite(Number(estimate.tokens)) && !Number.isFinite(Number(estimate.cost)))) {
+    quotaPopoverInsight.hidden = true;
+    quotaPopoverInsight.textContent = '';
+    return;
+  }
+  const used = compactTokens(estimate.tokens || 0);
+  const cost = quotaCostText(estimate.cost);
+  const percent = Number.isFinite(Number(estimate.usedPercent))
+    ? Math.round(Number(estimate.usedPercent)) + '%'
+    : '--';
+  if (Number.isFinite(Number(estimate.estimatedTotalTokens))) {
+    quotaPopoverInsight.textContent = t('quota.estimate', {
+      used,
+      cost,
+      percent,
+      total: compactTokens(estimate.estimatedTotalTokens),
+      totalCost: quotaCostText(estimate.estimatedTotalCost),
+    });
+  } else {
+    quotaPopoverInsight.textContent = t('quota.estimatePending', { used, cost, percent });
+  }
+  quotaPopoverInsight.hidden = false;
+}
+
 function renderQuotaPopover(s) {
   if (!quotaPopoverRows || !quotaPopoverStatus || !s) return;
   const quota = s.codexQuota || {};
   quotaPopoverTitle.textContent = t('quota.title');
   quotaPopoverStatus.textContent = quota.status === 'ready'
-    ? t('quota.synced')
+    ? t('quota.synced') + quotaPlanText(quota)
     : (quota.statusText || t('quota.unavailable'));
   quotaPopoverRows.innerHTML = '';
 
-  const windows = [
-    ['fiveHour', 'quota.fiveHour'],
-    ['weekly', 'quota.weekly'],
-  ];
+  const windows = quotaWindowEntries(quota);
   for (const [key, labelKey] of windows) {
     const w = quota.windows && quota.windows[key];
     const remaining = quotaRemainingPercent(w);
@@ -1962,6 +2078,7 @@ function renderQuotaPopover(s) {
     quotaPopoverRows.appendChild(row);
   }
 
+  renderQuotaEstimate(quota);
   quotaPopoverUpdated.textContent = Number.isFinite(quota.updatedAt)
     ? t('quota.updatedAt', { time: quotaUpdatedText(quota.updatedAt) })
     : (quota.statusText || t('quota.unavailable'));
@@ -2056,7 +2173,8 @@ function renderContextCapsule(s) {
   document.getElementById('chip-cost-sep').hidden = !showCost || !(showStatus || showQuota || showTokens);
   const quota = s.codexQuota || {};
   quotaEl.innerHTML = '';
-  for (const [key, label] of [['fiveHour', '5h'], ['weekly', '7d']]) {
+  for (const [key, labelKey] of quotaWindowEntries(quota)) {
+    const label = labelKey === 'quota.fiveHour' ? '5h' : '7d';
     const w = quota.windows && quota.windows[key];
     const remaining = quotaRemainingPercent(w);
     const badge = document.createElement('span');
@@ -2083,6 +2201,7 @@ function renderContextCapsule(s) {
     chipTokens.textContent = `${compactTokens(purr.tokens)} tokens`;
     chipCost.textContent = '$' + (Number(purr.cost) || 0).toFixed(3);
     chip.setAttribute('aria-label', purr.copy || t('purr.ariaLabel'));
+    fitRestingFrame();
     return;
   }
   if (purrPaydayUntil && !purrEnvironmentClear(s)) clearPurrPayday();
@@ -2145,6 +2264,7 @@ function renderContextCapsule(s) {
   chipTokens.textContent = compactTokens(usage.tokens) + ' tokens';
   chipCost.textContent = '$' + usage.cost.toFixed(3);
   chip.setAttribute('aria-label', `${title}${detail ? ` · 今日 ${detail}` : ''}`);
+  fitRestingFrame();
 }
 
 function triggerPurrPayday() {
@@ -2190,6 +2310,10 @@ function applyStats(s) {
   lastStats = s;
   renderContextCapsule(s);
   renderSessions(s.sessions || []);
+  // The status dots and the capsule are siblings in the same intrinsic-width
+  // stack. Measure after both have been refreshed so a long amount or a new
+  // parallel task is included in the next BrowserWindow size.
+  fitRestingFrame();
   updateNotepad(s); // 记事本：行动中心
 
   // 选项面板：按快照重建队列（多任务都在、标明项目；防漏事件/启动时已在等待）
@@ -2250,6 +2374,7 @@ function renderSessions(sessions) {
     d.setAttribute('aria-hidden', 'true');
     sessionsEl.appendChild(d);
   }
+  if (propEl && propEl.classList.contains('on')) positionProp();
 }
 
 // Static markup carries Chinese text inline; data-i18n keeps the shared wording
@@ -2546,6 +2671,9 @@ const MENU = [
   { ic: 'minus',  labelKey: 'menu.collapse', act: () => window.pet.closePet() },
   { labelKey: 'menu.privacy', status: () => privacyModeEnabled() ? 'ON' : 'OFF', act: togglePrivacyMode },
 ];
+// The compact toolbar reads naturally from state/privacy to detail to hide.
+// Keep the cat-facing radial menu's original MENU order unchanged.
+const COMPACT_MENU = [MENU[2], MENU[0], MENU[1]];
 
 function usableRadialMetrics(metrics) {
   if (!metrics || !metrics.window || !metrics.workArea) return null;
@@ -2578,8 +2706,90 @@ async function settledRadialMetrics() {
   return metrics;
 }
 
+function makeRadialItem(it, i, compact = false) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'radial-item';
+  b.style.transitionDelay = i * 0.03 + 's';
+  const status = typeof it.status === 'function' ? it.status() : '';
+  if (status) {
+    const enabled = status === 'ON';
+    b.classList.add('radial-toggle');
+    b.dataset.enabled = String(enabled);
+    b.setAttribute('aria-pressed', String(enabled));
+    b.setAttribute('aria-label', `${t(it.labelKey)} ${status}`);
+    b.innerHTML = compact
+      ? `<span class="ri-lb">${esc(t(it.labelKey))}</span><span class="ri-state">${esc(status)}</span>`
+      : `<span class="ri-state">${esc(status)}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
+  } else {
+    const icHtml = (window.WorkMeowIcons && window.WorkMeowIcons.icon(it.ic)) || '';
+    b.innerHTML = `<span class="ri-ic oi">${icHtml}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
+  }
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeRadial();
+    it.act();
+  });
+  return b;
+}
+
+function positionCompactRadial() {
+  if (!radial || !chip || catVisible) return;
+  const bar = radial.children && [...radial.children].find((child) =>
+    child.classList && child.classList.contains('radial-compact'));
+  if (!bar) return;
+  const sr = stage.getBoundingClientRect();
+  const chipRect = chip.getBoundingClientRect();
+  const barRect = bar.getBoundingClientRect();
+  const viewportW = Math.max(1, sr.width || window.innerWidth || 320);
+  const barWidth = Math.max(0, Number(barRect.width) || 0);
+  const halfBar = barWidth / 2;
+  const desiredCenter = chipRect.left - sr.left + chipRect.width / 2;
+  const minCenter = 8 + halfBar;
+  const maxCenter = viewportW - 8 - halfBar;
+  const center = minCenter <= maxCenter
+    ? Math.max(minCenter, Math.min(maxCenter, desiredCenter))
+    : viewportW / 2;
+  const chipTop = chipRect.top - sr.top;
+  const chipBottom = chipTop + chipRect.height;
+  bar.style.left = Math.round(center) + 'px';
+  bar.style.top = Math.round(edgeLayout.vertical === 'below' ? chipBottom + 8 : chipTop - 8) + 'px';
+  bar.style.transform = edgeLayout.vertical === 'below'
+    ? 'translateX(-50%)'
+    : 'translate(-50%, -100%)';
+}
+
+function buildCompactRadial() {
+  radial.dataset.layout = 'compact';
+  radial.dataset.direction = edgeLayout.vertical === 'below' ? 'below' : 'above';
+  const bar = document.createElement('div');
+  bar.className = 'radial-compact';
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', '桌宠操作');
+  COMPACT_MENU.forEach((it, i) => bar.appendChild(makeRadialItem(it, i, true)));
+  radial.appendChild(bar);
+  // Set a useful first position before the browser has measured the toolbar;
+  // the open step and the next paint both refine it against the chip bounds.
+  const sr = stage.getBoundingClientRect();
+  const r = chip.getBoundingClientRect();
+  bar.style.left = Math.round(r.left - sr.left + r.width / 2) + 'px';
+  bar.style.top = Math.round(edgeLayout.vertical === 'below'
+    ? r.top - sr.top + r.height + 8
+    : r.top - sr.top - 8) + 'px';
+  bar.style.transform = edgeLayout.vertical === 'below'
+    ? 'translateX(-50%)'
+    : 'translate(-50%, -100%)';
+}
+
 function buildRadial(metrics = lastRadialMetrics) {
   radial.innerHTML = '';
+  const exact = usableRadialMetrics(metrics);
+  if (exact) lastRadialMetrics = exact;
+  if (!catVisible) {
+    buildCompactRadial();
+    return;
+  }
+  radial.dataset.layout = 'radial';
   const el = curSkinEl();
   const sr = stage.getBoundingClientRect();
   const r = el.getBoundingClientRect();
@@ -2587,8 +2797,6 @@ function buildRadial(metrics = lastRadialMetrics) {
   const cy = r.top - sr.top + r.height / 2;
   const items = MENU;
   const n = items.length;
-  const exact = usableRadialMetrics(metrics);
-  if (exact) lastRadialMetrics = exact;
   const frame = exact && exact.window;
   const viewportW = Math.max(1, frame ? frame.width : (window.innerWidth || 320));
   const viewportH = Math.max(1, frame ? frame.height : (window.innerHeight || 340));
@@ -2626,31 +2834,9 @@ function buildRadial(metrics = lastRadialMetrics) {
   radial.dataset.direction = layout.direction || 'top-right';
   items.forEach((it, i) => {
     const point = layout.points[i] || { x: cx, y: cy };
-    const x = point.x;
-    const y = point.y;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'radial-item';
-    b.style.left = x + 'px';
-    b.style.top = y + 'px';
-    b.style.transitionDelay = i * 0.03 + 's';
-    const status = typeof it.status === 'function' ? it.status() : '';
-    if (status) {
-      const enabled = status === 'ON';
-      b.classList.add('radial-toggle');
-      b.dataset.enabled = String(enabled);
-      b.setAttribute('aria-pressed', String(enabled));
-      b.setAttribute('aria-label', `${t(it.labelKey)} ${status}`);
-      b.innerHTML = `<span class="ri-state">${esc(status)}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
-    } else {
-      const icHtml = (window.WorkMeowIcons && window.WorkMeowIcons.icon(it.ic)) || '';
-      b.innerHTML = `<span class="ri-ic oi">${icHtml}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
-    }
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeRadial();
-      it.act();
-    });
+    const b = makeRadialItem(it, i);
+    b.style.left = point.x + 'px';
+    b.style.top = point.y + 'px';
     radial.appendChild(b);
   });
 }
@@ -2674,10 +2860,18 @@ async function openRadial() {
   if (seq !== radialOpenSeq || !radialOpen) return;
   buildRadial(metrics);
   radial.classList.remove('hidden');
+  if (!catVisible) {
+    positionCompactRadial();
+    requestAnimationFrame(() => {
+      if (seq === radialOpenSeq && radialOpen) positionCompactRadial();
+    });
+  }
 }
 function closeRadial() {
   radialOpenSeq++;
   radial.classList.add('hidden');
+  radial.removeAttribute('data-layout');
+  radial.removeAttribute('data-direction');
   radialOpen = false;
 }
 function toggleRadial() {
@@ -2750,4 +2944,7 @@ setMouseIgnore(true);
 window.addEventListener('resize', () => requestAnimationFrame(() => {
   positionBubbleTip();
   positionQuotaPopoverTip();
+  if (propEl && propEl.classList.contains('on')) positionProp();
+  if (radialOpen && !catVisible) positionCompactRadial();
+  if (!askActive && !actionPopOpen && !peekOpen && !quotaPopoverOpen && !radialOpen) fitRestingFrame();
 }));

@@ -78,7 +78,7 @@ contextBridge.exposeInMainWorld('pet', {
   setIgnoreMouse: (ignore) => ipcRenderer.send(IPC.SET_IGNORE_MOUSE, ignore),
   quotaAlertShown: (alertIds) => ipcRenderer.send(IPC.QUOTA_ALERT_SHOWN, alertIds),
   // 按弹层内容精确定高（动态，避免固定大窗口留白）；w/h<=0 复位
-  setPetSize: (w, h, anchor) => ipcRenderer.send(IPC.SET_PET_SIZE, w, h, anchor),
+  setPetSize: (w, h, anchor, mode) => ipcRenderer.send(IPC.SET_PET_SIZE, w, h, anchor, mode),
   // 详情面板按内容高度自适应，避免底部留白 / 内容多时被切
   setPanelHeight: (h) => ipcRenderer.send(IPC.SET_PANEL_HEIGHT, h),
   // 输入框结束后归还窗口焦点

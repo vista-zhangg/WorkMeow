@@ -42,6 +42,7 @@ const { createCodexWatch } = require('./backend/codex-watch');
 const { createTraeWatch } = require('./backend/trae-watch');
 const { createCodexMetering } = require('./backend/codex-metering');
 const { createCodexRateLimits, unavailableState: unavailableCodexQuota } = require('./backend/codex-rate-limits');
+const { estimateWeeklyQuota } = require('./backend/codex-quota-estimate');
 const codexQuotaTray = require('./backend/codex-quota-tray');
 const { createWorkbuddyMetering } = require('./backend/workbuddy-metering');
 const { createTraeMetering } = require('./backend/trae-metering');
@@ -125,8 +126,9 @@ const pendingQuotaAlerts = new Map();
 let quotaAlertTimer = null;
 
 // ── window geometry ───────────────────────────────────────────────────────────
-  // customSize is set by the renderer to fit an open popup exactly (dynamic
-  // height), so a short popup does not leave a large transparent window.
+  // customSize is set by the renderer for either an intrinsic-width resting
+  // capsule or an open popup, so neither state leaves an unnecessarily large
+  // transparent window.
 function targetSize(st) {
   const cs = st && st.customSize;
   if (cs) {
@@ -255,7 +257,7 @@ function makePetWindow(agent) {
   });
 
   win.on('moved', () => {
-    if (st.customSize) return; // only persist the resting position
+    if (st.customSize && st.customSize.mode === 'popup') return; // only persist the resting position
     if (win.isDestroyed()) return;
     persistPos(win.getBounds());
   });
@@ -702,8 +704,21 @@ function buildStats(agent = 'all', snapshot = null, cachedMeter = null) {
     usageProvider: 'all',
   });
   stats.chipDisplay = getChipDisplay();
-  stats.codexQuota = { windows: codexQuotaState.windows, status: codexQuotaState.status,
-    statusText: quotaStatusLabel(codexQuotaState), updatedAt: codexQuotaState.updatedAt };
+  const quotaWindows = codexQuotaState.windows || {};
+  const quotaAccount = codexQuotaState.account && typeof codexQuotaState.account === 'object'
+    ? {
+      type: codexQuotaState.account.type || null,
+      planType: codexQuotaState.account.planType || null,
+    }
+    : null;
+  stats.codexQuota = {
+    windows: quotaWindows,
+    status: codexQuotaState.status,
+    statusText: quotaStatusLabel(codexQuotaState),
+    updatedAt: codexQuotaState.updatedAt,
+    account: quotaAccount,
+    estimate: estimateWeeklyQuota(codexUsage, quotaWindows.weekly),
+  };
   return privacy.protectStats(stats, config.get().privacyMode === true);
 }
 
@@ -1131,12 +1146,14 @@ function registerIpc() {
       openExternal: (url) => shell.openExternal(url),
     });
   });
-  // Dynamic sizing: renderer measures the open popup and asks for an exact fit.
-  // w/h <= 0 resets to the base pet size.
-  ipcMain.on(IPC.SET_PET_SIZE, (e, w, h, anchor) => {
+  // Dynamic sizing: renderer measures either the resting capsule or an open
+  // popup and asks for an exact fit. w/h <= 0 resets to the base pet size.
+  ipcMain.on(IPC.SET_PET_SIZE, (e, w, h, anchor, mode) => {
     const st = stateOfSender(e.sender) || primaryPetState();
     if (!st) return;
-    st.customSize = (Number(w) > 0 && Number(h) > 0) ? { w: Number(w), h: Number(h) } : null;
+    st.customSize = (Number(w) > 0 && Number(h) > 0)
+      ? { w: Number(w), h: Number(h), mode: mode === 'popup' ? 'popup' : 'resting' }
+      : null;
     applyPetSize(st, anchor);
   });
   ipcMain.on(IPC.PET_BLUR, (e) => { const w = senderPetWin(e); if (w) { w.blur(); } });
