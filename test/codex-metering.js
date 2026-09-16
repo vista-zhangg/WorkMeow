@@ -64,6 +64,10 @@ async function main() {
       },
     } } },
   ];
+  const weeklyReset = Math.floor(Date.now() / 1000) + 604800;
+  rows[2].payload.rate_limits = { limit_id: 'codex', primary: {
+    window_minutes: 10080, used_percent: 7, resets_at: weeklyReset,
+  } };
   fs.writeFileSync(rollout, rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
 
   const meter = createCodexMetering({ sessionsDir: path.join(root, 'sessions'), stateDir });
@@ -78,10 +82,35 @@ async function main() {
   assert.strictEqual(stats.lifetime.tokens, 370);
   assert.strictEqual(stats.hourlyTok.reduce((a, b) => a + b, 0), 370);
   assert.strictEqual(stats.diagnostics.resets, 1);
+  assert.strictEqual(meter.getQuotaHistory().length, 3);
+  assert.strictEqual(meter.getQuotaHistory()[0].resetsAt, weeklyReset);
+  assert.strictEqual(meter.getQuotaHistory()[0].usedPercent, 7);
+  assert.strictEqual(meter.getQuotaHistory()[0].limitId, 'codex');
+  assert(Math.abs(meter.getQuotaHistory().reduce((sum, row) => sum + row.cost, 0) - stats.today.cost) < 1e-10);
 
   await meter.scan();
   stats = meter.getStats();
   assert.strictEqual(stats.today.tokens, 370, 'second scan must not double count');
+  assert.strictEqual(meter.getQuotaHistory().length, 3, 'history is incremental');
+
+  // Upgrade a pre-history cache at EOF without replaying the main ledger.
+  meter.stop();
+  const statePath = path.join(stateDir, 'codex-usage.json');
+  const oldState = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+  for (const file of Object.values(oldState.files)) {
+    delete file.quotaEvents;
+    delete file.quotaModel;
+  }
+  fs.writeFileSync(statePath, JSON.stringify(oldState));
+  const upgraded = createCodexMetering({ sessionsDir: path.join(root, 'sessions'), stateDir });
+  await upgraded.scan();
+  assert.strictEqual(upgraded.getStats().lifetime.tokens, 370, 'backfill does not double count lifetime');
+  assert.deepStrictEqual(upgraded.getQuotaHistory(), meter.getQuotaHistory(), 'upgrade restores timestamped costs');
+  upgraded.stop();
+  const restarted = createCodexMetering({ sessionsDir: path.join(root, 'sessions'), stateDir });
+  await restarted.scan();
+  assert.deepStrictEqual(restarted.getQuotaHistory(), upgraded.getQuotaHistory(), 'restart preserves the full cycle');
+  restarted.stop();
 
   // A rollout can be truncated/rotated. Replaying the retained prefix must not
   // double count it, while a newer token event after the old EOF is accepted.

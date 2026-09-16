@@ -401,6 +401,17 @@ html, body {
   line-height: 1.4;
 }
 .quota-popover-insight[hidden] { display: none; }
+.quota-estimate-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; color: #79503c; }
+.quota-estimate-badge { padding: 2px 6px; border-radius: 6px; font-size: 9px; font-weight: 500; background: #f5e5d9; color: #996b4b; }
+.quota-estimate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 7px 0; }
+.quota-estimate-card { min-width: 0; padding: 7px 8px; border-radius: 8px; background: rgba(255,255,255,.8); }
+.quota-estimate-card:last-child { background: #edf5ed; }
+.quota-estimate-label, .quota-estimate-unit { font-size: 9px; color: #997b66; }
+.quota-estimate-number { margin: 2px 0; color: #694831; font-size: 17px; font-weight: 750; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.quota-estimate-card:last-child .quota-estimate-number { color: #4c8060; }
+.quota-estimate-detail { font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+.quota-estimate-note { margin-top: 5px; color: #a58a78; font-size: 9px; line-height: 1.4; }
+.quota-estimate-pending { padding: 9px 0 3px; line-height: 1.5; }
 .quota-popover-hint { color: #b08a76; font-size: 10px; line-height: 1.3; }
 
 /* ---------- 今日用量小条 ---------- */

@@ -28,6 +28,7 @@ const PRICING_OVERRIDE_PATH = path.join(STATE_DIR, 'codex-pricing.json');
 const SCHEMA_VERSION = 3;
 const DAILY_KEEP_DAYS = 95;
 const BACKFILL_MS = DAILY_KEEP_DAYS * 24 * 60 * 60 * 1000;
+const QUOTA_HISTORY_MS = 8 * 24 * 60 * 60 * 1000;
 
 // Codex/OpenAI model pricing (USD per 1,000,000 tokens)
 // Priority: synced cache > user override > built-in defaults.
@@ -362,6 +363,11 @@ function createCodexMetering(options = {}) {
       if (Number.isFinite(Number(session && session.updatedAt))
         && Number(session.updatedAt) < Date.now() - BACKFILL_MS) delete state.sessions[id];
     }
+    for (const file of Object.values(state.files)) {
+      if (Array.isArray(file.quotaEvents)) {
+        file.quotaEvents = file.quotaEvents.filter(row => row.at >= Date.now() - QUOTA_HISTORY_MS);
+      }
+    }
   }
 
   async function listFiles(dir = sessionsDir, out = []) {
@@ -398,6 +404,51 @@ function createCodexMetering(options = {}) {
     addUsage(row, delta, 1);
   }
 
+  // Retain only numeric metering facts, never conversation text. Unlike the
+  // daily ledger these timestamps can separate a mid-day quota reset.
+  function recordQuotaEvent(fileState, object) {
+    const payload = object && object.payload || {};
+    if (object.type === 'turn_context') {
+      if (typeof payload.model === 'string') fileState.quotaModel = payload.model;
+      return;
+    }
+    if (object.type !== 'event_msg' || payload.type !== 'token_count') return;
+    const at = parseTimestamp(object.timestamp, NaN);
+    if (!Number.isFinite(at) || at < Date.now() - QUOTA_HISTORY_MS) return;
+    const usage = normalizeUsage(payload.info && (payload.info.last_token_usage || payload.info.lastTokenUsage));
+    const limits = payload.rate_limits || payload.rateLimits;
+    const weekly = limits && [limits.primary, limits.secondary].find(w => w
+      && (w.window_minutes ?? w.windowDurationMins) === 10080);
+    const row = { at, cost: usageCost(usage, priceFor(fileState.quotaModel || fileState.model, pricing)) };
+    if (weekly) {
+      row.resetsAt = weekly.resets_at ?? weekly.resetsAt;
+      row.usedPercent = weekly.used_percent ?? weekly.usedPercent;
+      row.limitId = limits.limit_id ?? limits.limitId ?? 'codex';
+    }
+    if (row.cost > 0 || weekly) (fileState.quotaEvents ||= []).push(row);
+  }
+
+  async function backfillQuota(fileState, file) {
+    if (Array.isArray(fileState.quotaEvents)) return;
+    fileState.quotaEvents = [];
+    if (!fileState.offset) return;
+    // Upgrade existing ledgers without replaying their monetary/token totals.
+    // The normal incremental pass below handles any unfinished trailing line.
+    let carry = '';
+    try {
+      for await (const chunk of fs.createReadStream(file, { end: fileState.offset - 1, encoding: 'utf8' })) {
+        const lines = (carry + chunk).split('\n');
+        carry = lines.pop() || '';
+        for (const line of lines) {
+          try { recordQuotaEvent(fileState, JSON.parse(line)); } catch {}
+        }
+      }
+    } catch (error) {
+      delete fileState.quotaEvents;
+      throw error;
+    }
+  }
+
   function processObject(fileState, file, object) {
     const payload = object && object.payload && typeof object.payload === 'object' ? object.payload : {};
     if (object.type === 'session_meta') {
@@ -406,13 +457,14 @@ function createCodexMetering(options = {}) {
     }
     if (object.type === 'turn_context') {
       if (typeof payload.model === 'string' && payload.model) fileState.model = payload.model;
+      recordQuotaEvent(fileState, object);
       return;
     }
     if (object.type !== 'event_msg' || payload.type !== 'token_count') return;
     const info = payload.info && typeof payload.info === 'object' ? payload.info : {};
     const cumulative = normalizeUsage(info.total_token_usage || info.totalTokenUsage);
     const current = normalizeUsage(info.last_token_usage || info.lastTokenUsage);
-    if (current.tokens <= 0) return;
+    if (current.tokens <= 0) { recordQuotaEvent(fileState, object); return; }
     const sessionKey = fileState.sessionId || file;
     const previous = state.sessions[sessionKey] && state.sessions[sessionKey].usage;
     const ts = parseTimestamp(object.timestamp);
@@ -421,6 +473,7 @@ function createCodexMetering(options = {}) {
     // timestamp; genuinely appended rows are newer and still get counted.
     if (fileState.replaying && previous && ts <= Number(state.sessions[sessionKey].updatedAt || 0)
       && cumulative.tokens <= num(previous.tokens)) return;
+    recordQuotaEvent(fileState, object);
     if (previous && cumulative.tokens < num(previous.tokens)) state.diagnostics.resets++;
     state.sessions[sessionKey] = { usage: cumulative, updatedAt: ts };
     record(ts, fileState.model, current);
@@ -437,6 +490,10 @@ function createCodexMetering(options = {}) {
       fileState.carry = '';
       fileState.replaying = true;
     }
+    if (!Array.isArray(fileState.quotaEvents) && stat.mtimeMs < Date.now() - QUOTA_HISTORY_MS) {
+      fileState.quotaEvents = [];
+    }
+    await backfillQuota(fileState, file);
     if (fileState.offset === stat.size) return;
     const stream = fs.createReadStream(file, { start: fileState.offset, encoding: 'utf8' });
     let carry = fileState.carry || '';
@@ -475,6 +532,10 @@ function createCodexMetering(options = {}) {
   }
 
   function scan() { return operations.scan(performScan); }
+
+  function getQuotaHistory() {
+    return Object.values(state.files).flatMap(file => file.quotaEvents || []);
+  }
 
   function getStats() {
     const todayKey = dayKey(Date.now());
@@ -551,7 +612,7 @@ function createCodexMetering(options = {}) {
     return { live, count, ts, source, stale, estimate: true };
   }
 
-  return { start, stop, scan, rebuild, getStats, priceInfo, _state: state, _processObject: processObject };
+  return { start, stop, scan, rebuild, getStats, getQuotaHistory, priceInfo, _state: state, _processObject: processObject };
 }
 
 module.exports = { createCodexMetering, normalizeUsage, deltaUsage, emptyUsage, priceFor, usageCost, parseTimestamp };

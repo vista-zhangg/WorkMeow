@@ -42,7 +42,9 @@ const { createCodexWatch } = require('./backend/codex-watch');
 const { createTraeWatch } = require('./backend/trae-watch');
 const { createCodexMetering } = require('./backend/codex-metering');
 const { createCodexRateLimits, unavailableState: unavailableCodexQuota } = require('./backend/codex-rate-limits');
-const { estimateWeeklyQuota } = require('./backend/codex-quota-estimate');
+const { createWeeklyQuotaEstimator } = require('./backend/codex-quota-estimate');
+const weeklyQuotaEstimator = createWeeklyQuotaEstimator();
+let weeklyQuotaEstimate = null;
 const codexQuotaTray = require('./backend/codex-quota-tray');
 const { createWorkbuddyMetering } = require('./backend/workbuddy-metering');
 const { createTraeMetering } = require('./backend/trae-metering');
@@ -717,7 +719,8 @@ function buildStats(agent = 'all', snapshot = null, cachedMeter = null) {
     statusText: quotaStatusLabel(codexQuotaState),
     updatedAt: codexQuotaState.updatedAt,
     account: quotaAccount,
-    estimate: estimateWeeklyQuota(codexUsage, quotaWindows.weekly),
+    estimate: codexQuotaState.status === 'ready'
+      && Date.now() - codexQuotaState.updatedAt <= 300000 ? weeklyQuotaEstimate : null,
   };
   return privacy.protectStats(stats, config.get().privacyMode === true);
 }
@@ -776,10 +779,23 @@ function bootBackend() {
         version: require('./package.json').version,
         onUpdate: (next) => {
           codexQuotaState = next;
+          weeklyQuotaEstimate = null;
+          if (next.status !== 'ready') weeklyQuotaEstimator.reset();
           refreshTrayMenu();
-          // Publish the same quota snapshot immediately; do not wait for the
-          // periodic stats refresh to catch the capsule up with the tray.
-          emitStats();
+          // Pair a fresh local ledger with the quota observation. Suppress
+          // older async completions if a newer account/quota update arrives.
+          codexMetering.scan().then(() => {
+            if (codexQuotaState !== next) return;
+            weeklyQuotaEstimate = weeklyQuotaEstimator.observe({
+              ...codexMetering.getStats(), quotaHistory: codexMetering.getQuotaHistory(),
+            }, next);
+            emitStats();
+          }).catch(() => {
+            if (codexQuotaState !== next) return;
+            weeklyQuotaEstimator.reset();
+            weeklyQuotaEstimate = null;
+            emitStats();
+          });
         },
         onAlert: showQuotaAlert,
       });

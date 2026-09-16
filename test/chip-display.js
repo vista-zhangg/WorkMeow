@@ -33,7 +33,7 @@ assert.strictEqual(w.elements('quota-popover').classList.contains('hidden'), tru
 w.handlers.stats({ ...stats, codexQuota: {
   status: 'ready',
   windows: { fiveHour: null, weekly: { remainingPercent: 80, usedPercent: 20, resetsAt: 1800000000 } },
-  estimate: { tokens: 200000, cost: 1.25, usedPercent: 20, estimatedTotalTokens: 1000000, estimatedTotalCost: 6.25 },
+  estimate: { tokens: 200000, cost: 1.25, samplePercent: 20, usedPercent: 20, estimatedTotalCost: 6.25, estimatedRemainingCost: 5 },
 } });
 assert.strictEqual(w.elements('chip-quota').children.length, 1,
   'a Pro-style weekly-only quota must hide the empty 5h badge');
@@ -43,6 +43,20 @@ assert.strictEqual(w.elements('quota-popover-rows').children.length, 1,
   'the weekly-only popover must hide the empty 5h row');
 assert.strictEqual(w.elements('quota-popover-insight').hidden, false,
   'the quota popover must show the weekly usage estimate when available');
+assert.strictEqual(w.elements('quota-popover-insight').children[1].className, 'quota-estimate-grid');
+assert.strictEqual(w.elements('quota-popover-insight').children[1].children[0].children[1].textContent, '≈ $6.25');
+assert.strictEqual(w.elements('quota-popover-insight').children[1].children[1].children[1].textContent, '≈ $5.00');
+w.handlers.stats({ ...stats, codexQuota: { ...stats.codexQuota,
+  estimate: { tokens: 0, cost: 0, samplePercent: 0, estimatedTotalCost: null },
+} });
+assert.strictEqual(w.elements('quota-popover-insight').children[1].className, 'quota-estimate-pending',
+  'missing estimate must show collecting state instead of a zero-capacity card');
+w.handlers.stats({ ...stats, codexQuota: { ...stats.codexQuota,
+  estimate: { basis: 'cycle', cost: 7, usedPercent: 7, samplePercent: 7, estimatedTotalCost: 100, estimatedRemainingCost: 93 },
+} });
+assert.strictEqual(w.elements('quota-popover-insight').children[0].children[1].textContent, '本周期推算');
+assert(w.elements('quota-popover-insight').children[2].textContent.includes('已用 7%'));
+assert.strictEqual(w.elements('quota-popover-insight').children[1].children[1].children[1].textContent, '≈ $93.00');
 w.elements('chip-quota').dispatch('click');
 const compactStats = { ...stats, sessions: [{ state: 'working', agent: 'codex', createdAt: 100 }],
   chipDisplay: { showCat: false, showStatus: true, showQuota: true, showTokens: false, showCost: false } };
