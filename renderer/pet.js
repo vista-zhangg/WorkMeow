@@ -2022,7 +2022,7 @@ function renderQuotaEstimate(quota) {
   const head = add(quotaPopoverInsight, 'div', 'quota-estimate-head', '');
   add(head, 'span', '', t('quota.estimateTitle'));
   add(head, 'span', 'quota-estimate-badge', t(ready
-    ? (estimate.basis === 'cycle' ? 'quota.estimateCycle' : 'quota.estimateSample') : 'quota.estimateCollecting'));
+    ? (estimate.confidence === 'early' ? 'quota.estimateEarly' : 'quota.estimateDynamic') : 'quota.estimateCollecting'));
   if (ready) {
     const grid = add(quotaPopoverInsight, 'div', 'quota-estimate-grid', '');
     for (const [label, value] of [
@@ -2038,11 +2038,20 @@ function renderQuotaEstimate(quota) {
       percent: Number.isFinite(estimate.samplePercent) ? +estimate.samplePercent.toFixed(1) : '--',
       cost: quotaCostText(estimate.cost),
     }));
+    if (Number.isFinite(estimate.rangeLow) && Number.isFinite(estimate.rangeHigh)) {
+      add(quotaPopoverInsight, 'div', 'quota-estimate-detail', t('quota.estimateRange', {
+        low: '$' + estimate.rangeLow.toFixed(2), high: '$' + estimate.rangeHigh.toFixed(2),
+      }));
+    } else if (estimate.confidence === 'early') {
+      add(quotaPopoverInsight, 'div', 'quota-estimate-detail', t('quota.estimateEarlyHint'));
+    }
   } else {
-    add(quotaPopoverInsight, 'div', 'quota-estimate-pending', t(estimate.basis === 'cycle' ? 'quota.estimateWaiting' : 'quota.estimateHistoryPending', {
-      percent: Number.isFinite(estimate.samplePercent) ? +estimate.samplePercent.toFixed(1) : 0,
+    const pending = add(quotaPopoverInsight, 'div', 'quota-estimate-pending', t('quota.estimateObserved', {
+      cost: quotaCostText(estimate.cost),
       used: Number.isFinite(estimate.usedPercent) ? +estimate.usedPercent.toFixed(1) : '--',
     }));
+    add(pending, 'div', 'quota-estimate-detail', t(estimate.reason === 'no-percent'
+      ? 'quota.estimateAwaitPercent' : 'quota.estimateAwaitCost'));
   }
   add(quotaPopoverInsight, 'div', 'quota-estimate-note', t('quota.estimateNote'));
 }

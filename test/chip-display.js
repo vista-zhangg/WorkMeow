@@ -54,9 +54,14 @@ assert.strictEqual(w.elements('quota-popover-insight').children[1].className, 'q
 w.handlers.stats({ ...stats, codexQuota: { ...stats.codexQuota,
   estimate: { basis: 'cycle', cost: 7, usedPercent: 7, samplePercent: 7, estimatedTotalCost: 100, estimatedRemainingCost: 93 },
 } });
-assert.strictEqual(w.elements('quota-popover-insight').children[0].children[1].textContent, '本周期推算');
+assert.strictEqual(w.elements('quota-popover-insight').children[0].children[1].textContent, '动态参考');
 assert(w.elements('quota-popover-insight').children[2].textContent.includes('已用 7%'));
 assert.strictEqual(w.elements('quota-popover-insight').children[1].children[1].children[1].textContent, '≈ $93.00');
+w.handlers.stats({ ...stats, codexQuota: { ...stats.codexQuota,
+  estimate: { basis: 'cycle', confidence: 'early', cost: 1, usedPercent: 1, samplePercent: 1, estimatedTotalCost: 100, estimatedRemainingCost: 99 },
+} });
+assert.strictEqual(w.elements('quota-popover-insight').children[0].children[1].textContent, '初步估算');
+assert.strictEqual(w.elements('quota-popover-insight').children[1].className, 'quota-estimate-grid', '1% consumption already shows an estimate');
 w.elements('chip-quota').dispatch('click');
 const compactStats = { ...stats, sessions: [{ state: 'working', agent: 'codex', createdAt: 100 }],
   chipDisplay: { showCat: false, showStatus: true, showQuota: true, showTokens: false, showCost: false } };
