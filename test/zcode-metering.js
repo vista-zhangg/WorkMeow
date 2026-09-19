@@ -9,7 +9,10 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { DatabaseSync } = require('node:sqlite');
+// node:sqlite needs a flag before Node 22.13 (CI pins 22.12); the meter itself
+// degrades gracefully there, so only the DB-backed checks below are skipped.
+let DatabaseSync = null;
+try { ({ DatabaseSync } = require('node:sqlite')); } catch {}
 const { createZcodeMetering, normalizeUsage, usageCost, priceFor } = require('../backend/zcode-metering');
 
 // normalizeUsage: cache columns are separate categories; computed_total wins
@@ -33,6 +36,10 @@ assert(usageCost(u, priceFor('glm-5.3', null)) > 0, 'glm estimate sane');
 assert.strictEqual(priceFor('GLM-5.3', null).input, priceFor('glm-4.6', null).input, 'glm family rows match');
 
 async function main() {
+  if (!DatabaseSync) {
+    console.log('zcode metering checks passed (DB-backed checks skipped: node:sqlite unavailable in this runtime)');
+    return;
+  }
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-zcode-meter-'));
   const stateDir = path.join(root, 'state');
   fs.mkdirSync(stateDir, { recursive: true });
