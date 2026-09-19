@@ -1229,7 +1229,7 @@ function peekAgentLabel(agent) {
       return window.WorkMeowAgents.shortLabel(agent);
     }
   } catch {}
-  return ({ claude: 'Claude', codex: 'Codex', trae: 'TRAE', workbuddy: 'WorkBuddy', opencode: 'opencode' })[agent] || 'AI';
+  return ({ claude: 'Claude', codex: 'Codex', trae: 'TRAE', workbuddy: 'WorkBuddy', opencode: 'opencode', zcode: 'ZCode' })[agent] || 'AI';
 }
 
 function peekTime(ms) {

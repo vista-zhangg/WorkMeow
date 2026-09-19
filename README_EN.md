@@ -2,7 +2,7 @@
   <img src="assets/salary-cat.png" width="112" alt="WorkMeow salary-cat avatar">
   <h1>WorkMeow</h1>
   <p><strong>One cat keeping an eye on every AI coding agent at work.</strong></p>
-  <p>Live status, notifications, permission requests, and unified token usage for Claude Code, Codex, TRAE, WorkBuddy, and opencode.</p>
+  <p>Live status, notifications, permission requests, and unified token usage for Claude Code, Codex, TRAE, WorkBuddy, opencode, and ZCode.</p>
 
   <p>
     <a href="README.md">简体中文</a> ·
@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.7.8-F6A04A" alt="Version 1.7.8">
+    <img src="https://img.shields.io/badge/version-1.7.9-F6A04A" alt="Version 1.7.9">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -24,13 +24,13 @@
 
 Switching between several agent windows just to check progress is distracting. WorkMeow turns local agent activity into one small desktop companion: it works when your agents work, asks for attention when they need you, celebrates completed turns, and presents usage in one place.
 
-- **One cat, five agents** — Claude Code, Codex, TRAE, WorkBuddy, and opencode.
+- **One cat, six agents** — Claude Code, Codex, TRAE, WorkBuddy, opencode, and ZCode.
 - **Status at a glance** — working, thinking, parallel tasks, compaction, permission waits, user input, completion, errors, breaks, and sleep; background tasks and scheduled wakeups stay active until they actually clear.
 - **Custom expressions** — browse every state GIF, add rotating variants, replace or remove a selected item, or restore defaults.
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
 - **Unified usage view** — tokens, cache reads and writes, context windows, models, daily trends, and API-price estimates.
 - **Check Codex quota without opening Codex** — startup automatically discovers the native Codex Desktop CLI. The tray always keeps the salary-cat avatar; right-click the WorkMeow tray icon to see the masked current account, 5h / 7d remaining quota, reset times, and the last update. Missing windows stay `--`, with no manual setup required.
-- **Integration health and repair** — verify all five agents, then repair or remove WorkMeow-managed integrations from Settings.
+- **Integration health and repair** — verify all six agents, then repair or remove WorkMeow-managed integrations from Settings.
 - **One-click privacy mode** — right-click the cat to toggle the compact ON/OFF control, or use Settings, while keeping essential state and usage visible.
 - **Local-first operation** — conversations and usage stay on the machine; models.dev supplies public pricing while Codex authenticates and reads its own subscription quota.
 - **Desktop-friendly controls** — drag, edge snapping, work peek, action center, system tray, auto-start, and scheduled break animations.
@@ -75,6 +75,7 @@ WorkMeow stores only a processed copy under `~/.workmeow/pet-assets` for the cur
 | TRAE | Local IDE logs and process data | Installs a merge-safe hook only when TRAE is detected | Read-only alerts |
 | WorkBuddy | Hooks, transcripts, and usage fields | Installs a merge-safe hook only when WorkBuddy is detected | Read-only alerts |
 | opencode | Official plugin mechanism, events, and usage file | Installs/removes one standalone plugin file | Read-only alerts |
+| ZCode | Lifecycle hooks via `hook/zcode-hook.js` (event name arrives in the stdin payload) and a read-only poller over ZCode's `model_usage` SQLite ledger | Merge-safe install/uninstall of the hook block in `~/.zcode/cli/config.json` | Read-only alerts |
 
 On first launch, WorkMeow only integrates with tools already used by the current Windows account. It does not create configuration folders for undetected agents. Codex is always read-only and requires no hook.
 
@@ -99,7 +100,7 @@ Developer `npm` commands, regression tests, and the EXE packaging flow are docum
 ## Data and privacy
 
 - Configuration, runtime tokens, pricing cache, and usage ledgers live in `~/.workmeow/`.
-- Claude Code, Codex, TRAE, WorkBuddy, and opencode session data is read and processed locally.
+- Claude Code, Codex, TRAE, WorkBuddy, opencode, and ZCode session data is read and processed locally.
 - The local HTTP service binds to loopback only, and write endpoints require a fresh per-run token.
 - models.dev synchronization downloads a public price list only; transcripts, rollouts, permission contents, and usage statistics are not uploaded.
 - Codex quota uses one long-lived `codex app-server --stdio` connection. WorkMeow confirms the current account with `account/read` before reading quota and listening for updates. Codex owns authentication and upstream requests; WorkMeow does not read the contents of `~/.codex/auth.json` or call ChatGPT web endpoints. With file auth, replacing `auth.json` triggers an immediate reconnect. Keyring, auto, and ephemeral auth have no watchable file-event contract, so account changes converge through App Server account notifications, periodic `account/read`, and scheduled connection recycling. The UI therefore represents the account visible to WorkMeow's own App Server connection; it does not promise that a non-file auth switch in another process is detected immediately by the file watcher.
@@ -115,7 +116,8 @@ Claude hooks ─────┐
 Codex rollouts ───┼──> local server / watchers ──> adapter / core ──> pet + details panel
 TRAE logs ────────┤                                      └────────> unified usage ledger
 WorkBuddy ────────┤
-opencode plugin ──┘
+opencode plugin ──┤
+ZCode hook/DB ────┘
 Codex App Server ─────> tray context menu (5h / 7d) + low-quota bubble
 ```
 

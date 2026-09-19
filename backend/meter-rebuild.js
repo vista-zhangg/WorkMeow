@@ -11,6 +11,7 @@ const { createCodexMetering } = require('./codex-metering');
 const { createWorkbuddyMetering } = require('./workbuddy-metering');
 const { createTraeMetering } = require('./trae-metering');
 const { createOpenCodeMetering } = require('./opencode-metering');
+const { createZcodeMetering } = require('./zcode-metering');
 const { createPricingSync } = require('./pricing-sync');
 const { SOURCE_REGISTRY } = require('./source-registry');
 const { STATE_DIR, migrateLegacyState } = require('./paths');
@@ -22,6 +23,7 @@ const STATE_FILES = {
   workbuddy: 'workbuddy-usage.json',
   trae: 'trae-usage.json',
   opencode: 'opencode-usage.json',
+  zcode: 'zcode-usage.json',
 };
 const FACTORIES = {
   claude: () => createMetering(),
@@ -29,6 +31,7 @@ const FACTORIES = {
   workbuddy: () => createWorkbuddyMetering(),
   trae: () => createTraeMetering(),
   opencode: () => createOpenCodeMetering(),
+  zcode: () => createZcodeMetering(),
 };
 const SOURCES = SOURCE_REGISTRY.map(({ id, label }) => {
   if (!STATE_FILES[id] || typeof FACTORIES[id] !== 'function') {
@@ -114,7 +117,7 @@ async function main() {
   const afterCost = results.reduce((sum, row) => sum + row.after.cost, 0);
   const delta = afterCost - beforeCost;
   console.log(`\nTotal  $${beforeCost.toFixed(2)} → $${afterCost.toFixed(2)}  (${delta >= 0 ? '+' : ''}$${delta.toFixed(2)})`);
-  console.log('已重算 ~/.workmeow/ 下的 Claude、Codex、WorkBuddy、TRAE、opencode 台账。重开打工喵详情面板即可看到新统计。');
+  console.log('已重算 ~/.workmeow/ 下的 Claude、Codex、WorkBuddy、TRAE、opencode、ZCode 台账。重开打工喵详情面板即可看到新统计。');
 }
 
 if (require.main === module) {

@@ -11,6 +11,7 @@ const SOURCE_REGISTRY = Object.freeze([
   Object.freeze({ id: 'workbuddy', label: 'WorkBuddy' }),
   Object.freeze({ id: 'trae', label: 'TRAE' }),
   Object.freeze({ id: 'opencode', label: 'opencode' }),
+  Object.freeze({ id: 'zcode', label: 'ZCode' }),
 ]);
 
 const SOURCE_IDS = Object.freeze(SOURCE_REGISTRY.map(({ id }) => id));

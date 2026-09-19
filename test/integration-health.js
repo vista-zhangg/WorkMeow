@@ -15,6 +15,7 @@ const hookIntegrations = [
   { id: 'workbuddy', label: 'WorkBuddy', detected: true, connected: true },
   { id: 'trae', label: 'TRAE', detected: true, connected: false },
   { id: 'opencode', label: 'opencode', detected: true, connected: true },
+  { id: 'zcode', label: 'ZCode', detected: true, connected: true },
 ];
 const watchers = {
   codex: { available: true, running: true },
@@ -34,7 +35,7 @@ const healthy = buildIntegrationHealth({
 });
 assert.strictEqual(healthy.checkedAt, 500);
 assert.deepStrictEqual(healthy.summary, {
-  total: 5, detected: 5, ready: 5, needsRepair: 0, repairable: 0, notDetected: 0,
+  total: 6, detected: 6, ready: 6, needsRepair: 0, repairable: 0, notDetected: 0,
 });
 assert.strictEqual(healthy.integrations.find((row) => row.id === 'claude').lastEventAt, 300);
 assert.strictEqual(healthy.integrations.find((row) => row.id === 'codex').lastEventAt, 200);
@@ -44,14 +45,14 @@ assert.strictEqual(healthy.integrations.find((row) => row.id === 'trae').mode, '
 const disabled = buildIntegrationHealth({
   hookIntegrations, watchers, codexDetected: true, hooksEnabled: false,
 });
-for (const id of ['claude', 'workbuddy', 'opencode']) {
+for (const id of ['claude', 'workbuddy', 'opencode', 'zcode']) {
   const row = disabled.integrations.find((item) => item.id === id);
   assert.strictEqual(row.state, 'disabled');
   assert.strictEqual(row.repairable, true);
 }
 assert.strictEqual(disabled.integrations.find((row) => row.id === 'codex').state, 'ready');
 assert.strictEqual(disabled.integrations.find((row) => row.id === 'trae').state, 'ready');
-assert.strictEqual(disabled.summary.needsRepair, 3);
+assert.strictEqual(disabled.summary.needsRepair, 4);
 
 const broken = buildIntegrationHealth({
   hookIntegrations: hookIntegrations.map((row) => row.id === 'claude' ? { ...row, connected: false } : row),

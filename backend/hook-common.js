@@ -44,7 +44,7 @@ const EVENT_STATE = {
 };
 const FOCUS_EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PreToolUse']);
 
-function readStdin() {
+function readStdin(timeoutMs = 300) {
   return new Promise((resolve) => {
     const chunks = [];
     let done = false;
@@ -58,7 +58,7 @@ function readStdin() {
     process.stdin.on('data', (c) => chunks.push(c));
     process.stdin.on('end', finish);
     process.stdin.on('error', finish);
-    setTimeout(finish, 300);
+    setTimeout(finish, timeoutMs);
   });
 }
 
@@ -183,4 +183,21 @@ function runHook(event, agentId) {
   }).catch(() => process.exit(0));
 }
 
-module.exports = { runHook, EVENT_STATE, buildBody, readStdin };
+// ZCode never appends the event name to the hook command's argv (Claude Code
+// style); the event only arrives in the stdin JSON as `hook_event_name`. The
+// event name itself depends on stdin here, so the watchdog is more generous
+// than runHook's — the host still enforces its own hook timeout.
+function runHookStdinEvent(agentId) {
+  readStdin(2000).then((payload) => {
+    const event = payload && typeof payload.hook_event_name === 'string'
+      ? payload.hook_event_name : '';
+    if (!EVENT_STATE[event]) process.exit(0);
+    let body;
+    try { body = buildBody(event, payload || {}, agentId); } catch { body = null; }
+    if (!body) process.exit(0);
+    transport.postState(body, () => process.exit(0));
+    setTimeout(() => process.exit(0), 250); // never hang the host tool
+  }).catch(() => process.exit(0));
+}
+
+module.exports = { runHook, runHookStdinEvent, EVENT_STATE, buildBody, readStdin };

@@ -13,12 +13,13 @@
 - TRAE
 - WorkBuddy
 - [opencode](https://opencode.ai/)
+- ZCode（Z.ai 桌面客户端，未提供公开文档链接）
 
 ## 首次启动后
 
-- 打工喵会把本项目需要的 Claude Code / TRAE / WorkBuddy hooks 和 opencode 插件**合并/安装**，不会覆盖已有配置；
+- 打工喵会把本项目需要的 Claude Code / TRAE / WorkBuddy hooks、opencode 插件和 ZCode hook 块**合并/安装**，不会覆盖已有配置；
 - Codex 不安装 hooks，只读监听 `~/.codex/sessions/YYYY/MM/DD/*.jsonl`；
-- 新开的 Claude Code / Codex / TRAE / WorkBuddy / opencode 会话会出现在桌宠的会话列表中；
+- 新开的 Claude Code / Codex / TRAE / WorkBuddy / opencode / ZCode 会话会出现在桌宠的会话列表中；
 - 配置、位置和用量历史保存在 `~/.workmeow/`；界面固定为中文；
 - 托盘菜单中的设置可以配置开机自动启动和下班彩蛋时间，默认时间为 10:55 和 16:55；
 
@@ -128,7 +129,7 @@ npm run uninstall:hooks
 
 ### 桌宠没有显示会话
 
-1. 确认至少有一个已接入的 agent（Claude Code / Codex / TRAE / WorkBuddy / opencode）运行过一次；
+1. 确认至少有一个已接入的 agent（Claude Code / Codex / TRAE / WorkBuddy / opencode / ZCode）运行过一次；
 2. 启动打工喵后新建一个 agent 会话；
 3. Claude Code 用户可退出并重新打开打工喵，让 hooks 重新对账；
 4. Codex 用户确认 `~/.codex/sessions/` 下存在当前会话的 rollout 文件。

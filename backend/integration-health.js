@@ -13,9 +13,10 @@ const MODES = Object.freeze({
   workbuddy: 'hook',
   trae: 'watcher',
   opencode: 'plugin',
+  zcode: 'hook',
 });
 
-const HOOK_MANAGED = new Set(['claude', 'workbuddy', 'opencode']);
+const HOOK_MANAGED = new Set(['claude', 'workbuddy', 'opencode', 'zcode']);
 
 function latestEventBySource(snapshot) {
   const latest = {};

@@ -50,6 +50,7 @@ const codexQuotaTray = require('./backend/codex-quota-tray');
 const { createWorkbuddyMetering } = require('./backend/workbuddy-metering');
 const { createTraeMetering } = require('./backend/trae-metering');
 const { createOpenCodeMetering } = require('./backend/opencode-metering');
+const { createZcodeMetering } = require('./backend/zcode-metering');
 const { emptyUsage, normalizeSourceRow, mergeUsageRows, mergeDaily } = require('./backend/usage-stats');
 const { buildIntegrationHealth } = require('./backend/integration-health');
 const { withValues: withSourceValues } = require('./backend/source-registry');
@@ -113,6 +114,7 @@ let codexQuotaState = unavailableCodexQuota('idle');
 let workbuddyMetering = null; // WorkBuddy 转录 token 台账（只读，从 ~/.workbuddy/projects 扫描）
 let traeMetering = null; // TRAE agent 日志 token 台账（只读，从 Trae CN logs 扫描）
 let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.workmeow/opencode-usage.jsonl）
+let zcodeMetering = null; // ZCode 用量台账（只读轮询 ~/.zcode/cli/db/db.sqlite 的 model_usage 表）
 let updateService = null;
 
 // 宠物窗口的交互状态（单宠，但保留 Map 结构以便安全处理渲染进程生命周期）。
@@ -553,6 +555,7 @@ function meterInstances() {
     workbuddy: workbuddyMetering,
     trae: traeMetering,
     opencode: opencodeMetering,
+    zcode: zcodeMetering,
   };
 }
 
@@ -825,6 +828,16 @@ function bootBackend() {
     opencodeMetering.start(30000);
   }
 
+  // ZCode 用量台账：只读轮询 ~/.zcode/cli/db/db.sqlite 的 model_usage 表，
+  // 无需向 ZCode 安装任何东西（状态事件由 zcode hook 推送，hooks.js 负责）。
+  // WORKMEOW_NO_ZCODE=1 跳过；WORKMEOW_ZCODE_DB 可指向其他数据库路径。
+  if (!env.flag('NO_ZCODE')) {
+    zcodeMetering = createZcodeMetering({
+      dbPath: env.value('ZCODE_DB') || undefined,
+    });
+    zcodeMetering.start(30000);
+  }
+
   // TRAE 状态监听：TRAE SOLO CN 的内置 agent 不支持 Claude hooks，唯一可靠
   // 的活动信号源是 ai-agent stdout 日志。读日志增量 tail 把工具生命周期
   // (hook=PreToolUse/PostToolUse) 翻译成 core 状态流。
@@ -918,7 +931,8 @@ function bootBackend() {
   // Install hooks once the server has a port (defer so listen wins the race).
   // WORKMEOW_NO_HOOKS=1 skips touching ~/.claude/settings.json +
   // ~/.trae-cn/hooks.json + ~/.workbuddy/settings.json +
-  // ~/.config/opencode/plugins/opencode-plugin.js (dev/verify mode).
+  // ~/.config/opencode/plugins/opencode-plugin.js +
+  // ~/.zcode/cli/config.json (dev/verify mode).
   setTimeout(() => {
     if (env.flag('NO_HOOKS') || config.get().hooksEnabled === false) {
       return;
@@ -1436,6 +1450,7 @@ app.on('before-quit', () => {
   try { if (workbuddyMetering) workbuddyMetering.stop(); } catch {}
   try { if (traeMetering) traeMetering.stop(); } catch {}
   try { if (opencodeMetering) opencodeMetering.stop(); } catch {}
+  try { if (zcodeMetering) zcodeMetering.stop(); } catch {}
   try { if (pricingSync) pricingSync.stop(); } catch {}
   try { if (core) core.stopStaleCleanup(); } catch {}
 });

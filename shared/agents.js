@@ -41,6 +41,11 @@ const AGENTS = {
     label: 'opencode',
     short: 'opencode',
   },
+  zcode: {
+    id: 'zcode',                // session agentId stamped by zcode-hook.js
+    label: 'ZCode',
+    short: 'ZCode',
+  },
 };
 
 const SHORT_KEYS = Object.keys(AGENTS);

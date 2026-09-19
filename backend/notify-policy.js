@@ -35,6 +35,10 @@
 //   • codex / opencode — never reach here. Their watchers already emit the
 //     `notification` state ONLY for approval / elicitation events, and opencode
 //     explicitly ignores pure `session.idle`. Entries kept for completeness.
+//   • zcode — never reaches here either: its hook runner supports exactly seven
+//     events (SessionStart/UserPromptSubmit/PreToolUse/PermissionRequest/
+//     PostToolUse/PostToolUseFailure/Stop) and fires no `Notification`. Kept
+//     for registry completeness; PermissionRequest carries the blocked signal.
 //
 // Verdicts:
 //   'blocking' → real 「等你回复」, keep the notification state
@@ -72,6 +76,7 @@ const AGENT_NOTIFY = {
   trae: { types: null, unknown: BLOCKING },
   codex: { types: null, unknown: BLOCKING },
   opencode: { types: null, unknown: BLOCKING },
+  zcode: { types: null, unknown: BLOCKING },
 };
 
 const FALLBACK_POLICY = { types: null, unknown: BLOCKING };

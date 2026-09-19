@@ -1,9 +1,9 @@
 'use strict';
 
 // Normalize the slightly different token semantics exposed by each provider
-// before the main process combines them. Claude and opencode report cache
-// reads/writes as separate categories; Codex, WorkBuddy and TRAE expose an
-// OpenAI-style input total that already contains those cache subsets.
+// before the main process combines them. Claude, opencode and ZCode report
+// cache reads/writes as separate categories; Codex, WorkBuddy and TRAE expose
+// an OpenAI-style input total that already contains those cache subsets.
 
 const { SOURCE_IDS: SOURCES } = require('./source-registry');
 
@@ -41,7 +41,7 @@ function firstNumber(...values) {
 function normalizeSourceRow(source, row = {}) {
   const input = num(row.input);
   const output = num(row.output);
-  const isSeparateCache = source === 'claude' || source === 'opencode';
+  const isSeparateCache = source === 'claude' || source === 'opencode' || source === 'zcode';
   const cacheRead = source === 'claude'
     ? num(row.cacheRead)
     : firstNumber(row.cacheRead, row.cachedInput);

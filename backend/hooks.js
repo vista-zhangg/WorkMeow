@@ -9,6 +9,7 @@
 //   • TRAE         ~/.trae-cn/hooks.json       (trae-hookinstall.js)
 //   • WorkBuddy    ~/.workbuddy/settings.json  (workbuddy-hookinstall.js)
 //   • opencode     ~/.config/opencode/plugins/opencode-plugin.js (opencode-install.js)
+//   • ZCode        ~/.zcode/cli/config.json    (zcode-hookinstall.js)
 
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,7 @@ const cc = require('./hookinstall');
 const trae = require('./trae-hookinstall');
 const workbuddy = require('./workbuddy-hookinstall');
 const opencode = require('./opencode-install');
+const zcode = require('./zcode-hookinstall');
 const hookRuntime = require('./hook-runtime');
 const config = require('./config');
 
@@ -25,6 +27,7 @@ const INSTALLERS = [
   trae,
   workbuddy,
   opencode,
+  zcode,
 ];
 
 function installOne(mod, port, token) {

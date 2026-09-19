@@ -2,7 +2,7 @@
   <img src="assets/salary-cat.png" width="112" alt="月薪喵头像">
   <h1>打工喵（WorkMeow）</h1>
   <p><strong>让一只喵替你盯住所有正在工作的 AI 编程助手。</strong></p>
-  <p>实时聚合 Claude Code、Codex、TRAE、WorkBuddy 与 opencode 的状态、提醒、权限请求和 token 用量。</p>
+  <p>实时聚合 Claude Code、Codex、TRAE、WorkBuddy、opencode 与 ZCode 的状态、提醒、权限请求和 token 用量。</p>
 
   <p>
     <a href="README.md">简体中文</a> ·
@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.7.8-F6A04A" alt="Version 1.7.8">
+    <img src="https://img.shields.io/badge/version-1.7.9-F6A04A" alt="Version 1.7.9">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -26,13 +26,13 @@
 
 当多个 Agent 同时工作时，频繁切换窗口查看状态很容易打断思路。WorkMeow 把本机上的会话汇聚为一个常驻桌面的小窗口：忙时开工、需要你时举手、结束时提醒，还能在统一面板中查看用量与上下文。
 
-- **一只喵，五个 Agent**：统一监控 Claude Code、Codex、TRAE、WorkBuddy 和 opencode。
+- **一只喵，六个 Agent**：统一监控 Claude Code、Codex、TRAE、WorkBuddy、opencode 和 ZCode。
 - **状态一眼可见**：工作、思考、并行、清理、等待授权、等待回复、完成、出错、摸鱼与睡眠；后台任务或定时唤醒未结束时保持运行，不提前报完成。
 - **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
 - **无需打开 Codex 即可查额度**：启动时自动发现桌面 Codex 自带的 CLI；托盘始终使用月薪喵头像，右键 WorkMeow 托盘图标即可查看当前脱敏账户、5h / 7d 剩余量、刷新点和更新时间。缺失窗口明确显示 `--`，无需手动配置。
-- **接入自检与修复**：在设置中核对五个 Agent 的 Hook、插件或只读监听状态，可一键修复或卸载 WorkMeow 接入。
+- **接入自检与修复**：在设置中核对六个 Agent 的 Hook、插件或只读监听状态，可一键修复或卸载 WorkMeow 接入。
 - **一键隐私模式**：右键打工喵通过 ON/OFF 快速切换，也可在设置中控制；隐藏敏感明细但保留必要状态和用量。
 - **本地优先**：会话与统计数据留在本机；公共价格由 models.dev 提供，订阅额度由 Codex 自己认证并读取。
 - **轻量桌面交互**：拖动、贴边、工作速览、行动中心、系统托盘、开机启动和下班彩蛋。
@@ -77,6 +77,7 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 | TRAE | 读取本机 IDE 日志与进程信息 | 仅在检测到 TRAE 后合并安装 hook | 只读提醒 |
 | WorkBuddy | hook、transcript 与用量字段 | 仅在检测到 WorkBuddy 后合并安装 hook | 只读提醒 |
 | opencode | 官方插件机制、事件与用量文件 | 安装/卸载一个独立插件文件 | 只读提醒 |
+| ZCode | `hook/zcode-hook.js` 生命周期 hook（事件名在 stdin 载荷中）、只读轮询 ZCode 的 `model_usage` SQLite 台账 | 合并安装/卸载 `~/.zcode/cli/config.json` 的 hook 块，不覆盖已有 hook | 只读提醒 |
 
 首次启动只接入当前 Windows 用户已经使用过的工具，不会为未检测到的 Agent 凭空创建配置目录。Codex 始终只读，不安装 hook。
 
@@ -101,7 +102,7 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 ## 数据与隐私
 
 - 配置、运行时令牌、价格缓存和用量台账保存在 `~/.workmeow/`。
-- Claude Code、Codex、TRAE、WorkBuddy 与 opencode 的会话数据只在本机读取和处理。
+- Claude Code、Codex、TRAE、WorkBuddy、opencode 与 ZCode 的会话数据只在本机读取和处理。
 - 本地 HTTP 服务只监听 loopback，写接口要求每次运行随机生成的令牌。
 - models.dev 同步只下载公开价目表，不上传 transcript、rollout、权限内容或统计数据。
 - Codex 额度通过一个长生命周期的 `codex app-server --stdio` 连接读取；WorkMeow 会先用 `account/read` 确认当前账户，再读取额度并监听更新。认证与上游请求均由 Codex 负责；WorkMeow 不读取 `~/.codex/auth.json` 的内容，也不访问 ChatGPT 网页接口。文件认证下，`auth.json` 被替换会触发立即重连；keyring / auto / ephemeral 没有可监听的文件事件，账户切换依赖 App Server 的账户通知、周期性 `account/read` 和定期重建连接收敛。因此界面表示的是 WorkMeow 自己这条 App Server 连接当前可见的账户，不承诺另一进程中的非文件认证切换能被文件 watcher 即时发现。
@@ -117,7 +118,8 @@ Claude hook ─────┐
 Codex rollout ───┼──> local server / watcher ──> adapter / core ──> 桌宠 + 详情面板
 TRAE 日志 ───────┤                                  └────────────> 统一用量台账
 WorkBuddy ───────┤
-opencode 插件 ───┘
+opencode 插件 ───┤
+ZCode hook/DB ───┘
 Codex App Server ───────> 托盘右键菜单（5h / 7d）+ 临界额度气泡
 ```
 

@@ -16,6 +16,8 @@ const TESTS = Object.freeze([
   'workbuddy-metering.js',
   'trae-metering.js',
   'opencode-metering.js',
+  'zcode-metering.js',
+  'zcode-integration.js',
   'usage-stats.js',
   'source-registry.js',
   'integration-health.js',
