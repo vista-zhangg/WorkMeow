@@ -592,6 +592,45 @@ async function main() {
   check('重试成功后自动恢复 working', () => assert.strictEqual(core.getSession(netSid).state, 'working'));
   fs.rmSync(netDir, { recursive: true, force: true });
 
+  console.log('\n[19] ZCode 心跳触摸：长任务不再被 5 分钟无事件误判卡死');
+  const zSid = 'zcode-heartbeat-session-1';
+  await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: zSid, cwd: 'D:\\proj', agent_id: 'zcode' });
+  const zLive = core.getSession(zSid);
+  assert(zLive, 'zcode session created');
+  const zEventAt = zLive.updatedAt;
+  const realNow = Date.now.bind(Date);
+  let fakeNow = zEventAt + 6 * 60 * 1000;
+  Date.now = () => fakeNow;
+  try {
+    // 无心跳：6 分钟无事件 → 兜底降级（现状行为，保证没改坏）。
+    core.cleanStaleSessions();
+    check('无心跳的 ZCode 忙碌会话按兜底降级', () =>
+      assert.strictEqual(core.getSession(zSid).state, 'idle'));
+
+    // 心跳：新一轮事件 + touchSession（metering 扫描喂进来的证据）。
+    fakeNow = zEventAt + 6 * 60 * 1000 + 30 * 1000;
+    await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: zSid, cwd: 'D:\\proj', agent_id: 'zcode' });
+    core.touchSession(zSid, fakeNow + 1, 'ZCode 会话标题');
+    check('touchSession 携带活性与标题', () => {
+      const s = core.getSession(zSid);
+      return s.state === 'working'
+        && s.sessionTitle === 'ZCode 会话标题'
+        && s.transcriptActiveAt === fakeNow + 1;
+    });
+    // 心跳新鲜 → 事件过去近 6 分钟仍保持 working：长任务期间猫不会「休息中」。
+    fakeNow = zEventAt + 6 * 60 * 1000 + 30 * 1000 + 5 * 60 * 1000;
+    core.cleanStaleSessions();
+    check('心跳新鲜的长任务不被误判卡死', () =>
+      assert.strictEqual(core.getSession(zSid).state, 'working'));
+    // 心跳停了 → 兜底重新生效。
+    fakeNow = zEventAt + 6 * 60 * 1000 + 30 * 1000 + 6 * 60 * 1000;
+    core.cleanStaleSessions();
+    check('心跳停止后兜底重新接管', () =>
+      assert.strictEqual(core.getSession(zSid).state, 'idle'));
+  } finally {
+    Date.now = realNow;
+  }
+
   server.stop();
   console.log(`\n${failures === 0 ? '✅ ALL PASS' : '❌ ' + failures + ' FAILURE(S)'} — events captured: ${events.length}, dirty fires: ${dirtyCount}`);
   process.exit(failures === 0 ? 0 : 1);

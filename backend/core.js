@@ -332,6 +332,24 @@ function createCore(options = {}) {
     onDirty();
   }
 
+  // ZCode 活性心跳（zcode-metering 每次扫描发现该会话有新的模型产出、或在飞
+  // 工具仍在执行时触摸一次）。等价于 transcript 的 mtime 证据——ZCode 没有
+  // 持久 transcript，事件间隙的长任务靠它免于 WORKING_STALE 误判（否则猫在
+  // 任务跑着时就“休息中”了）。只碰活性时间戳和标题，不改状态、不进
+  // recentEvents（不掩盖 done/interrupted 徽标），顺带让 idleMs / 排序变准。
+  function touchSession(sid, at, title) {
+    const s = sessions.get(sid);
+    if (!s) return null;
+    const t = Number(at);
+    if (!Number.isFinite(t) || t <= 0) return s;
+    let changed = false;
+    if (t > (s.transcriptActiveAt || 0)) { s.transcriptActiveAt = t; changed = true; }
+    if (t > (s.updatedAt || 0)) { s.updatedAt = t; changed = true; }
+    if (typeof title === 'string' && title && title !== s.sessionTitle) { s.sessionTitle = title; changed = true; }
+    if (changed) onDirty();
+    return s;
+  }
+
   // Mark a session as "completion acknowledged" (user saw the done state).
   function ackCompletion(sid) {
     const s = sessions.get(sid);
@@ -461,6 +479,10 @@ function createCore(options = {}) {
       if (s.headless) continue;
       const p = transcriptPathFor(s);
       if (!p) continue;
+      // ZCode 的 transcript_path 是每次 hook 现生成的临时文件、hook 结束即删：
+      // 每 10 秒去 stat 一个已删除的路径只会白白浪费 IO —— 它的活性证据由
+      // zcode-metering 的心跳（touchSession）提供，这里像 codex 一样跳过。
+      if (s.agentId === 'zcode') continue;
       try {
         // transcript 的 mtime = 模型最近一次产出时间。事件间隙里文件还在长，
         // 说明模型在干活（重连后继续跑/流式输出），adapter 据此不判摸鱼。
@@ -568,6 +590,7 @@ function createCore(options = {}) {
     updateSession,
     seedSession,
     setContextUsage,
+    touchSession,
     ackCompletion,
     getSession,
     buildSnapshot,

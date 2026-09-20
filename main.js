@@ -830,11 +830,35 @@ function bootBackend() {
 
   // ZCode 用量台账：只读轮询 ~/.zcode/cli/db/db.sqlite 的 model_usage 表，
   // 无需向 ZCode 安装任何东西（状态事件由 zcode hook 推送，hooks.js 负责）。
+  // 同一趟扫描顺带产出「会话活性心跳」：该会话有新的模型产出、或在飞工具
+  // 仍在执行时触摸 core（touchSession）——ZCode 没有持久 transcript，长任务
+  // 在事件间隙靠它免于 5 分钟无事件就被误判卡死、猫进入「休息中」。
   // WORKMEOW_NO_ZCODE=1 跳过；WORKMEOW_ZCODE_DB 可指向其他数据库路径。
   if (!env.flag('NO_ZCODE')) {
     zcodeMetering = createZcodeMetering({
       dbPath: env.value('ZCODE_DB') || undefined,
+      onSessionActivity: (activity) => {
+        if (!core) return;
+        for (const sid of Object.keys(activity)) {
+          const a = activity[sid];
+          try { core.touchSession(sid, a && a.at, a && a.title); } catch {}
+        }
+      },
     });
+    // 启动回填：把近期活跃的 ZCode 会话（含标题）摆进会话列表，不等下次
+    // hook 才出现——口径同 core 的 backfillFromTranscripts（30 分钟窗口）。
+    try {
+      for (const row of zcodeMetering.readSessions({ cutoffMs: 30 * 60 * 1000, limit: 15 })) {
+        if (!core.getSession(row.id)) {
+          core.seedSession({
+            id: row.id, agentId: 'zcode', state: 'idle', recentEvents: [],
+            createdAt: row.updatedAt, updatedAt: row.updatedAt,
+            cwd: row.cwd, sessionTitle: row.title || null,
+            sourcePid: null, headless: false,
+          });
+        }
+      }
+    } catch {}
     zcodeMetering.start(30000);
   }
 

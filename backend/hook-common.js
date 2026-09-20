@@ -69,7 +69,8 @@ function buildBody(event, p, agentId) {
   if (!state) return null;
   let outEvent = event;
   // A subagent launch may surface as PreToolUse(Task) without SubagentStart.
-  if (event === 'PreToolUse' && p.tool_name === 'Task') state = 'juggling';
+  // ZCode names its subagent tool 'Agent'; both are a fork, not plain work.
+  if (event === 'PreToolUse' && (p.tool_name === 'Task' || p.tool_name === 'Agent')) state = 'juggling';
   // /clear shows up as SessionEnd(source=clear) → context sweep, not sleep.
   if (event === 'SessionEnd' && (p.source === 'clear' || p.reason === 'clear')) state = 'sweeping';
   // Manual /compact ends a turn (settle to idle); auto-compact keeps working.
@@ -187,7 +188,10 @@ function runHook(event, agentId) {
 // style); the event only arrives in the stdin JSON as `hook_event_name`. The
 // event name itself depends on stdin here, so the watchdog is more generous
 // than runHook's — the host still enforces its own hook timeout.
-function runHookStdinEvent(agentId) {
+// `opts.enrich(body, payload)` runs after buildBody and before the POST — a
+// tool-specific way to attach fields the shared mapper cannot derive (ZCode
+// uses it to fill the Stop bubble from its own SQLite, see hook/zcode-hook.js).
+function runHookStdinEvent(agentId, opts = {}) {
   readStdin(2000).then((payload) => {
     const event = payload && typeof payload.hook_event_name === 'string'
       ? payload.hook_event_name : '';
@@ -195,6 +199,9 @@ function runHookStdinEvent(agentId) {
     let body;
     try { body = buildBody(event, payload || {}, agentId); } catch { body = null; }
     if (!body) process.exit(0);
+    if (typeof opts.enrich === 'function') {
+      try { opts.enrich(body, payload || {}); } catch {}
+    }
     transport.postState(body, () => process.exit(0));
     setTimeout(() => process.exit(0), 250); // never hang the host tool
   }).catch(() => process.exit(0));

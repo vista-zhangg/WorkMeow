@@ -26,6 +26,7 @@ const os = require('os');
 const { STATE_DIR } = require('./paths');
 const { num, dayKey, mergeLifetime } = require('./metering-common');
 const { createMeterQueue } = require('./meter-queue');
+const zcodeDb = require('./zcode-db');
 
 let DatabaseSync = null;
 try { ({ DatabaseSync } = require('node:sqlite')); } catch {}
@@ -39,6 +40,11 @@ const DAILY_KEEP_DAYS = 95;
 const BACKFILL_MS = DAILY_KEEP_DAYS * 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 2000;
 const TITLE_QUERY_SOURCES = new Set(['session_title']); // background, never a user message
+// tool_usage 的「在飞工具」活性窗口：工具行在启动时写入（status=running、
+// completed_at 为空）、结束时更新。超过该窗口仍悬空的行视为陈旧残留（ZCode
+// 崩溃可能留下），不再当作会话活性——活动窗口内则是一趟长 Bash/Agent 派发
+// 期间唯一可信的「这个会话真的还在跑」证据。
+const TOOL_LIVE_MS = 20 * 60 * 1000;
 
 // USD per 1,000,000 tokens. Last-resort fallback for models the sync cache
 // doesn't cover; glm-5.3 is covered by models.dev today, the glm row only
@@ -167,6 +173,9 @@ function createZcodeMetering(options = {}) {
   const dbPath = options.dbPath || DEFAULT_DB_PATH;
   const stateDir = options.stateDir || STATE_DIR;
   const statePath = options.statePath || path.join(stateDir, 'zcode-usage.json');
+  const onSessionActivity = typeof options.onSessionActivity === 'function'
+    ? options.onSessionActivity
+    : null;
 
   let pricing = loadPricing();
   const state = {
@@ -272,19 +281,25 @@ function createZcodeMetering(options = {}) {
     }
   }
 
-  // Open the DB read-only for one scan and page through every model_usage row
-  // at or after the watermark. The (completed_at, id) key keeps ties stable
-  // across pages; the records map still dedupes when scans overlap.
-  function readNewRows() {
+  // Open the DB read-only for one scan (own diagnostics). Callers close.
+  function openDb() {
     if (!DatabaseSync) {
       state.diagnostics.unavailable = 'node:sqlite unavailable in this runtime';
-      return [];
+      return null;
     }
-    let db;
-    try { db = new DatabaseSync(dbPath, { readOnly: true }); } catch (err) {
-      state.diagnostics.unavailable = `open failed: ${err.message}`;
-      return [];
+    const db = zcodeDb.openReadOnly(dbPath);
+    if (!db) {
+      state.diagnostics.unavailable = `open failed: ${dbPath}`;
+      return null;
     }
+    state.diagnostics.unavailable = null;
+    return db;
+  }
+
+  // Page through every model_usage row at or after the watermark on an already
+  // open connection. The (completed_at, id) key keeps ties stable across pages;
+  // the records map still dedupes when scans overlap.
+  function readNewRows(db) {
     try {
       const cols = db.prepare('PRAGMA table_info(model_usage)').all().map((c) => String(c.name));
       const missing = REQUIRED_COLUMNS.filter((c) => !cols.includes(c));
@@ -292,7 +307,6 @@ function createZcodeMetering(options = {}) {
         state.diagnostics.unavailable = `schema changed (missing: ${missing.join(', ')})`;
         return [];
       }
-      state.diagnostics.unavailable = null;
       const out = [];
       let lastTs = num(state.watermark.ts);
       let lastId = String(state.watermark.id || '');
@@ -316,8 +330,6 @@ function createZcodeMetering(options = {}) {
     } catch (err) {
       state.diagnostics.unavailable = `query failed: ${err.message}`;
       return [];
-    } finally {
-      try { db.close(); } catch {}
     }
   }
 
@@ -337,15 +349,50 @@ function createZcodeMetering(options = {}) {
   async function performScan() {
     load();
     try {
-      const rows = readNewRows();
-      for (const row of rows) {
-        try { ingestRow(row); } catch {}
-        const ts = num(row.completed_at);
-        const id = String(row.id || '');
-        if (ts > num(state.watermark.ts)
-          || (ts === num(state.watermark.ts) && id > String(state.watermark.id || ''))) {
-          state.watermark = { ts, id };
+      const db = openDb();
+      if (!db) return;
+      try {
+        const rows = readNewRows(db);
+        // Session liveness evidence for core.touchSession: fresh model_usage
+        // completions (the session produced output within this poll window)
+        // plus sessions with a tool still in flight — the authoritative
+        // "a tool is really running" signal that covers a single long Bash /
+        // subagent dispatch with no model turns in between. Titles come from
+        // ZCode's session table in one query.
+        const activity = {};
+        const touch = (sid, ts, title) => {
+          if (!sid) return;
+          const cur = activity[sid] || (activity[sid] = { at: 0, title: null });
+          if (ts > cur.at) cur.at = ts;
+          if (title) cur.title = title;
+        };
+        for (const row of rows) {
+          try { ingestRow(row); } catch {}
+          const ts = num(row.completed_at);
+          const id = String(row.id || '');
+          if (ts > num(state.watermark.ts)
+            || (ts === num(state.watermark.ts) && id > String(state.watermark.id || ''))) {
+            state.watermark = { ts, id };
+          }
+          if (ts > 0) touch(String(row.session_id || ''), ts, null);
         }
+        for (const tool of zcodeDb.inFlightTools(db, Date.now() - TOOL_LIVE_MS)) {
+          touch(tool.sessionId, Date.now(), null);
+        }
+        const ids = Object.keys(activity);
+        if (ids.length) {
+          try {
+            const q = db.prepare(`SELECT id, title FROM session WHERE id IN (${ids.map(() => '?').join(',')})`);
+            for (const r of q.all(...ids)) {
+              if (r && r.title) touch(r.id, activity[r.id] ? activity[r.id].at : 0, r.title);
+            }
+          } catch {}
+        }
+        if (ids.length && onSessionActivity) {
+          try { onSessionActivity(activity); } catch {}
+        }
+      } finally {
+        try { db.close(); } catch {}
       }
       pruneDaily();
       state.diagnostics.lastScanTs = Date.now();
@@ -354,6 +401,16 @@ function createZcodeMetering(options = {}) {
   }
 
   function scan() { return operations.scan(performScan); }
+
+  // Boot backfill: recently-touched sessions with their titles, straight from
+  // ZCode's session table. main.js seeds them into core so the pet's session
+  // list matches reality before the next hook event fires.
+  function readSessions(options = {}) {
+    const db = openDb();
+    if (!db) return [];
+    try { return zcodeDb.readRecentSessions(db, options); }
+    finally { try { db.close(); } catch {} }
+  }
 
   function getStats() {
     const todayKey = dayKey(Date.now());
@@ -438,7 +495,7 @@ function createZcodeMetering(options = {}) {
     saveNow();
   }
 
-  return { start, stop, scan, rebuild, getStats, priceInfo, _state: state, _ingestRow: ingestRow };
+  return { start, stop, scan, rebuild, getStats, priceInfo, readSessions, _state: state, _ingestRow: ingestRow };
 }
 
 module.exports = {

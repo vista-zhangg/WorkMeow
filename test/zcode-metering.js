@@ -53,12 +53,21 @@ async function main() {
     cache_creation_input_tokens INTEGER, cache_read_input_tokens INTEGER,
     computed_total_tokens INTEGER
   )`);
+  // The liveness heartbeat also reads tool_usage (in-flight tools) and the
+  // session table (titles) on the same scan; the fixture mirrors ZCode's schema.
+  db.exec(`CREATE TABLE tool_usage (
+    id TEXT PRIMARY KEY, session_id TEXT, tool_name TEXT, status TEXT,
+    started_at INTEGER, completed_at INTEGER
+  )`);
+  db.exec(`CREATE TABLE session (
+    id TEXT PRIMARY KEY, directory TEXT, title TEXT, time_updated INTEGER, time_archived INTEGER
+  )`);
+  const now = Date.now();
   const insert = db.prepare(`INSERT INTO model_usage
     (id, session_id, query_source, agent, model_id, status, completed_at,
      input_tokens, output_tokens, reasoning_tokens, cache_creation_input_tokens,
      cache_read_input_tokens, computed_total_tokens)
     VALUES (?, 'sess1', ?, 'zcode-agent', ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const now = Date.now();
   // A real turn with cache traffic.
   insert.run('r1', 'main_turn', 'GLM-5.3', 'completed', now, 1000, 500, 100, 200, 300, 2000);
   // Background title request: tokens count, messages must not.
@@ -67,9 +76,29 @@ async function main() {
   insert.run('r3', 'main_turn', 'GLM-5.3', 'error', now, 0, 0, 0, 0, 0, 0);
   // In-flight request: no completion timestamp yet.
   insert.run('r4', 'main_turn', 'GLM-5.3', 'completed', null, 10, 5, 0, 0, 0, 15);
+  // A tool mid-execution (long Bash) — liveness evidence without model rows;
+  // a stale in-flight row older than the window must NOT count; a completed
+  // tool neither.
+  db.prepare('INSERT INTO tool_usage VALUES (?, ?, ?, ?, ?, ?)')
+    .run('t1', 'sess-tool', 'Bash', 'running', now, null);
+  db.prepare('INSERT INTO tool_usage VALUES (?, ?, ?, ?, ?, ?)')
+    .run('t2', 'sess-stale', 'Bash', 'running', now - 25 * 60 * 1000, null);
+  db.prepare('INSERT INTO tool_usage VALUES (?, ?, ?, ?, ?, ?)')
+    .run('t3', 'sess1', 'Bash', 'completed', now - 1000, now - 990);
+  // Recent titled session + archived + too-old sessions for the backfill query.
+  db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?)')
+    .run('sess1', 'D:\\proj', '标题一', now, null);
+  db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?)')
+    .run('sess-arch', 'D:\\old', '已归档', now, now);
+  db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?)')
+    .run('sess-old', 'D:\\older', '太旧', now - 60 * 60 * 1000, null);
   db.close();
 
-  const meter = createZcodeMetering({ dbPath, stateDir });
+  const activitySeen = [];
+  const meter = createZcodeMetering({
+    dbPath, stateDir,
+    onSessionActivity: (activity) => activitySeen.push(activity),
+  });
   await meter.scan();
   let stats = meter.getStats();
   assert.strictEqual(stats.today.tokens, 2070, 'title tokens count but r3/r4 do not');
@@ -87,11 +116,32 @@ async function main() {
   assert.strictEqual(modelRow.cacheWrite5m, 200);
   assert.strictEqual(modelRow.msgs, 1);
 
+  // Session liveness: one callback per scan, carrying fresh model completions
+  // + in-flight tools + titles (the「工作没有停」evidence core.touchSession
+  // consumes so a long ZCode task is never mistaken for stuck).
+  assert.strictEqual(activitySeen.length, 1, 'one activity callback per scan');
+  const act = activitySeen[0];
+  assert(act.sess1 && act.sess1.at === now, 'completed model row touches its session');
+  assert.strictEqual(act.sess1.title, '标题一', 'title comes from the session table');
+  assert(act['sess-tool'] && act['sess-tool'].at >= now, 'in-flight tool marks its session live');
+  assert(!('sess-stale' in act), 'stale in-flight tool outside the window is ignored');
+  assert(!('sess-arch' in act) && !('sess-old' in act), 'untouched sessions stay untouched');
+
+  // Boot backfill: recent, non-archived sessions with titles — ZCode sessions
+  // show up in the pet list (with a title) before the next hook event.
+  const backfill = meter.readSessions({ cutoffMs: 30 * 60 * 1000, limit: 10 });
+  assert.deepStrictEqual(backfill.map((r) => r.id), ['sess1'], 'only the recent session backfills');
+  assert.strictEqual(backfill[0].title, '标题一');
+  assert.strictEqual(backfill[0].cwd, 'D:\\proj');
+  assert(backfill[0].updatedAt > 0, 'updatedAt = session.time_updated');
+
   // Second scan must not double count (watermark + records dedupe).
   await meter.scan();
   stats = meter.getStats();
   assert.strictEqual(stats.today.tokens, 2070, 'second scan must not double count');
   assert.strictEqual(stats.today.msgs, 1);
+  assert.strictEqual(activitySeen.length, 2, 'second scan still reports liveness for the in-flight tool');
+  assert.strictEqual(activitySeen[1]['sess-tool'].at >= now, true, 'in-flight tool keeps the session live');
 
   // The in-flight row completes later: next scan folds it in.
   const db2 = new DatabaseSync(dbPath);

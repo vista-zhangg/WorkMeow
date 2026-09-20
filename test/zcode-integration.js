@@ -15,6 +15,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { createZcodeHookInstaller, COMMAND_EVENTS } = require('../backend/zcode-hookinstall');
 const { buildBody, EVENT_STATE } = require('../backend/hook-common');
+let DatabaseSync = null;
+try { ({ DatabaseSync } = require('node:sqlite')); } catch {}
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-zcode-int-'));
 
@@ -28,6 +30,11 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-zcode-int-'));
   assert.strictEqual(buildBody('Stop', { session_id: 'sess_z' }, 'zcode').state, 'attention');
   assert.strictEqual(buildBody('PostToolUseFailure', { session_id: 'sess_z' }, 'zcode').state, 'error');
   assert.strictEqual(EVENT_STATE.SessionStart, 'idle');
+  // Subagent dispatch: ZCode names the subagent tool 'Agent' (Claude Code uses
+  // 'Task'); both fork into the juggling (并行) state instead of plain work.
+  assert.strictEqual(buildBody('PreToolUse', { session_id: 'sess_z', tool_name: 'Task' }, 'zcode').state, 'juggling');
+  assert.strictEqual(buildBody('PreToolUse', { session_id: 'sess_z', tool_name: 'Agent' }, 'zcode').state, 'juggling');
+  assert.strictEqual(buildBody('PreToolUse', { session_id: 'sess_z', tool_name: 'Bash' }, 'zcode').state, 'working');
   // ZCode fires no SessionEnd/Notification/PreCompact — those stay unmapped-input-safe.
   assert.strictEqual(buildBody('Unknown', { session_id: 'sess_z' }, 'zcode'), null);
 }
@@ -173,10 +180,10 @@ async function main() {
     JSON.stringify({ app: 'workmeow', port, token }));
 
   const hookScript = path.join(__dirname, '..', 'hook', 'zcode-hook.js');
-  const runHook = (payload) => spawnSync(process.execPath, [hookScript], {
+  const runHook = (payload, extraEnv = {}) => spawnSync(process.execPath, [hookScript], {
     cwd: __dirname,
     input: JSON.stringify(payload),
-    env: { ...process.env, USERPROFILE: home, HOME: home },
+    env: { ...process.env, USERPROFILE: home, HOME: home, ...extraEnv },
     timeout: 15000,
   });
 
@@ -202,6 +209,50 @@ async function main() {
     await new Promise((r) => setTimeout(r, 100));
     assert.strictEqual(received.length, 1);
     assert.strictEqual(received[0].body.state, 'attention');
+
+    received.length = 0;
+    // ZCode 的 transcript_path 是每次 hook 现生成的临时文件，Stop 的 💬 气泡
+    // 改从 db.sqlite（message/part 表）取最后一条助手文本。WORKMEOW_ZCODE_DB
+    // 指向测试库；指向不存在的库时 enrich 安静跳过、不影响状态推送。
+    const nodb = runHook({ hook_event_name: 'Stop', session_id: 'sess_z' },
+      { WORKMEOW_ZCODE_DB: path.join(root, 'no-such', 'db.sqlite') });
+    assert.strictEqual(nodb.status, 0);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.strictEqual(received.length, 1);
+    assert.strictEqual(received[0].body.state, 'attention');
+    assert.strictEqual(received[0].body.assistant_last_output, undefined,
+      'missing DB degrades to a plain Stop');
+    received.length = 0;
+
+    if (DatabaseSync) {
+      const zdbPath = path.join(root, 'zcode', 'db.sqlite');
+      fs.mkdirSync(path.dirname(zdbPath), { recursive: true });
+      const zdb = new DatabaseSync(zdbPath);
+      zdb.exec(`CREATE TABLE message (
+        id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER,
+        time_updated INTEGER, data TEXT, sequence INTEGER)`);
+      zdb.exec(`CREATE TABLE part (
+        id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT, time_created INTEGER,
+        time_updated INTEGER, data TEXT, sequence INTEGER)`);
+      const t = Date.now();
+      zdb.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?, ?)')
+        .run('msg1', 'sess_z', t, t, JSON.stringify({ role: 'assistant' }), 0);
+      zdb.prepare('INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run('p1', 'msg1', 'sess_z', t, t, JSON.stringify({ type: 'text', text: '关键的最终结论：一切正常。' }), 0);
+      zdb.close();
+
+      const bubble = runHook({ hook_event_name: 'Stop', session_id: 'sess_z', cwd: 'D:\\proj' },
+        { WORKMEOW_ZCODE_DB: zdbPath });
+      assert.strictEqual(bubble.status, 0, `bubble hook exit code: ${bubble.status} ${bubble.stderr}`);
+      await new Promise((r) => setTimeout(r, 100));
+      assert.strictEqual(received.length, 1);
+      assert.strictEqual(received[0].body.state, 'attention');
+      assert.strictEqual(received[0].body.assistant_last_output, '关键的最终结论：一切正常。',
+        'Stop bubble is enriched from the ZCode message/part tables');
+      received.length = 0;
+    } else {
+      console.log('zcode integration checks: bubble enrichment skipped (node:sqlite unavailable)');
+    }
 
     received.length = 0;
     const unknown = runHook({ hook_event_name: 'NoSuchEvent', session_id: 'sess_z' });
