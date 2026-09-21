@@ -19,6 +19,7 @@ const RUNTIME_FILES = Object.freeze([
   'hook/workbuddy-hook.js',
   'hook/zcode-hook.js',
   'backend/hook-common.js',
+  'backend/zcode-db.js',
   'backend/transport.js',
   'backend/transcript.js',
   'backend/pidwalk.js',
