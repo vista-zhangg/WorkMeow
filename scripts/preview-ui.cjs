@@ -90,6 +90,10 @@ async function capture(win, name) {
   fs.writeFileSync(path.join(out, name + '.png'), win.previewBitmap.toPNG());
 }
 async function dimensions(win) { return win.webContents.executeJavaScript(`({width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth,panels:[...document.querySelectorAll('.settings-panel')].filter(x=>!x.hidden).map(x=>x.id),outside:[...document.querySelectorAll('button,input,.chip,.stat,.block,.asset-card,.asset-inspector')].filter(x=>x.getClientRects().length).filter(x=>{const r=x.getBoundingClientRect();return r.left<0 || r.right>innerWidth+1}).map(x=>x.id||x.className)})`); }
+async function checkReadable(win) {
+  const small = await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('*')).filter(el => el.getClientRects().length && Array.from(el.childNodes).some(node => node.nodeType === 3 && node.textContent.trim()) && parseFloat(getComputedStyle(el).fontSize) < 12).map(el => ({element:el.id || el.className, size:getComputedStyle(el).fontSize}))`);
+  assert.equal(small.length, 0, 'text stays at least 12px: ' + JSON.stringify(small));
+}
 app.whenReady().then(async()=>{
   try {
     const result=[];
@@ -98,6 +102,7 @@ app.whenReady().then(async()=>{
     for(const tab of ['general','companion','appearance','integrations','updates','expressions']) {
       await settings.webContents.executeJavaScript(`document.getElementById('tab-${tab}').click()`);
       result.push({page:tab,...await dimensions(settings)});
+      await checkReadable(settings);
       await capture(settings,'settings-'+tab);
     }
     await settings.webContents.executeJavaScript(`document.getElementById('tab-companion').click(); document.getElementById('rest-water-minutes').value=35; document.getElementById('rest-snooze-minutes').value=7; document.getElementById('rest-save').click();`);
@@ -131,20 +136,33 @@ app.whenReady().then(async()=>{
       settings.setSize(720,620);
       await settings.webContents.executeJavaScript(`document.getElementById('tab-${tab}').click()`);
       result.push({page:tab+'-small',...await dimensions(settings)});
+      await checkReadable(settings);
     }
     await capture(settings,'settings-small');
+    await settings.webContents.executeJavaScript(`document.getElementById('asset-inspector').scrollIntoView({block:'start'});`);
+    await capture(settings,'settings-small-inspector');
+    result.push({page:'expressions-small-inspector',...await dimensions(settings)});
     settings.destroy();
     chipDisplay={...defaults};
     const panel=await create('panel',620,900);
     await capture(panel,'panel');
     result.push({page:'panel',...await dimensions(panel)});
+    await checkReadable(panel);
+    await panel.webContents.executeJavaScript(`document.getElementById('lifetime-block').scrollIntoView({block:'center'})`);
+    await capture(panel,'panel-lifetime');
+    const lifetimeText = await panel.webContents.executeJavaScript(`document.getElementById('lt-cost').textContent`);
     for(const range of ['7d','30d','today']) {
       await panel.webContents.executeJavaScript(`document.querySelector('[data-range="${range}"]').click()`);
       assert.equal(await panel.webContents.executeJavaScript(`document.querySelectorAll('#chart .bar').length`),range==='7d'?7:range==='30d'?30:24);
+      assert.equal(await panel.webContents.executeJavaScript(`document.getElementById('lt-cost').textContent`),lifetimeText,'range filter never changes lifetime');
     }
     panel.setSize(420,700);
+    await panel.webContents.executeJavaScript(`window.scrollTo(0,0)`);
     result.push({page:'panel-small',...await dimensions(panel)});
     await capture(panel,'panel-small');
+    await checkReadable(panel);
+    await panel.webContents.executeJavaScript(`document.getElementById('lifetime-block').scrollIntoView({block:'center'})`);
+    await capture(panel,'panel-small-lifetime');
     panel.destroy();
     const pet=await create('pet',520,420);
     pet.webContents.send('pet:stats',stats);

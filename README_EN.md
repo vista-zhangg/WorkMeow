@@ -9,11 +9,16 @@
     <a href="README.md">简体中文</a> ·
     <a href="README_EN.md">English</a>
   </p>
+  <p>
+    <a href="https://github.com/vista-zhangg/codex-desktop-pet/releases/latest"><strong>Download for Windows</strong></a> ·
+    <a href="docs/releases/1.8.3.md">1.8.3 release notes</a> ·
+    <a href="docs/介绍.md">User guide (中文)</a>
+  </p>
 
   <p>
-    <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://github.com/vista-zhangg/codex-desktop-pet/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/codex-desktop-pet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.8.2-F6A04A" alt="Version 1.8.2">
+    <img src="https://img.shields.io/badge/version-1.8.3-F6A04A" alt="Version 1.8.3">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -88,7 +93,7 @@ On first launch, WorkMeow only integrates with tools already used by the current
 
 ### Release builds
 
-Once a version is published, download it from [GitHub Releases](https://github.com/vista-zhangg/WorkMeow/releases):
+Download the installer from the [latest release](https://github.com/vista-zhangg/codex-desktop-pet/releases/latest):
 
 - `WorkMeow-<version>-Windows-x64.exe` — the only supported Windows x64 NSIS installer.
 

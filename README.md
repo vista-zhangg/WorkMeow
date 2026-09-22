@@ -9,11 +9,16 @@
     <a href="README.md">简体中文</a> ·
     <a href="README_EN.md">English</a>
   </p>
+  <p>
+    <a href="https://github.com/vista-zhangg/codex-desktop-pet/releases/latest"><strong>下载 Windows 安装包</strong></a> ·
+    <a href="docs/releases/1.8.3.md">1.8.3 更新说明</a> ·
+    <a href="docs/介绍.md">使用指南</a>
+  </p>
 
   <p>
-    <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://github.com/vista-zhangg/codex-desktop-pet/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/codex-desktop-pet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.8.2-F6A04A" alt="Version 1.8.2">
+    <img src="https://img.shields.io/badge/version-1.8.3-F6A04A" alt="Version 1.8.3">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -23,7 +28,7 @@
 
 产品名称和所有对外发布物统一使用 **Codex 喵伴（WorkMeow）**。
 
-这是面向 Codex 用户的独立开源桌宠项目，与 OpenAI 无隶属关系。英文检索可使用 **Codex desktop pet / desktop companion / usage monitor**。已有安装继续使用 `WorkMeow.exe`、`WorkMeow-<version>-Windows-x64.exe` 安装包和 `~/.workmeow/` 数据目录，升级保留配置与历史记录。
+这是面向 Codex 用户的独立开源桌宠项目，与 OpenAI 无隶属关系。**Codex desktop pet / desktop companion / usage monitor**：让任务状态、订阅额度与历史用量常驻桌面。已有安装继续使用 `WorkMeow.exe`、`WorkMeow-<version>-Windows-x64.exe` 安装包和 `~/.workmeow/` 数据目录，升级保留配置与历史记录。
 
 ## 它能做什么
 
@@ -90,7 +95,7 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 
 ### 使用发行版
 
-正式版本发布后，可从 [GitHub Releases](https://github.com/vista-zhangg/WorkMeow/releases) 下载：
+从 [最新 Release](https://github.com/vista-zhangg/codex-desktop-pet/releases/latest) 下载：
 
 - `WorkMeow-<version>-Windows-x64.exe`：唯一支持的 Windows x64 NSIS 安装包。
 

@@ -18,7 +18,7 @@ AI 任务与用量功能需要用户安装并使用过以下至少一个 agent�
 ## 首次启动后
 
 - Codex 喵伴会把本项目需要的 Claude Code / TRAE / WorkBuddy hooks、opencode 插件和 ZCode hook 块**合并/安装**，不会覆盖已有配置；
-- Codex 不安装 hooks，只读监听 `~/.codex/sessions/YYYY/MM/DD/*.jsonl`；
+- Codex 不安装 hooks，只读监听 `~/.codex/sessions/YYYY/MM/DD/*.jsonl`，用量同时纳入 `~/.codex/archived_sessions/` 中的归档会话；
 - 新开的 Claude Code / Codex / TRAE / WorkBuddy / opencode / ZCode 会话会出现在桌宠的会话列表中；
 - 配置、位置和用量历史保存在 `~/.workmeow/`；界面固定为中文；
 - 托盘菜单中的设置可以配置开机自动启动和下班彩蛋时间，默认时间为 10:55 和 16:55；
@@ -46,14 +46,14 @@ npm --version
 ### 获取依赖并启动
 
 ```powershell
-git clone https://github.com/vista-zhangg/WorkMeow.git
-cd WorkMeow
+git clone https://github.com/vista-zhangg/codex-desktop-pet.git
+cd codex-desktop-pet
 npm ci
 npm test
 npm start
 ```
 
-计划发布地址为 <https://github.com/vista-zhangg/WorkMeow>（仓库创建后生效），上游源码地址为 <https://github.com/myunwang/LLMPET>。
+项目仓库为 <https://github.com/vista-zhangg/codex-desktop-pet>，上游源码地址为 <https://github.com/myunwang/LLMPET>。
 
 ### 发布前许可证与素材检查
 
@@ -69,6 +69,18 @@ npm start
 ### 界面预览与检查
 
 运行 `npm run preview:ui`，使用示例数据检查详情、设置和胶囊界面。预览窗口在后台渲染，不启动正式应用后端，也不读写用户的 hooks 或用量记录。截图、检查结果和日志保存在 `.inspect/ui-preview/`，进程结束后命令返回通过或失败。
+
+### 历史用量保护与恢复
+
+“累计统计”合并本机已记录的各工具历史，不跟随今日、7 天、30 天筛选。Codex 用量同时扫描活动和归档会话；升级保留旧累计，并在迁移前生成 `codex-usage.json.before-v5.bak`。已记录的 Codex 累计费用保留记账时的估算，新用量按当前价格累加；价格刷新可以更新日明细估算，不会重新定价或清空累计基数。
+
+如果旧版本重算已经丢失累计，先退出 WorkMeow，再用明确选定的历史备份恢复：
+
+```powershell
+node backend/codex-history-recover.js --from "$env:USERPROFILE\.octopus\codex-usage.json"
+```
+
+命令不联网，以备份累计为基数，只加入备份扫描时间之后的去重记录，并保留恢复前备份。重复执行同一备份不会叠加；会降低现有累计的备份会被拒绝。旧台账和源日志都缺失的部分无法凭空重建。恢复后需要使用支持 v5 台账的修复版本，旧版本不理解新格式。
 
 预览脚本将日志直接写入文件，启动器也将 Electron 的标准输出、错误输出重定向到文件，避免短命终端管道关闭后触发 `EPIPE: broken pipe` 弹窗。未捕获错误会记录日志并退出，预览超过 90 秒也会退出。不要通过临时 PowerShell 命令直接启动后台 Electron 并继承其输出管道。
 

@@ -17,15 +17,17 @@ const fs = require('fs');
 const fsp = fs.promises;
 const os = require('os');
 const path = require('path');
+const { createHash } = require('crypto');
 const { STATE_DIR } = require('./paths');
-const { num, dayKey, mergeLifetime } = require('./metering-common');
+const { num, dayKey } = require('./metering-common');
 const { createMeterQueue } = require('./meter-queue');
 
 const SESSIONS_DIR = path.join(os.homedir(), '.codex', 'sessions');
+const ARCHIVED_SESSIONS_DIR = path.join(os.homedir(), '.codex', 'archived_sessions');
 const STATE_PATH = path.join(STATE_DIR, 'codex-usage.json');
 const PRICING_CACHE_PATH = path.join(STATE_DIR, 'pricing-cache.json'); // models.dev sync cache
 const PRICING_OVERRIDE_PATH = path.join(STATE_DIR, 'codex-pricing.json');
-const SCHEMA_VERSION = 4; // Recompute ledgers that counted repeated token snapshots.
+const SCHEMA_VERSION = 5; // Preserve historical totals and persist event receipts across rescans.
 const DAILY_KEEP_DAYS = 95;
 const BACKFILL_MS = DAILY_KEEP_DAYS * 24 * 60 * 60 * 1000;
 const QUOTA_HISTORY_MS = 8 * 24 * 60 * 60 * 1000;
@@ -279,6 +281,9 @@ function addUsage(target, delta, messageDelta = 0) {
 
 function createCodexMetering(options = {}) {
   const sessionsDir = options.sessionsDir || SESSIONS_DIR;
+  const archivedSessionsDir = options.archivedSessionsDir === false ? null
+    : options.archivedSessionsDir || (options.sessionsDir
+      ? path.join(path.dirname(sessionsDir), 'archived_sessions') : ARCHIVED_SESSIONS_DIR);
   const stateDir = options.stateDir || STATE_DIR;
   const statePath = options.statePath || path.join(stateDir, 'codex-usage.json');
 
@@ -291,6 +296,9 @@ function createCodexMetering(options = {}) {
     hourlyCostByDay: {},
     byModelByDay: {},
     lifetime: emptyDay(),
+    records: {},
+    coveredSessions: {},
+    historyBase: null,
     diagnostics: { lastScanTs: 0, scannedFiles: 0, events: 0, resets: 0 },
   };
   let scanning = false;
@@ -301,31 +309,38 @@ function createCodexMetering(options = {}) {
   let timer = null;
   let loaded = false;
 
-  function reset() {
-    state.files = {};
-    state.sessions = {};
-    state.daily = {};
-    state.hourlyByDay = {};
-    state.hourlyCostByDay = {};
-    state.byModelByDay = {};
-    state.lifetime = emptyDay();
-    state.diagnostics = { lastScanTs: 0, scannedFiles: 0, events: 0, resets: 0 };
-  }
-
-  function migrateState(raw) {
-    // Earlier schemas include duplicate usage/cost, so they require a rescan.
-    return raw.schemaVersion === SCHEMA_VERSION;
+  function backupState(label) {
+    const backupPath = `${statePath}.${label}.bak`;
+    try { fs.copyFileSync(statePath, backupPath, fs.constants.COPYFILE_EXCL); }
+    catch (error) { if (error.code !== 'EEXIST' && error.code !== 'ENOENT') throw error; }
+    return backupPath;
   }
 
   function load() {
     if (loaded) return;
-    loaded = true;
+    let raw;
     try {
-      const raw = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-      if (!raw) return;
-      if (raw.schemaVersion !== SCHEMA_VERSION) {
-        if (!migrateState(raw)) return; // Force rescan
+      raw = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    if (raw && raw.schemaVersion > SCHEMA_VERSION) throw new Error('Codex usage ledger is newer than this application');
+    if (raw && raw.schemaVersion !== SCHEMA_VERSION) {
+      // Keep the observed total even if old rollouts no longer exist. Replay
+      // known sessions only into calendar views; new/archived sessions still
+      // contribute their previously unseen usage to lifetime.
+      backupState('before-v5');
+      state.lifetime = { ...emptyDay(), ...raw.lifetime };
+      const through = num(raw.diagnostics && raw.diagnostics.lastScanTs);
+      for (const [id, session] of Object.entries(raw.sessions || {})) {
+        state.coveredSessions[id] = num(session.updatedAt) || through;
       }
+      for (const [file, entry] of Object.entries(raw.files || {})) {
+        const id = entry.sessionId || file;
+        state.coveredSessions[id] ||= through;
+      }
+      state.diagnostics.migratedFrom = raw.schemaVersion;
+    } else if (raw) {
       state.files = raw.files && typeof raw.files === 'object' ? raw.files : {};
       state.sessions = raw.sessions && typeof raw.sessions === 'object' ? raw.sessions : {};
       state.daily = raw.daily && typeof raw.daily === 'object' ? raw.daily : {};
@@ -333,19 +348,26 @@ function createCodexMetering(options = {}) {
       state.hourlyCostByDay = raw.hourlyCostByDay && typeof raw.hourlyCostByDay === 'object' ? raw.hourlyCostByDay : {};
       state.byModelByDay = raw.byModelByDay && typeof raw.byModelByDay === 'object' ? raw.byModelByDay : {};
       state.lifetime = raw.lifetime && typeof raw.lifetime === 'object' ? { ...emptyDay(), ...raw.lifetime } : emptyDay();
+      state.records = raw.records || {};
+      state.coveredSessions = raw.coveredSessions || {};
+      state.historyBase = raw.historyBase || null;
       state.diagnostics = raw.diagnostics && typeof raw.diagnostics === 'object'
         ? { ...state.diagnostics, ...raw.diagnostics } : state.diagnostics;
-    } catch {}
+    }
+    loaded = true;
   }
 
-  function saveNow() {
+  function saveNow(strict = false) {
     dirty = false;
     try {
       fs.mkdirSync(stateDir, { recursive: true });
       const tmp = path.join(stateDir, `.codex-usage.${process.pid}.${Date.now()}.tmp`);
       fs.writeFileSync(tmp, JSON.stringify(state), { encoding: 'utf8', mode: 0o600 });
       fs.renameSync(tmp, statePath);
-    } catch {}
+    } catch (error) {
+      dirty = true;
+      if (strict) throw error;
+    }
   }
 
   function scheduleSave() {
@@ -360,10 +382,8 @@ function createCodexMetering(options = {}) {
     for (const key of ['daily', 'hourlyByDay', 'hourlyCostByDay', 'byModelByDay']) {
       for (const day of Object.keys(state[key])) if (day < cutoff) delete state[key][day];
     }
-    for (const [id, session] of Object.entries(state.sessions)) {
-      if (Number.isFinite(Number(session && session.updatedAt))
-        && Number(session.updatedAt) < Date.now() - BACKFILL_MS) delete state.sessions[id];
-    }
+    // Keep numeric receipts and session watermarks even after calendar views
+    // expire: an archived/moved rollout must never become new lifetime usage.
     for (const file of Object.values(state.files)) {
       if (Array.isArray(file.quotaEvents)) {
         file.quotaEvents = file.quotaEvents.filter(row => row.at >= Date.now() - QUOTA_HISTORY_MS);
@@ -382,7 +402,13 @@ function createCodexMetering(options = {}) {
     return out;
   }
 
-  function record(ts, model, delta) {
+  async function allFiles() {
+    const files = await listFiles();
+    if (archivedSessionsDir) await listFiles(archivedSessionsDir, files);
+    return [...new Set(files)].sort();
+  }
+
+  function addToViews(ts, model, delta) {
     if (num(delta.tokens) <= 0) return;
     const p = priceFor(model, pricing);
     const cost = usageCost(delta, p);
@@ -391,7 +417,6 @@ function createCodexMetering(options = {}) {
     const key = dayKey(ts);
     const day = (state.daily[key] = state.daily[key] || emptyDay());
     addUsage(day, delta, 1);
-    addUsage(state.lifetime, delta, 1);
 
     const hour = new Date(ts).getHours();
     const hours = (state.hourlyByDay[key] = state.hourlyByDay[key] || new Array(24).fill(0));
@@ -403,6 +428,24 @@ function createCodexMetering(options = {}) {
     const modelKey = model || 'unknown';
     const row = (models[modelKey] = models[modelKey] || emptyDay());
     addUsage(row, delta, 1);
+  }
+
+  function record(sessionId, ts, model, cumulative, delta) {
+    const id = createHash('sha256').update(JSON.stringify([sessionId, ts, cumulative, delta])).digest('hex');
+    if (state.records[id]) return;
+    addToViews(ts, model, delta);
+    state.records[id] = { ts, model: model || 'unknown', usage: { ...delta } };
+    const through = state.historyBase ? state.historyBase.through : state.coveredSessions[sessionId];
+    if (!(through > 0 && ts <= through)) addUsage(state.lifetime, delta, 1);
+  }
+
+  function rebuildViews() {
+    state.daily = {};
+    state.hourlyByDay = {};
+    state.hourlyCostByDay = {};
+    state.byModelByDay = {};
+    for (const row of Object.values(state.records)) addToViews(row.ts, row.model, { ...row.usage });
+    pruneDaily();
   }
 
   // Retain only numeric metering facts, never conversation text. Unlike the
@@ -484,14 +527,17 @@ function createCodexMetering(options = {}) {
     if (sameUsage(previous, cumulative)) return;
     if (previous && cumulative.tokens < num(previous.tokens)) state.diagnostics.resets++;
     state.sessions[sessionKey] = { usage: cumulative, updatedAt: ts };
-    record(ts, fileState.model, current);
+    record(sessionKey, ts, fileState.model, cumulative, current);
     state.diagnostics.events++;
   }
 
   async function scanFile(file) {
     let stat;
     try { stat = await fsp.stat(file); } catch { return; }
-    const fileState = state.files[file] || { offset: 0, carry: '', sessionId: null, model: null };
+    // Rollout names contain their UUID. Keep the cursor when Codex moves the
+    // same file between active and archived directories (including quota rows).
+    const fileKey = path.basename(file);
+    const fileState = state.files[fileKey] || { offset: 0, carry: '', sessionId: null, model: null };
     if (fileState.offset > stat.size) {
       state.diagnostics.truncated = (state.diagnostics.truncated || 0) + 1;
       fileState.offset = 0;
@@ -518,14 +564,14 @@ function createCodexMetering(options = {}) {
     fileState.offset = stat.size;
     fileState.carry = carry;
     fileState.replaying = false;
-    state.files[file] = fileState;
+    state.files[fileKey] = fileState;
   }
 
   async function performScan() {
     load();
     scanning = true;
     try {
-      const files = (await listFiles()).sort();
+      const files = await allFiles();
       for (const file of files) {
         try { await scanFile(file); } catch {}
       }
@@ -572,20 +618,40 @@ function createCodexMetering(options = {}) {
   async function rebuild() {
     return operations.exclusive(async () => {
       load();
-      const files = await listFiles();
-      if (!files.length) {
-        saveNow();
-        return getStats();
-      }
-      const oldLifetime = { ...state.lifetime };
-      reset();
       pricing = loadPricing();
       await performScan();
-      // Rollouts can be deleted, compacted, or only partially available. A
-      // rebuild is a repair/reprice operation, not permission to erase the
-      // monotonic lifetime ledger when the source no longer contains all rows.
-      state.lifetime = mergeLifetime(oldLifetime, state.lifetime);
+      // Calendar estimates can use refreshed prices. Lifetime preserves the
+      // original observed cost plus new receipts, including deleted rollouts.
+      rebuildViews();
       saveNow();
+      return getStats();
+    });
+  }
+
+  async function restoreLifetime(snapshot, source = 'backup') {
+    const through = num(snapshot && snapshot.diagnostics && snapshot.diagnostics.lastScanTs);
+    const baseline = snapshot && snapshot.lifetime;
+    if (!through || !baseline || !num(baseline.tokens) || !Number.isFinite(baseline.cost) || baseline.cost < 0) {
+      throw new Error('A dated Codex lifetime snapshot is required');
+    }
+    const id = createHash('sha256').update(JSON.stringify([through, baseline])).digest('hex');
+    return operations.exclusive(async () => {
+      load();
+      if (state.historyBase && state.historyBase.id === id) return getStats();
+      const backupPath = backupState(`before-restore-${id.slice(0, 12)}`);
+      await performScan();
+      const restored = { ...emptyDay(), ...baseline };
+      for (const row of Object.values(state.records)) {
+        if (row.ts > through) addUsage(restored, row.usage, 1);
+      }
+      if (restored.cost < state.lifetime.cost || restored.tokens < state.lifetime.tokens) {
+        throw new Error('This backup would reduce the current lifetime total');
+      }
+      const previous = { lifetime: state.lifetime, historyBase: state.historyBase, coveredSessions: state.coveredSessions };
+      state.lifetime = restored;
+      state.historyBase = { id, through, usage: { ...baseline }, source, restoredAt: Date.now(), backupPath };
+      state.coveredSessions = {};
+      try { saveNow(true); } catch (error) { Object.assign(state, previous); throw error; }
       return getStats();
     });
   }
@@ -620,7 +686,7 @@ function createCodexMetering(options = {}) {
     return { live, count, ts, source, stale, estimate: true };
   }
 
-  return { start, stop, scan, rebuild, getStats, getQuotaHistory, priceInfo, _state: state, _processObject: processObject };
+  return { start, stop, scan, rebuild, restoreLifetime, getStats, getQuotaHistory, priceInfo, _state: state, _processObject: processObject };
 }
 
 module.exports = { createCodexMetering, normalizeUsage, deltaUsage, emptyUsage, priceFor, usageCost, parseTimestamp };

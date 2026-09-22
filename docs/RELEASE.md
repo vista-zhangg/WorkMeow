@@ -4,7 +4,9 @@
 
 ## 发布契约
 
-对外产品名使用「Codex 喵伴（WorkMeow）」，Release 标题由 `shared/brand.js` 统一生成。升级身份保持不变：npm 包名 `workmeow`、应用 ID `io.github.vista-zhangg.workmeow`、可执行文件 `WorkMeow.exe`、安装包文件名、仓库地址与 `~/.workmeow/` 数据目录均沿用现有值。
+对外产品名使用「Codex 喵伴（WorkMeow）」，Release 标题由 `shared/brand.js` 统一生成。升级身份保持不变：npm 包名 `workmeow`、应用 ID `io.github.vista-zhangg.workmeow`、可执行文件 `WorkMeow.exe`、安装包文件名与 `~/.workmeow/` 数据目录均沿用现有值。
+
+从 1.8.3 起，仓库地址为 `vista-zhangg/codex-desktop-pet`。`package.json` 中的仓库与发布配置、应用更新链接、发布脚本的仓库校验和文档链接必须保持一致。原 `vista-zhangg/WorkMeow` 地址依赖 GitHub 的改名重定向服务旧客户端，不得重新创建同名仓库占用旧地址。改名后需实际验证旧地址的 Release 列表、`latest.yml` 和安装包下载跳转。
 
 `dist/` 和 GitHub Release 的上传附件必须恰好包含两个文件：
 

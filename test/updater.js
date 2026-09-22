@@ -120,7 +120,7 @@ async function run() {
   assert.strictEqual(portableUpdater.downloads, 0, 'ZIP builds must reject explicit updater downloads too');
   assert.strictEqual(portable.install(), false, 'ZIP builds must never invoke installer replacement');
   assert.strictEqual(await portable.openReleasePage(), true);
-  assert.strictEqual(openedUrl, 'https://github.com/vista-zhangg/WorkMeow/releases/tag/v1.6.0');
+  assert.strictEqual(openedUrl, 'https://github.com/vista-zhangg/codex-desktop-pet/releases/tag/v1.6.0');
 
   const latestUpdater = new FakeUpdater('latest');
   const latest = createUpdateService({
@@ -140,7 +140,7 @@ async function run() {
   assert.strictEqual(failing.snapshot().phase, 'error');
   assert.match(failing.snapshot().error, /网络/);
   assert.match(errorMessage(new Error('404 latest.yml')), /尚未发布/);
-  assert.strictEqual(RELEASES_URL, 'https://github.com/vista-zhangg/WorkMeow/releases/latest');
+  assert.strictEqual(RELEASES_URL, 'https://github.com/vista-zhangg/codex-desktop-pet/releases/latest');
 
   const root = path.join(__dirname, '..');
   const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -179,7 +179,7 @@ async function run() {
     downloadedUpdateHelper: { cacheDir: path.join(root, '.inspect') },
     listenerCount: () => 0,
     httpExecutor: { downloadToBuffer: async () => { throw new Error('404 blockmap'); } },
-  }, { url: new URL('https://github.com/vista-zhangg/WorkMeow/releases/download/v1.8.0/WorkMeow-1.8.0-Windows-x64.exe'), info: {} }, {
+  }, { url: new URL('https://github.com/vista-zhangg/codex-desktop-pet/releases/download/v1.8.0/WorkMeow-1.8.0-Windows-x64.exe'), info: {} }, {
     updateInfoAndProvider: { info: { version: '1.8.0' }, provider: {
       getBlockMapFiles: () => [new URL('https://github.com/old.blockmap'), new URL('https://github.com/new.blockmap')],
     } },

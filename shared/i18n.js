@@ -410,6 +410,7 @@
     'panel.lifetimeCost': '累计费用',
     'panel.lifetimeTokens': '累计 Tokens',
     'panel.lifetimeMsgs': '累计轮次',
+    'panel.lifetimeNote': '本机已记录的全部历史，不随时间筛选切换。费用为 API 等价估算。',
 
 
   };

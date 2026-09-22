@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const RELEASES_URL = 'https://github.com/vista-zhangg/WorkMeow/releases/latest';
+const RELEASES_URL = 'https://github.com/vista-zhangg/codex-desktop-pet/releases/latest';
 const DEFAULT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_START_DELAY_MS = 15 * 1000;
 
@@ -117,7 +117,7 @@ function createUpdateService(options) {
   async function openReleasePage() {
     if (!shell || typeof shell.openExternal !== 'function') return false;
     const versionUrl = state.latestVersion
-      ? `https://github.com/vista-zhangg/WorkMeow/releases/tag/v${encodeURIComponent(state.latestVersion)}`
+      ? `https://github.com/vista-zhangg/codex-desktop-pet/releases/tag/v${encodeURIComponent(state.latestVersion)}`
       : RELEASES_URL;
     try { await shell.openExternal(versionUrl); return true; } catch { return false; }
   }
