@@ -269,6 +269,10 @@ function createCodexRateLimits(options = {}) {
   let recycleTimer = null;
   let syncQueued = false;
   const pendingAlerts = new Map();
+  // Remember window presence separately from values. Outages clear stale
+  // percentages, but must not change the account's capsule layout.
+  const observedWindowsByAccount = new Map();
+  let displayAccountKey = 'none';
 
   const accountWatch = options.watchAccount === false
     ? null
@@ -278,7 +282,19 @@ function createCodexRateLimits(options = {}) {
     }));
 
   function publish(next) {
-    state = next;
+    if (next.account) displayAccountKey = accountFingerprint(next.account);
+    else if (next.error === 'not-signed-in') displayAccountKey = 'none';
+    const observed = observedWindowsByAccount.get(displayAccountKey) || new Set();
+    for (const key of ['fiveHour', 'weekly']) {
+      if (Number.isFinite(next.windows && next.windows[key] && next.windows[key].remainingPercent)) {
+        observed.add(key);
+      }
+    }
+    observedWindowsByAccount.set(displayAccountKey, observed);
+    while (observedWindowsByAccount.size > 64) {
+      observedWindowsByAccount.delete(observedWindowsByAccount.keys().next().value);
+    }
+    state = { ...next, observedWindows: [...observed] };
     try { onUpdate(state); } catch {}
   }
 

@@ -25,6 +25,8 @@ const noCost = normalizeUsage({ tokens: { input: 1000, output: 500 } });
 const est = usageCost(noCost, priceFor('claude-sonnet-4-5', null));
 assert(est > 0 && est < 0.1, `claude estimate sane: ${est}`);
 assert.strictEqual(usageCost({ ...u, cost: 0.005 }, null), 0.005);
+assert.strictEqual(usageCost(normalizeUsage({ cost: 0, tokens: { input: 1000, output: 500 } }),
+  priceFor('gpt-5.6-codex', null)), 0, 'explicit free usage does not become estimated spend');
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-opencode-meter-'));

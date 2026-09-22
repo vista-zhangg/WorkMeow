@@ -25,7 +25,7 @@ const SESSIONS_DIR = path.join(os.homedir(), '.codex', 'sessions');
 const STATE_PATH = path.join(STATE_DIR, 'codex-usage.json');
 const PRICING_CACHE_PATH = path.join(STATE_DIR, 'pricing-cache.json'); // models.dev sync cache
 const PRICING_OVERRIDE_PATH = path.join(STATE_DIR, 'codex-pricing.json');
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4; // Recompute ledgers that counted repeated token snapshots.
 const DAILY_KEEP_DAYS = 95;
 const BACKFILL_MS = DAILY_KEEP_DAYS * 24 * 60 * 60 * 1000;
 const QUOTA_HISTORY_MS = 8 * 24 * 60 * 60 * 1000;
@@ -251,6 +251,11 @@ function deltaUsage(previous, current) {
   return out;
 }
 
+function sameUsage(previous, current) {
+  return previous && current.tokens > 0
+    && Object.keys(emptyUsage()).every((key) => num(previous[key]) === num(current[key]));
+}
+
 function parseTimestamp(value, fallback = Date.now()) {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value > 0 && value < 1e12 ? value * 1000 : value;
@@ -308,12 +313,8 @@ function createCodexMetering(options = {}) {
   }
 
   function migrateState(raw) {
-    // Schema v2 -> v3: add cost field (recompute from scratch)
-    if (raw.schemaVersion < 3) {
-      // Just reset and rescan to get accurate costs
-      return false;
-    }
-    return true;
+    // Earlier schemas include duplicate usage/cost, so they require a rescan.
+    return raw.schemaVersion === SCHEMA_VERSION;
   }
 
   function load() {
@@ -413,13 +414,16 @@ function createCodexMetering(options = {}) {
       return;
     }
     if (object.type !== 'event_msg' || payload.type !== 'token_count') return;
+    const cumulative = normalizeUsage(payload.info && (payload.info.total_token_usage || payload.info.totalTokenUsage));
+    const repeated = sameUsage(fileState.quotaUsage, cumulative);
+    if (cumulative.tokens > 0) fileState.quotaUsage = cumulative;
     const at = parseTimestamp(object.timestamp, NaN);
     if (!Number.isFinite(at) || at < Date.now() - QUOTA_HISTORY_MS) return;
     const usage = normalizeUsage(payload.info && (payload.info.last_token_usage || payload.info.lastTokenUsage));
     const limits = payload.rate_limits || payload.rateLimits;
     const weekly = limits && [limits.primary, limits.secondary].find(w => w
       && (w.window_minutes ?? w.windowDurationMins) === 10080);
-    const row = { at, cost: usageCost(usage, priceFor(fileState.quotaModel || fileState.model, pricing)) };
+    const row = { at, cost: repeated ? 0 : usageCost(usage, priceFor(fileState.quotaModel || fileState.model, pricing)) };
     if (weekly) {
       row.resetsAt = weekly.resets_at ?? weekly.resetsAt;
       row.usedPercent = weekly.used_percent ?? weekly.usedPercent;
@@ -431,6 +435,7 @@ function createCodexMetering(options = {}) {
   async function backfillQuota(fileState, file) {
     if (Array.isArray(fileState.quotaEvents)) return;
     fileState.quotaEvents = [];
+    delete fileState.quotaUsage;
     if (!fileState.offset) return;
     // Upgrade existing ledgers without replaying their monetary/token totals.
     // The normal incremental pass below handles any unfinished trailing line.
@@ -474,6 +479,9 @@ function createCodexMetering(options = {}) {
     if (fileState.replaying && previous && ts <= Number(state.sessions[sessionKey].updatedAt || 0)
       && cumulative.tokens <= num(previous.tokens)) return;
     recordQuotaEvent(fileState, object);
+    // Quota-only notifications can repeat the last completed request's usage.
+    // Preserve quota updates, but count the unchanged cumulative snapshot once.
+    if (sameUsage(previous, cumulative)) return;
     if (previous && cumulative.tokens < num(previous.tokens)) state.diagnostics.resets++;
     state.sessions[sessionKey] = { usage: cumulative, updatedAt: ts };
     record(ts, fileState.model, current);

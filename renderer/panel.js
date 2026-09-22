@@ -193,6 +193,9 @@ function render(s) {
   const todayTokens = s.today.tokens || 0;
   const todayMsgs = s.today.msgs || s.today.messages || 0;
   $('today-foot').textContent = `${fmt(todayTokens)} tokens · ${todayMsgs} 轮`;
+  const usageWarning = $('usage-warning');
+  usageWarning.textContent = (s.usageWarnings || []).join(' ');
+  usageWarning.hidden = !usageWarning.textContent;
 
   // Cache and token details follow the selected trend range. The top summary
   // remains explicitly “today” so the panel never mixes periods silently.

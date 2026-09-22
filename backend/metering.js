@@ -426,16 +426,13 @@ function createMetering(options = {}) {
     state.cursors[file] = newOffset;
   }
 
-  async function listTranscripts() {
-    const out = [];
-    let dirs;
-    try { dirs = await fsp.readdir(projectsDir, { withFileTypes: true }); } catch { return out; }
-    for (const d of dirs) {
-      if (!d.isDirectory()) continue;
-      const sub = path.join(projectsDir, d.name);
-      let files;
-      try { files = await fsp.readdir(sub); } catch { continue; }
-      for (const f of files) if (f.endsWith('.jsonl')) out.push(path.join(sub, f));
+  async function listTranscripts(dir = projectsDir, out = []) {
+    let entries;
+    try { entries = await fsp.readdir(dir, { withFileTypes: true }); } catch { return out; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) await listTranscripts(full, out);
+      else if (entry.isFile() && entry.name.endsWith('.jsonl')) out.push(full);
     }
     return out;
   }

@@ -88,10 +88,21 @@ async function main() {
   assert.strictEqual(meter.getQuotaHistory()[0].limitId, 'codex');
   assert(Math.abs(meter.getQuotaHistory().reduce((sum, row) => sum + row.cost, 0) - stats.today.cost) < 1e-10);
 
+  const quotaRefresh = JSON.parse(JSON.stringify(rows[4]));
+  quotaRefresh.payload.rate_limits = { primary: {
+    window_minutes: 10080, used_percent: 8, resets_at: weeklyReset,
+  } };
+  fs.appendFileSync(rollout, JSON.stringify(quotaRefresh) + '\n');
+  await meter.scan();
+  assert.strictEqual(meter.getStats().today.tokens, 370, 'unchanged usage snapshot is not a new request');
+  assert.strictEqual(meter.getStats().today.msgs, 3);
+  assert.strictEqual(meter.getQuotaHistory().at(-1).usedPercent, 8, 'quota refresh is still retained');
+  assert.strictEqual(meter.getQuotaHistory().at(-1).cost, 0, 'quota refresh does not repeat request cost');
+
   await meter.scan();
   stats = meter.getStats();
   assert.strictEqual(stats.today.tokens, 370, 'second scan must not double count');
-  assert.strictEqual(meter.getQuotaHistory().length, 3, 'history is incremental');
+  assert.strictEqual(meter.getQuotaHistory().length, 4, 'history is incremental');
 
   // Upgrade a pre-history cache at EOF without replaying the main ledger.
   meter.stop();

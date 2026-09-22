@@ -98,6 +98,18 @@ async function main() {
   const pi = m.priceInfo();
   assert(pi.live === true && pi.source === 'models.dev' && pi.count >= 1, 'priceInfo reports models.dev cache');
 
+  const latest = path.join(base, 'logs', '20990101T000000', 'Modular');
+  await fsp.mkdir(latest, { recursive: true });
+  await fsp.writeFile(path.join(latest, 'ai-agent_0_1_stdout.log'), '');
+  await fsp.writeFile(path.join(latest, 'ai_agent-0-2099-1-1.alaudalog'), 'AalG');
+  await m.scan();
+  assert(m.getStats().diagnostics.unavailable === 'compressed_logs',
+    'latest compressed-only launch reports missing usage even with readable historical logs');
+  await fsp.writeFile(path.join(latest, 'ai-agent_0_1_stdout.log'), 'boot\n');
+  await m.scan();
+  assert(m.getStats().diagnostics.unavailable === null, 'availability recovers when text logging resumes');
+  m.stop();
+
   await fsp.rm(base, { recursive: true, force: true });
   console.log('\nALL TRAE-METERING TESTS PASSED');
 }

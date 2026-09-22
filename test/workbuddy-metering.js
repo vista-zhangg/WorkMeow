@@ -169,6 +169,31 @@ async function main() {
   assert(m.getStats().lifetime.tokens >= lifetimeBeforeRebuild,
     'rebuild preserves WorkBuddy lifetime when a rotated source is incomplete');
 
+  // A late cache breakdown replaces part of full-price input; its cost delta
+  // is negative, even though token counts stay unchanged.
+  const corrections = createWorkbuddyMetering({
+    projectsDir: path.join(base, 'empty-projects'), stateDir: path.join(base, 'correction-state'),
+    pricingCachePath: cachePath, pricingOverridePath: path.join(base, 'absent-pricing.json'),
+  });
+  const correct = (input, output, cached) => corrections._processObject({}, 'stream.jsonl', {
+    role: 'assistant', timestamp: Date.now(), providerData: { model: 'gpt-4o', messageId: 'cache-correction',
+      usage: { inputTokens: input, outputTokens: output, totalTokens: input + output,
+        inputTokensDetails: [{ cached_tokens: cached }] } },
+  });
+  correct(1000, 100, 0);
+  correct(1000, 100, 800);
+  assert(Math.abs(corrections.getStats().today.cost - 0.0025) < 1e-12,
+    'late cache correction reduces cost without charging cache twice');
+  correct(500, 100, 400);
+  correct(1000, 110, 800);
+  const corrected = corrections.getStats();
+  assert(corrected.today.tokens === 1110 && corrected.today.msgs === 1,
+    'replayed partial usage never lowers the dedupe watermark');
+  assert(Math.abs(corrected.lifetime.cost - 0.0026) < 1e-12
+    && Math.abs(corrected.hourly.reduce((sum, value) => sum + value, 0) - 0.0026) < 1e-12,
+    'stream correction agrees across lifetime and hourly costs');
+  corrections.stop();
+  m.stop();
   // cleanup
   await fsp.rm(base, { recursive: true, force: true });
   console.log('\nALL WORKBUDDY-METERING TESTS PASSED');

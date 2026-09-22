@@ -102,7 +102,7 @@ function inFlightTools(db, sinceMs = 0) {
   try {
     const rows = db.prepare(
       `SELECT session_id, MAX(started_at) AS started_at FROM tool_usage
-        WHERE completed_at IS NULL AND started_at > ?
+        WHERE status = 'running' AND completed_at IS NULL AND started_at > ?
         GROUP BY session_id`
     ).all(Number(sinceMs) || 0);
     for (const r of rows) {

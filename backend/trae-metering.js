@@ -346,19 +346,30 @@ function createTraeMetering(options = {}) {
 
   async function listFiles() {
     const out = [];
+    let compressedOnly = false;
     for (const root of logRoots) {
       let dirs;
       try { dirs = await fsp.readdir(root, { withFileTypes: true }); } catch { continue; }
-      for (const d of dirs) {
+      const launches = dirs.filter((d) => d.isDirectory() && /^\d{8}T\d{6}$/.test(d.name))
+        .sort((a, b) => b.name.localeCompare(a.name));
+      for (const d of launches) {
         if (!d.isDirectory()) continue;
         const modDir = path.join(root, d.name, 'Modular');
         let files;
         try { files = await fsp.readdir(modDir, { withFileTypes: true }); } catch { continue; }
+        if (d === launches[0] && files.some((f) => /^ai_agent-.*\.alaudalog$/.test(f.name))) {
+          const stdout = files.filter((f) => /^ai-agent_.*_stdout\.log$/.test(f.name));
+          const sizes = await Promise.all(stdout.map(async (f) => {
+            try { return (await fsp.stat(path.join(modDir, f.name))).size; } catch { return 0; }
+          }));
+          if (!sizes.some((size) => size > 0)) compressedOnly = true;
+        }
         for (const f of files) {
           if (f.isFile() && /^ai-agent_.*_stdout\.log$/.test(f.name)) out.push(path.join(modDir, f.name));
         }
       }
     }
+    state.diagnostics.unavailable = compressedOnly ? 'compressed_logs' : null;
     return out;
   }
 

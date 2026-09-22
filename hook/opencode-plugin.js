@@ -29,7 +29,6 @@ const TOKEN_HEADER = 'x-workmeow-token';
 const POST_TIMEOUT_MS = 500;
 const LAST_OUTPUT_MAX = 2400;   // 与 server 的 ASSISTANT_LAST_OUTPUT_MAX 对齐
 const MAX_BODY_BYTES = 16384;   // 与 server 的 MAX_STATE_BODY_BYTES 对齐
-const TURN_LOOKBACK_MS = 90000; // session.idle 多久内算「刚完成一轮」
 
 // opencode 工具类型 → 打工喵词汇（未知类型原样首字母大写兜底）。
 const TOOL_NAMES = {
@@ -47,6 +46,7 @@ const TOOL_NAMES = {
   todo: 'Todo',
   plan: 'Plan',
   agent: 'Agent',
+  task: 'Agent',
 };
 
 function num(v) {
@@ -126,7 +126,7 @@ function eventInfo(ev) {
 }
 
 function toolName(tool) {
-  const t = str(tool && tool.type);
+  const t = str(tool) || str(tool && tool.type);
   return TOOL_NAMES[t] || (t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Tool');
 }
 
@@ -136,6 +136,8 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
   const lastRoleBySession = new Map(); // sessionID -> 最近 message.updated 的 role
   const userText = new Map();        // sessionID -> 待用的最近用户文本（标题兜底）
   const outputTail = new Map();      // sessionID -> assistant 文本尾部
+  const textParts = new Map();       // sessionID -> latest full text per part
+  const turnStates = new Map();      // active / waiting / error / complete
   const loggedMessages = new Set();  // 已写 usage 的 message id
   const seenMessageIds = new Set();  // 见过的 message id（opencode 会话重载会重放
                                      // 既有消息的 message.updated，重放不算新回合）
@@ -157,6 +159,8 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
     lastRoleBySession.delete(sid);
     userText.delete(sid);
     outputTail.delete(sid);
+    textParts.delete(sid);
+    turnStates.delete(sid);
   }
 
   function touchSession(sid) {
@@ -208,12 +212,12 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
       const cache = tokens && tokens.cache && typeof tokens.cache === 'object' ? tokens.cache : {};
       appendUsage({
         v: 1,
-        ts: Date.now(),
+        ts: num(msg.time && (msg.time.completed || msg.time.created)) || Date.now(),
         session_id: sid,
         message_id: id,
         model: str(msg.modelID) || 'unknown',
         provider: str(msg.providerID) || '',
-        cost: cost > 0 ? cost : undefined,
+        cost: typeof msg.cost === 'number' && Number.isFinite(msg.cost) && msg.cost >= 0 ? cost : undefined,
         tokens: tokens ? {
           input: num(tokens.input),
           output: num(tokens.output),
@@ -268,6 +272,9 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
           const uid = str(info.id);
           if (uid && seenMessageIds.has(uid)) return;
           remember(seenMessageIds, uid);
+          turnStates.set(sid, 'active');
+          outputTail.delete(sid);
+          textParts.delete(sid);
           const title = str(info.title) || (userText.get(sid) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
           userText.delete(sid);
           post('thinking', 'UserPromptSubmit', { session_id: sid, session_title: title });
@@ -281,6 +288,7 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
           }
           lastTurnAt.set(sid, Date.now());
           if (info.error && typeof info.error === 'object') {
+            turnStates.set(sid, 'error');
             post('error', 'StopFailure', { session_id: sid, api_error_type: str(info.error.type || info.error.message) || 'error' });
           } else if (info.finish) {
             // 同一消息的 finish 可能重放（如流式补发/会话重载）：usage 与
@@ -289,6 +297,11 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
             if (aid && stoppedMessageIds.has(aid)) return;
             remember(stoppedMessageIds, aid);
             logUsage(sid, info);
+            if (info.finish === 'tool-calls' || info.finish === 'unknown') {
+              turnStates.set(sid, 'active');
+              return; // A model step ended; the task continues with tools.
+            }
+            turnStates.set(sid, 'complete');
             post('attention', 'Stop', { session_id: sid });
           }
         }
@@ -307,7 +320,13 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
         if (lastRoleBySession.get(sid) !== 'assistant') {
           userText.set(sid, ((userText.get(sid) || '') + text).slice(-LAST_OUTPUT_MAX * 4));
         } else {
-          outputTail.set(sid, (outputTail.get(sid) || '') + text);
+          // message.part.updated contains a full snapshot, not a delta.
+          const parts = textParts.get(sid) || new Map();
+          const key = str(part.id) || str(part.messageID) || 'text';
+          parts.set(key, text.slice(-LAST_OUTPUT_MAX * 4));
+          while (parts.size > 32) parts.delete(parts.keys().next().value);
+          textParts.set(sid, parts);
+          outputTail.set(sid, [...parts.values()].join('\n'));
           // 只留 LAST_OUTPUT_MAX 的几倍，防内存无限增长。
           if (outputTail.get(sid).length > LAST_OUTPUT_MAX * 4) {
             outputTail.set(sid, outputTail.get(sid).slice(-LAST_OUTPUT_MAX * 4));
@@ -319,10 +338,10 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
       if (type === 'session.idle') {
         const sid = str(p.sessionID) || str(info.id) || '';
         if (!sid) return;
-        // 一轮刚结束（assistant finish 已发过 Stop 或 90 秒内有回合活动）→ 收尾；
-        // 纯空闲（启动/等待权限/改标题）不打扰。
-        const last = lastTurnAt.get(sid) || 0;
-        if (last > 0 && Date.now() - last < TURN_LOOKBACK_MS) {
+        // Complete an active turn once; idle must not erase errors or waits,
+        // or celebrate again after the final assistant message already did.
+        if (turnStates.get(sid) === 'active') {
+          turnStates.set(sid, 'complete');
           post('attention', 'Stop', { session_id: sid });
         }
         return;
@@ -337,19 +356,28 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
       if (type === 'session.error') {
         const sid = str(p.sessionID) || str(info.id) || '';
         const err = str((info.error && info.error.message) || p.error) || 'session error';
-        if (sid) post('error', 'StopFailure', { session_id: sid, api_error_type: err });
+        if (sid) {
+          turnStates.set(sid, 'error');
+          post('error', 'StopFailure', { session_id: sid, api_error_type: err });
+        }
         return;
       }
 
-      if (type === 'permission.updated') {
-        const sid = str(p.sessionID) || str(info.sessionID) || str(info.id) || '';
-        if (sid) post('notification', 'Notification', { session_id: sid });
-        return;
-      }
-
-      if (type === 'permission.replied') {
+      if (type === 'permission.asked' || type === 'permission.updated' || type === 'question.asked') {
         const sid = str(p.sessionID) || str(info.sessionID) || '';
-        if (sid) post('thinking', 'UserPromptSubmit', { session_id: sid });
+        if (sid) {
+          turnStates.set(sid, 'waiting');
+          post('notification', 'Notification', { session_id: sid });
+        }
+        return;
+      }
+
+      if (type === 'permission.replied' || type === 'question.replied' || type === 'question.rejected') {
+        const sid = str(p.sessionID) || str(info.sessionID) || '';
+        if (sid) {
+          turnStates.set(sid, 'active');
+          post('thinking', 'ElicitationResult', { session_id: sid });
+        }
       }
     } catch {}
   }
@@ -360,7 +388,8 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
         const sid = str(input && (input.sessionID || input.session_id));
         if (!sid) return;
         const name = toolName(input && input.tool);
-        post('working', after ? 'PostToolUse' : 'PreToolUse', { session_id: sid, tool_name: name });
+        turnStates.set(sid, 'active');
+        post(!after && name === 'Agent' ? 'juggling' : 'working', after ? 'PostToolUse' : 'PreToolUse', { session_id: sid, tool_name: name });
       } catch {}
     };
   }
@@ -373,6 +402,8 @@ export const WorkMeowOpenCodePlugin = async ({ directory }) => {
       sessions.clear(); lastTurnAt.clear(); lastRoleBySession.clear();
       userText.clear(); outputTail.clear(); loggedMessages.clear();
       seenMessageIds.clear(); stoppedMessageIds.clear();
+      turnStates.clear();
+      textParts.clear();
     },
   };
 };

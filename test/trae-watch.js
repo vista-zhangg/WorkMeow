@@ -14,6 +14,7 @@ const path = require('path');
 const { createTraeWatch } = require('../backend/trae-watch');
 
 let failures = 0;
+const tempRoots = [];
 function check(name, fn) {
   try { fn(); console.log('  ✓', name); }
   catch (e) { failures++; console.log('  ✗', name, '\n     ', e.message); }
@@ -35,6 +36,7 @@ const TS = '2026-09-21T16:48:14.354+08:00';
 // 伪造 logs/<ts>/ 结构，返回 {root, tsDir}
 function mkLogs(extra) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-trae-'));
+  tempRoots.push(root);
   const tsDir = path.join(root, '20260921T162209');
   fs.mkdirSync(tsDir, { recursive: true });
   if (extra) extra(tsDir);
@@ -277,4 +279,53 @@ check('静默退场后恢复：保留游标，不重放旧事件', () => {
   assert.deepStrictEqual(core.updates.map((u) => `${u.event}:${u.state}`), ['UserPromptSubmit:thinking']);
 });
 
-process.exit(failures ? 1 : 0);
+check('并发会话元数据隔离；等待确认和长工具不会在 8 秒后空闲', () => {
+  const { root, tsDir } = mkLogs((d) => { mkWindow(d); });
+  const fp = path.join(tsDir, 'window1', 'renderer.log');
+  fs.writeFileSync(fp, '');
+  const core = fakeCore();
+  const w = createTraeWatch({ core, roots: [root] });
+  w.tick();
+  fs.appendFileSync(fp, rFetched(SID_A, 'D:/a', 'A') + rWaitConfirm(SID_A)
+    + rFetched(SID_B, 'D:/b', 'B') + rPlanItem(SID_B, 'tool-b', 'Shell'));
+  w.tick();
+  assert.strictEqual(core.updates[0].fields.cwd, 'D:/a');
+  assert.strictEqual(core.updates[1].fields.cwd, 'D:/b');
+  assert.strictEqual(core.updates[1].fields.sessionTitle, 'B');
+  const realNow = Date.now;
+  try {
+    const now = realNow();
+    Date.now = () => now + 9000;
+    w.tick();
+    assert.strictEqual(core.updates.length, 2, '静默不应覆盖确认/执行状态');
+  } finally { Date.now = realNow; }
+  fs.appendFileSync(fp, rToolConfirm(SID_A, 'Write') + rStatus(SID_B, 5, 3));
+  w.tick();
+  assert.strictEqual(core.updates[2].fields.cwd, 'D:/a');
+  assert.strictEqual(core.updates[2].fields.sessionTitle, 'A');
+  assert.strictEqual(core.updates[3].sid, SID_B);
+  assert.strictEqual(core.updates[3].state, 'idle');
+});
+
+check('损坏或无归属的事件不能作用到上一个会话；历史同步不触发空闲事件', () => {
+  const { root, tsDir } = mkLogs((d) => { mkWindow(d); });
+  const fp = path.join(tsDir, 'window1', 'renderer.log');
+  fs.writeFileSync(fp, '');
+  const core = fakeCore();
+  const w = createTraeWatch({ core, roots: [root] });
+  w.tick();
+  fs.appendFileSync(fp, rStatus(SID_A, 5)
+    + rline('[ToolConfirm] action started', '{BROKEN')
+    + rline('[NotificationPort] Waiting confirm detected', '{}'));
+  w.tick();
+  const realNow = Date.now;
+  try {
+    const now = realNow();
+    Date.now = () => now + 9000;
+    w.tick();
+    assert.strictEqual(core.updates.length, 0);
+  } finally { Date.now = realNow; }
+});
+
+for (const root of tempRoots) fs.rmSync(root, { recursive: true, force: true });
+process.exitCode = failures ? 1 : 0;

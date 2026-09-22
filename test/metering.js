@@ -69,6 +69,19 @@ assert.strictEqual(meter.getStats().lifetime.tokens, lifetimeBeforeRebuild,
   'rebuild must preserve lifetime when source transcripts are unavailable');
 
 meter.stop();
+// Modern Claude Code stores subagent transcripts below the parent session.
+const nested = path.join(projectsDir, 'project', 'session', 'subagents');
+fs.mkdirSync(nested, { recursive: true });
+fs.writeFileSync(path.join(nested, 'agent-child.jsonl'), JSON.stringify({
+  type: 'assistant', timestamp: new Date().toISOString(), requestId: 'child-request',
+  message: { id: 'child-message', model: 'claude-opus-4-1', usage: { input_tokens: 10, output_tokens: 5 } },
+}) + '\n');
+const nestedMeter = createMetering({ projectsDir, stateDir: path.join(root, 'nested-state') });
+await nestedMeter.scan();
+assert.strictEqual(nestedMeter.getStats().today.tokens, 15, 'subagent usage is included');
+await nestedMeter.scan();
+assert.strictEqual(nestedMeter.getStats().today.tokens, 15, 'subagent rescan is deduplicated');
+nestedMeter.stop();
 fs.rmSync(root, { recursive: true, force: true });
 console.log('metering streaming/TTL checks passed');
 }

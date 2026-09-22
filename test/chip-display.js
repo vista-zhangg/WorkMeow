@@ -107,5 +107,28 @@ assert.strictEqual(w.elements('chip-cost-sep').hidden, true);
 assert(!w.elements('chip').title.includes('$'));
 w.handlers.stats({ ...stats, codexQuota: { status: 'unavailable' } });
 assert.strictEqual(w.elements('chip-quota').children[0].textContent, '--');
+assert.strictEqual(w.elements('chip-quota').children.length, 1, 'unobserved 5h is not invented on a cold failure');
+assert.strictEqual(w.elements('chip-quota').children[0].dataset.period, '7d');
+
+for (const observedWindows of [['weekly'], ['fiveHour', 'weekly']]) {
+  const quota = { status: 'unavailable', windows: { fiveHour: null, weekly: null }, observedWindows };
+  w.handlers.stats({ ...stats, codexQuota: quota });
+  assert.strictEqual(w.elements('chip-quota').children.length, observedWindows.length,
+    'outages retain only this account’s observed windows');
+  assert(w.elements('chip-quota').children.every((badge) => badge.textContent === '--'));
+  w.elements('chip-quota').dispatch('click');
+  assert.strictEqual(w.elements('quota-popover-rows').children.length, observedWindows.length,
+    'popover follows the same window-presence rule as the capsule');
+  w.elements('chip-quota').dispatch('click');
+  w.handlers.stats({ ...stats, codexQuota: { ...quota, status: 'ready', windows: {
+    fiveHour: null, weekly: { remainingPercent: 80 },
+  } } });
+  assert.strictEqual(w.elements('chip-quota').children.length, observedWindows.length,
+    'a partial recovery does not shrink a previously dual-window capsule');
+  assert.strictEqual(w.elements('chip-quota').children.at(-1).textContent, '80%');
+  w.handlers.stats({ ...stats, codexQuota: quota });
+  assert.strictEqual(w.elements('chip-quota').children.length, observedWindows.length,
+    'a repeated outage does not change capsule length');
+}
 console.log('chip display checks passed');
 process.exit(0);

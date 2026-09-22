@@ -481,8 +481,9 @@ function createCore(options = {}) {
       if (!p) continue;
       // ZCode 的 transcript_path 是每次 hook 现生成的临时文件、hook 结束即删：
       // 每 10 秒去 stat 一个已删除的路径只会白白浪费 IO —— 它的活性证据由
-      // zcode-metering 的心跳（touchSession）提供，这里像 codex 一样跳过。
-      if (s.agentId === 'zcode') continue;
+      // zcode-metering 的心跳（touchSession）提供。TRAE 的日志由多会话共享，
+      // mtime 还包含后台同步，活性只能来自 watcher 的会话级心跳。
+      if (s.agentId === 'zcode' || s.agentId === 'trae') continue;
       try {
         // transcript 的 mtime = 模型最近一次产出时间。事件间隙里文件还在长，
         // 说明模型在干活（重连后继续跑/流式输出），adapter 据此不判摸鱼。

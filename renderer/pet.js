@@ -1980,16 +1980,15 @@ function quotaUpdatedText(updatedAt) {
 
 function quotaWindowEntries(quota) {
   const windows = quota && quota.windows && typeof quota.windows === 'object' ? quota.windows : {};
-  const weekly = windows.weekly;
-  const hasWeekly = quotaRemainingPercent(weekly) !== null;
   const fiveHour = windows.fiveHour;
   const hasFiveHour = quotaRemainingPercent(fiveHour) !== null;
-  // Pro accounts expose a weekly window but no 5h window. Do not leave a
-  // misleading empty badge/card beside the real 7d value in that case.
+  const observed = Array.isArray(quota && quota.observedWindows) ? quota.observedWindows : [];
+  // A missing response says nothing about which windows this account has.
+  // Keep 5h only after it was observed; cold/weekly-only accounts show just 7d.
   return [
     ['fiveHour', 'quota.fiveHour'],
     ['weekly', 'quota.weekly'],
-  ].filter(([key]) => key !== 'fiveHour' || hasFiveHour || !hasWeekly);
+  ].filter(([key]) => key !== 'fiveHour' || hasFiveHour || observed.includes('fiveHour'));
 }
 
 function quotaCostText(value) {

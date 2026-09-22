@@ -710,6 +710,9 @@ function buildStats(agent = 'all', snapshot = null, cachedMeter = null) {
     usageProvider: 'all',
   });
   stats.chipDisplay = getChipDisplay();
+  stats.usageWarnings = traeUsage && traeUsage.diagnostics
+    && traeUsage.diagnostics.unavailable === 'compressed_logs'
+    ? ['TRAE Solo 用量暂不可获取；统计仅包含已采集的数据，缺失用量不代表零消耗。'] : [];
   const quotaWindows = codexQuotaState.windows || {};
   const quotaAccount = codexQuotaState.account && typeof codexQuotaState.account === 'object'
     ? {
@@ -719,6 +722,7 @@ function buildStats(agent = 'all', snapshot = null, cachedMeter = null) {
     : null;
   stats.codexQuota = {
     windows: quotaWindows,
+    observedWindows: codexQuotaState.observedWindows || [],
     status: codexQuotaState.status,
     statusText: quotaStatusLabel(codexQuotaState),
     updatedAt: codexQuotaState.updatedAt,

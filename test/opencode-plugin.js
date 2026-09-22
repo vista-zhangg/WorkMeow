@@ -141,12 +141,11 @@ async function main() {
   assert.strictEqual(got.filter((r) => r.body && r.body.event === 'UserPromptSubmit').length, 1, 'replayed user message must not re-post thinking');
   assert.strictEqual(got.filter((r) => r.body && r.body.event === 'Stop').length, 1, 'replayed finished message must not re-post Stop');
 
-  // session.idle right after a turn → a second Stop once the 300ms dedupe
-  // window has passed (it must NOT re-fire while dedupe is active).
+  // Completion is semantic, not just a 300ms debounce.
   await sleep(400); // let the finish-Stop dedupe window expire
   await ev('session.idle', { sessionID: 'sess-1' });
-  await until(() => got.filter((r) => r.body && r.body.event === 'Stop').length >= 2);
-  assert.strictEqual(got.filter((r) => r.body && r.body.event === 'Stop').length, 2, 'idle Stop re-posts after dedupe window');
+  await sleep(100);
+  assert.strictEqual(got.filter((r) => r.body && r.body.event === 'Stop').length, 1, 'idle does not repeat completion');
 
   // permission wait → notification
   await ev('permission.updated', { sessionID: 'sess-1', permission: { id: 'p1' } });
@@ -159,6 +158,36 @@ async function main() {
   const err = got.find((r) => r.body && r.body.event === 'StopFailure').body;
   assert.strictEqual(err.state, 'error');
   assert.strictEqual(err.api_error_type, 'boom');
+
+  const stopsBefore = got.filter((r) => r.body.event === 'Stop').length;
+  await ev('session.idle', { sessionID: 'sess-1' });
+  await ev('permission.asked', { sessionID: 'sess-3', id: 'permission-1' });
+  await ev('session.idle', { sessionID: 'sess-3' });
+  await until(() => got.some((r) => r.body.session_id === 'sess-3'));
+  assert.strictEqual(got.find((r) => r.body.session_id === 'sess-3').body.state, 'notification');
+  await ev('permission.replied', { sessionID: 'sess-3', reply: 'once' });
+  await hooks['tool.execute.before']({ tool: 'bash', sessionID: 'sess-3', callID: 'real-bash' });
+  await until(() => got.some((r) => r.body.session_id === 'sess-3' && r.body.tool_name === 'Bash'));
+  await ev('message.updated', { info: {
+    id: 'tool-message', sessionID: 'sess-3', role: 'assistant', finish: 'tool-calls',
+    modelID: 'free-model', cost: 0, tokens: { input: 10, output: 5 }, time: { completed: 1700000000000 },
+  } });
+  await sleep(100);
+  assert.strictEqual(got.filter((r) => r.body.event === 'Stop').length, stopsBefore,
+    'tool steps, permission waits and error idle do not emit completion');
+  const toolUsage = fs.readFileSync(usageFile, 'utf8').trim().split('\n').map(JSON.parse)
+    .find((r) => r.message_id === 'tool-message');
+  assert.strictEqual(toolUsage.ts, 1700000000000, 'usage uses completion time, not replay time');
+  assert.strictEqual(toolUsage.cost, 0, 'explicit zero cost is preserved');
+  await hooks['tool.execute.before']({ tool: 'task', sessionID: 'sess-3', callID: 'child' });
+  await until(() => got.some((r) => r.body.session_id === 'sess-3' && r.body.state === 'juggling'));
+  assert(got.some((r) => r.body.tool_name === 'Agent' && r.body.state === 'juggling'));
+  await ev('message.part.updated', { part: { id: 'text-3', messageID: 'tool-message', sessionID: 'sess-3', text: 'hello' } });
+  await ev('message.part.updated', { part: { id: 'text-3', messageID: 'tool-message', sessionID: 'sess-3', text: 'hello world' } });
+  await ev('session.idle', { sessionID: 'sess-3' });
+  await until(() => got.some((r) => r.body.session_id === 'sess-3' && r.body.event === 'Stop'));
+  assert.strictEqual(got.find((r) => r.body.session_id === 'sess-3' && r.body.event === 'Stop').body.assistant_last_output,
+    'hello world', 'full text updates replace the same part instead of concatenating duplicates');
 
   // no pet running (runtime.json gone) → everything stays silent, no throw
   fs.rmSync(path.join(home, '.workmeow', 'runtime.json'));

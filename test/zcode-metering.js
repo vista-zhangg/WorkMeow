@@ -31,6 +31,16 @@ assert.strictEqual(u.cacheWrite, 20);
 // Missing computed_total falls back to the category sum.
 assert.strictEqual(normalizeUsage({ input_tokens: 10, output_tokens: 5 }).tokens, 15);
 
+// Observed ZCode row: input includes its 129728 cache reads. Cost and merged
+// input must count those tokens once, at the cache rate.
+const inclusive = normalizeUsage({ input_tokens: 130312, output_tokens: 979,
+  computed_total_tokens: 131291, cache_read_input_tokens: 129728 });
+assert.strictEqual(inclusive.input, 584);
+assert.strictEqual(inclusive.tokens, 131291);
+assert.strictEqual(require('../backend/usage-stats').normalizeSourceRow('zcode', inclusive).inputTotal, 130312);
+assert.strictEqual(usageCost(inclusive, { input: 1, output: 2, cachedInput: 0.1, cacheWrite: 1.25 }),
+  (584 + 979 * 2 + 129728 * 0.1) / 1e6);
+
 // Cost estimation from the built-in tables.
 assert(usageCost(u, priceFor('glm-5.3', null)) > 0, 'glm estimate sane');
 assert.strictEqual(priceFor('GLM-5.3', null).input, priceFor('glm-4.6', null).input, 'glm family rows match');
@@ -85,6 +95,8 @@ async function main() {
     .run('t2', 'sess-stale', 'Bash', 'running', now - 25 * 60 * 1000, null);
   db.prepare('INSERT INTO tool_usage VALUES (?, ?, ?, ?, ?, ?)')
     .run('t3', 'sess1', 'Bash', 'completed', now - 1000, now - 990);
+  db.prepare('INSERT INTO tool_usage VALUES (?, ?, ?, ?, ?, ?)')
+    .run('t4', 'sess-cancelled', 'Bash', 'cancelled', now, null);
   // Recent titled session + archived + too-old sessions for the backfill query.
   db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?)')
     .run('sess1', 'D:\\proj', '标题一', now, null);
@@ -125,6 +137,7 @@ async function main() {
   assert.strictEqual(act.sess1.title, '标题一', 'title comes from the session table');
   assert(act['sess-tool'] && act['sess-tool'].at >= now, 'in-flight tool marks its session live');
   assert(!('sess-stale' in act), 'stale in-flight tool outside the window is ignored');
+  assert(!('sess-cancelled' in act), 'cancelled tool with no completion time is not running');
   assert(!('sess-arch' in act) && !('sess-old' in act), 'untouched sessions stay untouched');
 
   // Boot backfill: recent, non-archived sessions with titles — ZCode sessions
@@ -157,6 +170,20 @@ async function main() {
   await meter.rebuild();
   assert(meter.getStats().lifetime.tokens >= lifetimeBeforeRebuild,
     'rebuild preserves zcode lifetime');
+
+  // Existing v1 ledgers contain inflated cache costs; a restart must replace
+  // those aggregates from the source even when their watermark is up to date.
+  const legacyDir = path.join(root, 'legacy');
+  fs.mkdirSync(legacyDir);
+  fs.writeFileSync(path.join(legacyDir, 'zcode-usage.json'), JSON.stringify({
+    ...meter._state, schemaVersion: 1,
+    lifetime: { ...meter._state.lifetime, cost: 999 },
+  }));
+  const upgraded = createZcodeMetering({ dbPath, stateDir: legacyDir });
+  await upgraded.scan();
+  assert.deepStrictEqual(upgraded.getStats().lifetime, meter.getStats().lifetime,
+    'old cached aggregates are recalculated from SQLite');
+  upgraded.stop();
 
   // A database that disappears must degrade to empty scans, not throw.
   const missing = createZcodeMetering({

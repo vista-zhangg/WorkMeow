@@ -4,8 +4,8 @@
 //
 // ZCode persists one row per completed model request in
 //   ~/.zcode/cli/db/db.sqlite (WAL mode, table `model_usage`)
-// with Claude-style token categories: `input_tokens` excludes cache, and
-// cache reads/writes live in their own columns. Rows carry model id, status,
+// with input_tokens including cache on current providers. The ledger converts
+// cache reads/writes into separate categories. Rows carry model id, status,
 // timestamps and `query_source` (main_turn / session_title / …), so the meter
 // can exclude background title-generation requests from the message counter
 // while still counting their very real token spend.
@@ -35,7 +35,7 @@ const DEFAULT_DB_PATH = path.join(os.homedir(), '.zcode', 'cli', 'db', 'db.sqlit
 const STATE_PATH = path.join(STATE_DIR, 'zcode-usage.json');
 const PRICING_CACHE_PATH = path.join(STATE_DIR, 'pricing-cache.json'); // models.dev sync cache
 const PRICING_OVERRIDE_PATH = path.join(STATE_DIR, 'zcode-pricing.json');
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2; // Rebuild cached totals/costs using the corrected cache semantics.
 const DAILY_KEEP_DAYS = 95;
 const BACKFILL_MS = DAILY_KEEP_DAYS * 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 2000;
@@ -134,15 +134,20 @@ function emptyUsage() {
   return { tokens: 0, input: 0, output: 0, cachedInput: 0, reasoningOutput: 0, cacheWrite: 0, cost: 0 };
 }
 
-// Claude-style categories: input excludes cache; cache read/write are their
-// own columns. computed_total_tokens is ZCode's own authoritative total.
+// ZCode's current input_tokens includes cache. Normalize to the separate-cache
+// ledger contract used by usage-stats. Older providers may report exclusive
+// input; the authoritative total distinguishes those rows.
 function normalizeUsage(row) {
-  const input = num(row && row.input_tokens);
+  const reportedInput = num(row && row.input_tokens);
   const output = num(row && row.output_tokens);
   const cachedInput = num(row && row.cache_read_input_tokens);
   const cacheWrite = num(row && row.cache_creation_input_tokens);
+  const total = num(row && row.computed_total_tokens);
+  const exclusive = total > reportedInput + output
+    && total === reportedInput + output + cachedInput + cacheWrite;
+  const input = exclusive ? reportedInput : Math.max(0, reportedInput - cachedInput - cacheWrite);
   return {
-    tokens: num(row && row.computed_total_tokens) || (input + output + cachedInput + cacheWrite),
+    tokens: total || (reportedInput + output),
     input,
     output,
     cachedInput,
@@ -312,7 +317,7 @@ function createZcodeMetering(options = {}) {
       let lastId = String(state.watermark.id || '');
       for (;;) {
         const rows = db.prepare(
-          `SELECT id, session_id, query_source, agent, model_id, status, completed_at,
+          `SELECT id, session_id, query_source, model_id, status, completed_at,
                   input_tokens, output_tokens, reasoning_tokens,
                   cache_creation_input_tokens, cache_read_input_tokens, computed_total_tokens
              FROM model_usage
@@ -374,7 +379,9 @@ function createZcodeMetering(options = {}) {
             || (ts === num(state.watermark.ts) && id > String(state.watermark.id || ''))) {
             state.watermark = { ts, id };
           }
-          if (ts > 0) touch(String(row.session_id || ''), ts, null);
+          if (ts > 0 && !TITLE_QUERY_SOURCES.has(String(row.query_source || ''))) {
+            touch(String(row.session_id || ''), ts, null);
+          }
         }
         for (const tool of zcodeDb.inFlightTools(db, Date.now() - TOOL_LIVE_MS)) {
           touch(tool.sessionId, Date.now(), null);

@@ -213,6 +213,11 @@ async function main() {
   assert.strictEqual(latest.windows.fiveHour.remainingPercent, 5);
   assert.strictEqual(latest.windows.weekly.remainingPercent, 60);
   assert.strictEqual(latest.severity, 'red');
+  assert.deepStrictEqual(latest.observedWindows, ['fiveHour', 'weekly']);
+  live._accept(payload(null, null), true);
+  assert.strictEqual(latest.windows.fiveHour, null, 'missing values are never replaced with stale percentages');
+  assert.deepStrictEqual(latest.observedWindows, ['fiveHour', 'weekly'],
+    'an empty quota response preserves previously observed windows');
 
   proc.stdout.write(`${JSON.stringify({
     method: 'account/updated', params: { authMode: 'chatgpt', planType: 'pro' },
@@ -228,11 +233,35 @@ async function main() {
   })}\n`);
   await tick();
   assert.strictEqual(writes[5].method, 'account/rateLimits/read');
+  assert.deepStrictEqual(latest.observedWindows, [], 'a new account does not inherit the previous 5h window');
   proc.stdout.write(`${JSON.stringify({ id: writes[5].id, result: payload(null, window(12, 10080, resetWeek)) })}\n`);
   await tick();
   assert.strictEqual(latest.account.email, 'second@example.com');
   assert.strictEqual(latest.windows.fiveHour, null);
   assert.strictEqual(latest.windows.weekly.remainingPercent, 88);
+  assert.deepStrictEqual(latest.observedWindows, ['weekly']);
+
+  // A failed account read during a refresh has no new identity information.
+  // Preserve only the layout, including while the App Server reconnects.
+  live._handleMessage({ method: 'account/updated', params: {} });
+  assert.deepStrictEqual(latest.observedWindows, ['weekly']);
+  live._handleMessage({ id: writes.at(-1).id, error: { message: 'temporary network failure' } });
+  assert.strictEqual(latest.status, 'unavailable');
+  assert.strictEqual(latest.windows.weekly, null);
+  assert.deepStrictEqual(latest.observedWindows, ['weekly']);
+
+  // Returning to the first account restores its own observed layout before
+  // quota succeeds, without leaking any old values.
+  live._handleMessage({ method: 'account/updated', params: {} });
+  live._handleMessage({ id: writes.at(-1).id, result: {
+    account: { type: 'chatgpt', email: 'first@example.com', planType: 'plus' },
+  } });
+  assert.deepStrictEqual(latest.observedWindows, ['fiveHour', 'weekly']);
+  live._handleMessage({ id: writes.at(-1).id, error: { message: 'quota unavailable' } });
+  assert.strictEqual(latest.status, 'unavailable');
+  assert.deepStrictEqual(latest.observedWindows, ['fiveHour', 'weekly']);
+  live._restartForAccountChange();
+  assert.deepStrictEqual(latest.observedWindows, ['fiveHour', 'weekly'], 'reconnect preserves the window layout');
   live.stop();
   assert.strictEqual(proc.killed, true);
 

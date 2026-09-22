@@ -26,8 +26,8 @@
 //    [MetadataHandler] received metadata / [RealtimeEventService] 等 → 活动心跳
 //    cwd 从 realtime 事件的 local_folder 提取，标题从 session_updated 的 title。
 //
-// 状态降级：文件停止增长 8 秒 → idle（TRAE 日志是事项完成才落盘，停写即停工，
-// 不像 Claude transcript 会持续流式追加）。会话陈旧 10 分钟 → 退场。
+// 旧 stdout 静默 8 秒 → idle；renderer 用明确的回合结束事件。
+// renderer 按会话隔离，后台同步不提供活性；异常退出由 core 的 stale 兜底。
 //
 // 大文件安全：日志可达 70MB+。增量 tail（单轮 256KB），backfill 只探尾部不回放。
 
@@ -97,8 +97,8 @@ const RE_R_MEANINGFUL = /(SessionStatusTrace|PlanItemHandler|sse-summary|plan_it
 // prevStatus 缺失 = core.set 启动恢复（历史会话回填），不能当成实时迁移。
 function rendererStatusUpdate(next, prev) {
   if (next === 1) return { state: 'thinking', event: 'UserPromptSubmit' };
-  if (next === 3 && prev === 5) return { state: 'thinking', event: 'UserPromptSubmit' }; // 旧会话新回合
-  if ((next === 5 || next === 4) && prev === 3) return { state: 'idle', event: 'TraeIdle' };
+  if (next === 3 && (prev === 5 || prev === 4)) return { state: 'thinking', event: 'UserPromptSubmit' }; // 旧会话新回合
+  if ((next === 5 || next === 4) && (prev === 3 || prev === 1)) return { state: 'idle', event: 'TraeIdle' };
   return null; // 其余（启动恢复 / 1→3 / 重复同步）只算活动
 }
 
@@ -118,6 +118,11 @@ function tailJson(line) {
     const v = JSON.parse(line.slice(a, b + 1));
     return v && typeof v === 'object' ? v : null;
   } catch { return null; }
+}
+
+function rendererSessionId(p) {
+  const sid = p && (p.eventSessionId || p.sessionId || p.session_id || p.chat_session_id);
+  return typeof sid === 'string' && sid ? sid : null;
 }
 
 // JSON 字符串值反转义（"d:\\Desktop\\x" → d:\Desktop\x）。
@@ -216,6 +221,8 @@ function createTraeWatch(deps) {
   }
 
   function update(t, state, event, extra) {
+    if (!t.sid) return;
+    t.state = state;
     core.updateSession(t.sid, state, event, { ...baseFields(t), ...extra });
   }
 
@@ -223,9 +230,7 @@ function createTraeWatch(deps) {
   // 会话归属：payload 里任意一种 session id 键；一个 renderer.log 交错多会话时
   // 逐行跟随（与旧 ai-agent 逻辑一致）。
   function handleRendererLine(t, line) {
-    const sid = RE_R_SID.exec(line);
-    if (sid) t.sid = sid[1];
-    // cwd 只取第一次（一个窗口 = 一个项目文件夹）；title 持续跟随最新值
+    // Ownership is resolved before dispatch; metadata belongs to this session.
     if (t.sid) {
       if (!t.cwd) {
         const cwd = RE_R_CWD.exec(line);
@@ -241,7 +246,7 @@ function createTraeWatch(deps) {
     if (RE_R_STATUS.test(line)) {
       const p = tailJson(line);
       const next = p ? Number(p.nextStatus) : 0;
-      const prev = p ? Number(p.prevStatus) : 0;
+      const prev = p && p.prevStatus != null ? Number(p.prevStatus) : NaN;
       const mapped = rendererStatusUpdate(next, prev);
       if (mapped) update(t, mapped.state, mapped.event, { sessionTitle: t.title || null });
       // 启动恢复（core.set，无 prevStatus）不算活动，避免给历史会话建档
@@ -289,8 +294,12 @@ function createTraeWatch(deps) {
     }
 
     // ⑤ 流式元数据/回合生命周期/realtime 同步：活动心跳，不发事件
+    if (RE_R_STREAM_LIFE.test(line) && /Stream stopped/.test(line)) {
+      update(t, 'idle', 'TraeIdle');
+      return true;
+    }
     if (RE_R_METADATA.test(line) || RE_R_STREAM_LIFE.test(line)) return true;
-    return true;
+    return false; // session list/title synchronization is not execution evidence
   }
 
   // 从一行日志提取信号，转成 core 事件。返回 true 表示这是「有意义的活动行」
@@ -301,7 +310,22 @@ function createTraeWatch(deps) {
       // renderer.log 空闲时也被 list_chat_sessions 轮询等后台流量持续写入，
       // 先过活动门控再解析，否则打工喵会永远停在 working。
       if (!RE_R_MEANINGFUL.test(line)) return false;
-      return handleRendererLine(t, line);
+      const p = tailJson(line);
+      // Window logs interleave multiple projects and sessions. Never inherit
+      // ownership from the previous line (including malformed/global events).
+      const sid = rendererSessionId(p);
+      if (typeof sid !== 'string' || !sid) return false;
+      let session = t.sessions.get(sid);
+      if (!session) {
+        session = { ...newTracker(t.fp), sid };
+        t.sessions.set(sid, session);
+      }
+      const active = handleRendererLine(session, line);
+      if (active) {
+        session.lastActivityAt = Date.now();
+        if (session.state && core.touchSession) core.touchSession(sid, session.lastActivityAt, session.title);
+      }
+      return active;
     }
 
     const sid = RE_SESSION.exec(line);
@@ -390,11 +414,12 @@ function createTraeWatch(deps) {
       if (start > 0) lines.shift();
       // 从尾部往前找最后一个带 session_id 的行
       for (let i = lines.length - 1; i >= 0; i--) {
-        const sid = sidRe.exec(lines[i]);
-        if (sid) { t.sid = sid[1]; break; }
+        const sid = isRenderer ? rendererSessionId(tailJson(lines[i])) : (sidRe.exec(lines[i]) || [])[1];
+        if (sid) { t.sid = sid; break; }
       }
       // cwd 从尾部找
       for (let i = lines.length - 1; i >= 0; i--) {
+        if (isRenderer && rendererSessionId(tailJson(lines[i])) !== t.sid) continue;
         const repo = cwdRe.exec(lines[i]);
         if (repo) {
           t.cwd = isRenderer ? (unquoteJson(repo[1]) || t.cwd) : repo[1];
@@ -404,12 +429,14 @@ function createTraeWatch(deps) {
       // 标题（仅 renderer.log 有）：从尾部往前找第一个非空 title
       if (isRenderer) {
         for (let i = lines.length - 1; i >= 0 && !t.title; i--) {
+          if (rendererSessionId(tailJson(lines[i])) !== t.sid || !RE_R_SESSION_LIFE.test(lines[i])) continue;
           const title = RE_R_TITLE.exec(lines[i]);
           if (title) t.title = unquoteJson(title[1]) || null;
         }
       }
     }
     if (!t.sid) return; // 找不到 session_id，不建档
+    if (isRenderer) t.sessions.set(t.sid, { ...newTracker(t.fp), sid: t.sid, cwd: t.cwd, title: t.title });
     core.seedSession({
       id: t.sid,
       agentId: 'trae',
@@ -455,6 +482,7 @@ function createTraeWatch(deps) {
       kind: /renderer\.log$/.test(fp) ? 'renderer' : 'agent',
       title: null,
       toolItems: new Map(),
+      sessions: new Map(),
     };
   }
 
@@ -523,7 +551,16 @@ function createTraeWatch(deps) {
       t.lastSize = st.size;
 
       // 静默超时：从 working/thinking 降回 idle
-      if (t.sid && t.lastActivityAt) {
+      if (t.kind === 'renderer') {
+        for (const [sid, session] of t.sessions) {
+          const silence = now - session.lastActivityAt;
+          // Explicit renderer lifecycle events own completion. An 8-second
+          // gap is normal during thinking, long tools and approval waits.
+          if (silence > RETIRE_AFTER_SILENCE_MS && session.state !== 'notification') {
+            t.sessions.delete(sid);
+          }
+        }
+      } else if (t.sid && t.lastActivityAt) {
         const silent = now - t.lastActivityAt;
         if (silent > IDLE_AFTER_SILENCE_MS) {
           // 只发一次 idle，不重复打

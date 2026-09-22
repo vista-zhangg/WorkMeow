@@ -131,12 +131,13 @@ function normalizeUsage(raw) {
     reasoningOutput: num(t.reasoning),
     cacheWrite,
     cost: num(raw && raw.cost),
+    costReported: typeof (raw && raw.cost) === 'number' && Number.isFinite(raw.cost) && raw.cost >= 0,
   };
 }
 
 function usageCost(usage, price) {
   const u = usage || emptyUsage();
-  if (num(u.cost) > 0) return u.cost; // provider-reported cost wins
+  if (u.costReported || num(u.cost) > 0) return num(u.cost); // explicit zero is also authoritative
   const p = normalizePriceRow(price);
   return (num(u.input) * p.input
     + num(u.output) * p.output
