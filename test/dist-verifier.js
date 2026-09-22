@@ -8,7 +8,20 @@ const path = require('path');
 const yaml = require('js-yaml');
 const { artifactNames, verifyDist } = require('../scripts/verify-dist');
 const { finalizeDist } = require('../scripts/finalize-dist');
-const { verifyReleaseAssets } = require('../scripts/publish-release');
+const { verifyReleaseAssets, getReleaseByTag } = require('../scripts/publish-release');
+
+// GitHub's /releases/tags endpoint returns 404 for drafts, even to the publisher.
+const draftRelease = { id: 123, tag_name: 'v9.8.7', draft: true, assets: [] };
+const requestedRoutes = [];
+const draftApi = (route) => {
+  requestedRoutes.push(route);
+  if (route === 'releases?per_page=100') return [draftRelease];
+  if (route === 'releases/123') return draftRelease;
+  throw new Error(`Unexpected API route: ${route}`);
+};
+assert.strictEqual(getReleaseByTag(draftApi, 'v9.8.7'), draftRelease);
+assert.deepStrictEqual(requestedRoutes, ['releases?per_page=100', 'releases/123']);
+assert.strictEqual(getReleaseByTag(draftApi, 'v9.8.8'), null);
 
 function createFixture(dist) {
   const version = '9.8.7';

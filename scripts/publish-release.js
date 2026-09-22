@@ -7,6 +7,12 @@ const { verifyDist } = require('./verify-dist');
 
 const REPOSITORY = 'vista-zhangg/WorkMeow';
 
+function getReleaseByTag(api, tag) {
+  // The tag endpoint only exposes published releases. Resolve draft IDs via the list.
+  const release = api('releases?per_page=100').find((item) => item.tag_name === tag);
+  return release ? api(`releases/${release.id}`) : null;
+}
+
 function verifyReleaseAssets(release, result) {
   const assets = release.assets || [];
   if (release.tag_name !== `v${result.version}` || assets.length !== result.files.length) {
@@ -33,7 +39,7 @@ async function publishRelease() {
   const gh = (...args) => execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const api = (route) => JSON.parse(gh('api', `repos/${REPOSITORY}/${route}`));
   // Resume only an unpublished draft. Published versions are never overwritten.
-  const existing = api('releases?per_page=100').find((release) => release.tag_name === tag);
+  const existing = getReleaseByTag(api, tag);
   if (existing && !existing.draft) throw new Error(`${tag} is already published; publish a new version instead`);
   if (existing) {
     gh('release', 'edit', tag, '--repo', REPOSITORY, '--title', `打工喵 WorkMeow ${result.version}`, '--notes-file', notes);
@@ -42,20 +48,23 @@ async function publishRelease() {
     gh('release', 'create', tag, ...result.files.map((name) => path.join(result.dist, name)),
       '--draft', '--verify-tag', '--repo', REPOSITORY, '--title', `打工喵 WorkMeow ${result.version}`, '--notes-file', notes);
   }
+  const draft = getReleaseByTag(api, tag);
+  if (!draft || !draft.draft) throw new Error('Expected an unpublished draft before asset verification');
+  const releaseRoute = `releases/${draft.id}`;
   // GitHub may need a short interval to populate newly uploaded asset digests.
   for (let attempt = 0; ; attempt++) {
-    try { verifyReleaseAssets(api(`releases/tags/${tag}`), result); break; }
+    try { verifyReleaseAssets(api(releaseRoute), result); break; }
     catch (error) {
       if (attempt === 4) throw error;
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
   gh('release', 'edit', tag, '--repo', REPOSITORY, '--draft=false', '--latest');
-  const published = api(`releases/tags/${tag}`);
+  const published = api(releaseRoute);
   verifyReleaseAssets(published, result);
   if (published.draft || api('releases/latest').tag_name !== tag) throw new Error('Release was not promoted to Latest');
   console.log(`Published and verified: ${published.html_url}`);
 }
 
 if (require.main === module) publishRelease().catch((error) => { console.error(error.message); process.exitCode = 1; });
-module.exports = { verifyReleaseAssets };
+module.exports = { verifyReleaseAssets, getReleaseByTag };
