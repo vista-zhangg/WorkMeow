@@ -2174,6 +2174,20 @@ function toggleQuotaPopover() {
   else openQuotaPopover();
 }
 
+function updateCapsuleState(context, label) {
+  const changed = chip.dataset.context !== context;
+  chip.dataset.context = context;
+  chipContext.textContent = label;
+  // Animate only an actual state change, never the timer or the window bounds.
+  if (changed && !chipContext.hidden && typeof chipContext.animate === 'function'
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    chipContext.animate([
+      { opacity: .35, transform: 'translateY(3px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], { duration: 280, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+  }
+}
+
 function renderContextCapsule(s) {
   if (!chip || !chipContext || !s || !petInsights || typeof petInsights.context !== 'function') return;
   const display = s.chipDisplay || { showCat: true, showStatus: true, showQuota: true, showTokens: false, showCost: true };
@@ -2221,8 +2235,7 @@ function renderContextCapsule(s) {
   const purrVisible = purrPaydaySummary && purrPaydayUntil > now && purrEnvironmentClear(s);
   if (purrVisible) {
     const purr = purrPaydaySummary;
-    chip.dataset.context = 'purr';
-    chipContext.textContent = t('purr.title');
+    updateCapsuleState('purr', t('purr.title'));
     chipTokens.textContent = `${compactTokens(purr.tokens)} tokens`;
     chipCost.textContent = '$' + (Number(purr.cost) || 0).toFixed(3);
     chip.setAttribute('aria-label', purr.copy || t('purr.ariaLabel'));
@@ -2282,10 +2295,10 @@ function renderContextCapsule(s) {
     title = `${t('privacy.enabled')} · ${title}`;
   }
 
-  chip.dataset.context = showDone
+  const capsuleState = showDone
     ? 'done'
     : (info.kind === 'active' ? `active-${info.state}` : info.kind);
-  chipContext.textContent = label;
+  updateCapsuleState(capsuleState, label);
   chipTokens.textContent = compactTokens(usage.tokens) + ' tokens';
   chipCost.textContent = '$' + usage.cost.toFixed(3);
   chip.setAttribute('aria-label', `${title}${detail ? ` · 今日 ${detail}` : ''}`);

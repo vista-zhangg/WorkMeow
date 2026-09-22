@@ -82,7 +82,7 @@ function shortLabel(key) {
   return AGENTS[key] ? AGENTS[key].short : (key || 'Claude');
 }
 
-module.exports = {
+const agentRegistry = {
   AGENTS,
   SHORT_KEYS,
   shortKey,
@@ -93,4 +93,5 @@ module.exports = {
   shortLabel,
 };
 
-if (typeof window !== 'undefined') window.WorkMeowAgents = module.exports;
+if (typeof module !== 'undefined' && module.exports) module.exports = agentRegistry;
+if (typeof window !== 'undefined') window.WorkMeowAgents = agentRegistry;

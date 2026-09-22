@@ -11,9 +11,9 @@ let usageRange = 'today';
 
 const THEME = {
   name: '打工喵',
-  color: '#3b82f6',
-  barGradient: 'linear-gradient(180deg, #7fb3f8, #3b82f6)',
-  nowGradient: 'linear-gradient(180deg, #bfdcff, #60a5fa)',
+  color: '#0071e3',
+  barGradient: 'linear-gradient(180deg, #91bdf1, #568fde)',
+  nowGradient: 'linear-gradient(180deg, #4c9af0, #0071e3)',
 };
 
 function fmt(n) {
@@ -43,7 +43,7 @@ function contextLabel(value) {
 let lastStats = null;
 
 function applyAgentTheme() {
-  // 主题已由 panel.css 的淡蓝配色承担，这里只填品牌与静态文案。
+  // The stylesheet owns the surface; only populate brand and static copy here.
   $('brand-title').textContent = THEME.name;
   const badge = $('agent-badge');
   if (badge) badge.classList.add('hidden');
@@ -155,9 +155,8 @@ function renderRangeDetails(s) {
 
   const hitRateEl = $('cache-hit-rate');
   hitRateEl.textContent = cacheStats.hitRate.toFixed(1) + '%';
-  if (cacheStats.hitRate >= 50) hitRateEl.style.color = '#34c759';
-  else if (cacheStats.hitRate >= 20) hitRateEl.style.color = '#d4a000';
-  else hitRateEl.style.color = '#2563eb';
+  if (cacheStats.hitRate >= 50) hitRateEl.style.color = '#24865b';
+  else hitRateEl.style.color = '#242529';
 
   $('cache-input-total').textContent = `${t('panel.cacheInputTotal')} ${fmt(cacheStats.totalInputTokens)}`;
   $('cache-tokens').textContent = fmt(cacheStats.cacheReadTokens);
@@ -484,12 +483,24 @@ document.addEventListener('keydown', (e) => {
   window.pet.closePanel();
 });
 
+function animateChartChange() {
+  const chart = $('view-hours');
+  if (typeof chart.animate !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  chart.getAnimations().forEach((animation) => animation.cancel());
+  chart.animate([{ opacity: .3, transform: 'translateY(4px)' }, { opacity: 1, transform: 'translateY(0)' }],
+    { duration: 300, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+}
+
 document.querySelectorAll('.metric-tabs .mt').forEach((b) =>
   b.addEventListener('click', () => {
     usageMetric = b.dataset.metric === 'cost' ? 'cost' : 'tokens';
-    document.querySelectorAll('.metric-tabs .mt').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.metric-tabs .mt').forEach((x) => {
+      x.classList.toggle('active', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
     if (lastStats) {
       renderChart(lastStats);
+      animateChartChange();
       setTimeout(fitPanelHeight, 50);
     }
   })
@@ -498,10 +509,14 @@ document.querySelectorAll('.metric-tabs .mt').forEach((b) =>
 document.querySelectorAll('.range-tabs .range').forEach((b) =>
   b.addEventListener('click', () => {
     usageRange = ['today', '7d', '30d'].includes(b.dataset.range) ? b.dataset.range : 'today';
-    document.querySelectorAll('.range-tabs .range').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.range-tabs .range').forEach((x) => {
+      x.classList.toggle('active', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
     if (lastStats) {
       renderRangeDetails(lastStats);
       renderChart(lastStats);
+      animateChartChange();
       setTimeout(fitPanelHeight, 50);
     }
   })

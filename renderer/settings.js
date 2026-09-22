@@ -7,7 +7,10 @@ const $ = (id) => document.getElementById(id);
 async function initializeChipDisplay() {
   const keys = ['showCat', 'showStatus', 'showQuota', 'showTokens', 'showCost'];
   const status = $('chip-display-status');
-  const render = (value) => keys.forEach(key => $(key + '-toggle').setAttribute('aria-checked', String(value[key] === true)));
+  const render = (value) => {
+    keys.forEach(key => $(key + '-toggle').setAttribute('aria-checked', String(value[key] === true)));
+    renderChipPreview(value);
+  };
   keys.forEach(key => { $(key + '-toggle').disabled = true; });
   try {
     render(await window.pet.getChipDisplay());
@@ -15,19 +18,28 @@ async function initializeChipDisplay() {
       const button = $(key + '-toggle');
       button.disabled = false;
       button.addEventListener('click', async () => {
-        button.disabled = true;
+        keys.forEach(key => { $(key + '-toggle').disabled = true; });
         try {
           const result = await window.pet.setChipDisplay({ [key]: button.getAttribute('aria-checked') !== 'true' });
           if (!result || !result.ok) throw new Error('save failed');
           render(result);
-          status.textContent = '已保存，喵底部展示已更新';
+          status.textContent = '已保存，桌面胶囊已更新';
         } catch { status.textContent = '保存失败，请重试'; }
-        finally { button.disabled = false; }
+        finally { keys.forEach(key => { $(key + '-toggle').disabled = false; }); }
       });
     });
   } catch { status.textContent = '展示设置加载失败，请重新打开设置'; }
 }
 initializeChipDisplay();
+
+function renderChipPreview(value) {
+  const fields = { showCat: 'cat', showStatus: 'status', showQuota: 'quota', showTokens: 'tokens', showCost: 'cost' };
+  for (const [key, name] of Object.entries(fields)) $('preview-' + name).hidden = value[key] !== true;
+  $('preview-dot').hidden = value.showCat === true;
+  $('preview-tokens-sep').hidden = !value.showTokens || !(value.showStatus || value.showQuota);
+  $('preview-cost-sep').hidden = !value.showCost || !(value.showStatus || value.showQuota || value.showTokens);
+  $('preview-empty').hidden = !!(value.showStatus || value.showQuota || value.showTokens || value.showCost);
+}
 
 const toggle = $('auto-launch-toggle');
 const statusEl = $('setting-status');
@@ -95,6 +107,7 @@ function setTab(tabId) {
     const active = tab.dataset.tab === tabId;
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
   }
   for (const panel of document.querySelectorAll('.settings-panel')) {
     const active = panel.dataset.panel === tabId;
@@ -102,6 +115,7 @@ function setTab(tabId) {
     panel.hidden = !active;
   }
   if (tabId === 'expressions') renderAssets();
+  $('settings-content').scrollTop = 0;
 }
 
 function renderStatus(messageKey = null, kind = '') {
@@ -733,7 +747,22 @@ assetAdd.addEventListener('click', () => importExpression('append'));
 assetReplace.addEventListener('click', () => importExpression('replace-one'));
 assetRemove.addEventListener('click', removeSelectedExpression);
 assetReset.addEventListener('click', resetSlot);
-for (const tab of document.querySelectorAll('.settings-tab')) tab.addEventListener('click', () => setTab(tab.dataset.tab));
+const settingsTabs = [...document.querySelectorAll('.settings-tab')];
+for (const tab of settingsTabs) {
+  tab.addEventListener('click', () => setTab(tab.dataset.tab));
+  tab.addEventListener('keydown', (event) => {
+    const index = settingsTabs.indexOf(tab);
+    let next;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') next = (index + 1) % settingsTabs.length;
+    else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') next = (index - 1 + settingsTabs.length) % settingsTabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = settingsTabs.length - 1;
+    else return;
+    event.preventDefault();
+    setTab(settingsTabs[next].dataset.tab);
+    settingsTabs[next].focus();
+  });
+}
 if (window.pet.onPetAssets) window.pet.onPetAssets((catalog) => {
   assetCatalog = ASSETS.normalizeCatalog(catalog);
   renderAssets();

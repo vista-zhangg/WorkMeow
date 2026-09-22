@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.7.14-F6A04A" alt="Version 1.7.14">
+    <img src="https://img.shields.io/badge/version-1.8.0-F6A04A" alt="Version 1.8.0">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -127,6 +127,7 @@ The main process owns watcher lifecycles, the tray, and windows. The backend sta
 
 - [Chinese user guide](docs/介绍.md)
 - [Chinese local deployment and packaging guide](docs/LOCAL_DEPLOYMENT.md)
+- [Release process and compatibility policy](docs/RELEASE.md)
 - [State machine and rendering specification](STATES.md)
 - [Privacy and data boundaries — bilingual](docs/PRIVACY.md)
 - [Contributing guide — bilingual](CONTRIBUTING.md)

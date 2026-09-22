@@ -12,7 +12,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.7.14-F6A04A" alt="Version 1.7.14">
+    <img src="https://img.shields.io/badge/version-1.8.0-F6A04A" alt="Version 1.8.0">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -129,6 +129,7 @@ Codex App Server ───────> 托盘右键菜单（5h / 7d）+ 临界�
 
 - [用户使用介绍](docs/介绍.md)
 - [本地部署与打包](docs/LOCAL_DEPLOYMENT.md)
+- [版本发布流程](docs/RELEASE.md)
 - [状态机与渲染规范](STATES.md)
 - [隐私与数据边界（中英双语）](docs/PRIVACY.md)
 - [贡献指南（中英双语）](CONTRIBUTING.md)

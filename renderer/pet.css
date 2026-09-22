@@ -5,7 +5,7 @@ html, body {
   height: 100%;
   background: transparent;
   overflow: hidden;
-  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-family: var(--ui-font);
   user-select: none;
   -webkit-user-select: none;
 }

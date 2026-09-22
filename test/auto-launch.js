@@ -23,7 +23,7 @@ assert(/tray\.settings/.test(main), 'tray menu must expose a settings entry');
 assert(/GET_AUTO_LAUNCH/.test(channels) && /SET_AUTO_LAUNCH/.test(channels), 'settings must have dedicated IPC channels');
 assert(/getAutoLaunch:/.test(preload) && /setAutoLaunch:/.test(preload), 'preload must expose auto-launch settings APIs');
 assert(/role="switch"/.test(settingsHtml) && /auto-launch-toggle/.test(settingsJs), 'settings UI must provide an accessible toggle');
-assert(/linear-gradient\(165deg/.test(settingsCss) && /border-radius: 18px/.test(settingsCss), 'settings UI must retain the glass panel style');
+assert(/-webkit-app-region: drag/.test(settingsCss), 'frameless settings must retain a draggable titlebar');
 assert.strictEqual(i18n.DICT.zh['tray.settings'], '设置');
 assert.strictEqual(i18n.DICT.zh['settings.autoLaunchTitle'], '开机自动启动');
 

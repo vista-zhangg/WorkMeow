@@ -283,15 +283,16 @@ function openPanel() {
   panelHeight = 0;
   const win = new BrowserWindow({
     icon: WINDOW_ICON,
-    width: 580,
+    width: 620,
     height: 850,
+    minWidth: 420,
     minHeight: 500,
     frame: false,
     transparent: false,
     resizable: true,
     skipTaskbar: false,
     show: false,
-    backgroundColor: '#eef4fc', // 与面板淡蓝配色一致，避免加载白闪
+    backgroundColor: '#f5f5f7', // 与界面底色一致，避免加载闪烁
     webPreferences: {
       preload: PRELOAD,
       contextIsolation: true,
@@ -340,7 +341,7 @@ function openSettings() {
     skipTaskbar: false,
     show: false,
     center: true,
-    backgroundColor: '#eef4fc',
+    backgroundColor: '#f5f5f7',
     webPreferences: {
       preload: PRELOAD,
       contextIsolation: true,

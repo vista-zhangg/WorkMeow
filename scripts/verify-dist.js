@@ -3,72 +3,55 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
 
 const root = path.resolve(__dirname, '..');
 
 function artifactNames(version) {
-  const prefix = `WorkMeow-${version}-Windows-x64`;
-  return [`${prefix}.exe`, `${prefix}.exe.blockmap`, 'latest.yml', 'SHA256SUMS.txt'];
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Invalid release version');
+  return [`WorkMeow-${version}-Windows-x64.exe`, 'latest.yml'];
 }
 
-function parseChecksums(text) {
-  const checksums = new Map();
-  for (const line of String(text).split(/\r?\n/)) {
-    if (!line) continue;
-    const match = /^([0-9a-f]{64})  (.+)$/i.exec(line);
-    if (!match) throw new Error(`Invalid SHA256SUMS line: ${line}`);
-    checksums.set(match[2], match[1].toLowerCase());
+// Also used before cleanup: a missing, incomplete or mismatched new build must
+// never cause a valid old installer to be removed.
+function verifyArtifacts(options = {}) {
+  const dist = path.resolve(options.dist || path.join(root, 'dist'));
+  const version = options.version || require(path.join(root, 'package.json')).version;
+  const files = artifactNames(version);
+  for (const name of files) {
+    const file = path.join(dist, name);
+    if (!fs.existsSync(file) || !fs.lstatSync(file).isFile()) throw new Error(`Missing build artifact: ${name}`);
+    if (fs.statSync(file).size === 0) throw new Error(`Empty build artifact: ${name}`);
   }
-  return checksums;
-}
-
-function sha256(file) {
-  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const exe = fs.readFileSync(path.join(dist, files[0]));
+  const peOffset = exe.length >= 64 ? exe.readUInt32LE(60) : -1;
+  if (exe.toString('ascii', 0, 2) !== 'MZ' || peOffset < 64 || peOffset + 4 > exe.length
+      || exe.readUInt32LE(peOffset) !== 0x4550) throw new Error('Invalid Windows PE installer');
+  const updateFile = fs.readFileSync(path.join(dist, 'latest.yml'));
+  if (updateFile.length > 32768) throw new Error('Update metadata is unexpectedly large');
+  const info = yaml.load(updateFile.toString('utf8'), { schema: yaml.JSON_SCHEMA });
+  if (!info || info.version !== version) throw new Error(`latest.yml version is not ${version}`);
+  if (!Array.isArray(info.files) || info.files.length !== 1 || info.files[0].url !== files[0]
+      || info.path !== files[0]) throw new Error('latest.yml must reference only the current installer');
+  const missingSize = info.files[0].size == null && options.allowMissingSize === true;
+  if (!missingSize && info.files[0].size !== exe.length) throw new Error('latest.yml EXE size is stale');
+  const sha512 = crypto.createHash('sha512').update(exe).digest('base64');
+  if (info.files[0].sha512 !== sha512 || info.sha512 !== sha512) throw new Error('latest.yml SHA-512 mismatch');
+  const sha256 = Object.fromEntries([[files[0], exe], ['latest.yml', updateFile]]
+    .map(([name, data]) => [name, crypto.createHash('sha256').update(data).digest('hex')]));
+  return { dist, version, files, sha256, metadata: info, installerSize: exe.length };
 }
 
 function verifyDist(options = {}) {
-  const dist = options.dist || path.join(root, 'dist');
-  const version = options.version || require(path.join(root, 'package.json')).version;
-  const expected = artifactNames(version).sort();
-  if (!fs.existsSync(dist)) throw new Error(`Missing build directory: ${dist}`);
-
-  const entries = fs.readdirSync(dist, { withFileTypes: true });
-  if (entries.some((entry) => !entry.isFile())) throw new Error('dist must contain files only');
+  const result = verifyArtifacts(options);
+  const entries = fs.readdirSync(result.dist, { withFileTypes: true });
   const actual = entries.map((entry) => entry.name).sort();
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(`Unexpected dist contents\nExpected: ${expected.join(', ')}\nActual: ${actual.join(', ')}`);
+  if (entries.some((entry) => !entry.isFile()) || JSON.stringify(actual) !== JSON.stringify([...result.files].sort())) {
+    throw new Error(`Unexpected dist contents\nExpected: ${result.files.join(', ')}\nActual: ${actual.join(', ')}`);
   }
-
-  const sumsFile = path.join(dist, 'SHA256SUMS.txt');
-  const checksums = parseChecksums(fs.readFileSync(sumsFile, 'utf8'));
-  const artifacts = expected.filter((name) => name !== 'SHA256SUMS.txt');
-  if (checksums.size !== artifacts.length || artifacts.some((name) => !checksums.has(name))) {
-    throw new Error('SHA256SUMS.txt does not cover the exact artifact set');
-  }
-  for (const name of artifacts) {
-    const file = path.join(dist, name);
-    if (fs.statSync(file).size <= 0) throw new Error(`Empty build artifact: ${name}`);
-    if (sha256(file) !== checksums.get(name)) throw new Error(`SHA256 mismatch: ${name}`);
-  }
-
-  const prefix = `WorkMeow-${version}-Windows-x64`;
-  const updateInfo = fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8');
-  if (!new RegExp(`^version: ${version.replace(/\./g, '\\.')}$`, 'm').test(updateInfo)) {
-    throw new Error(`latest.yml version is not ${version}`);
-  }
-  if (!updateInfo.includes(`url: ${prefix}.exe`) || !updateInfo.includes(`path: ${prefix}.exe`)) {
-    throw new Error('latest.yml does not point to the current EXE installer');
-  }
-  const exeSize = fs.statSync(path.join(dist, `${prefix}.exe`)).size;
-  if (!updateInfo.includes(`size: ${exeSize}`)) throw new Error('latest.yml EXE size is stale');
-
-  const result = { dist, version, files: actual };
-  if (options.quiet !== true) console.log(`Verified ${actual.length} WorkMeow ${version} dist file(s)`);
+  if (options.quiet !== true) console.log(`Verified WorkMeow ${result.version}: installer + latest.yml, PE header and SHA-512 valid`);
   return result;
 }
 
-if (require.main === module) {
-  verifyDist();
-}
-
-module.exports = { artifactNames, parseChecksums, verifyDist };
+if (require.main === module) verifyDist();
+module.exports = { artifactNames, verifyArtifacts, verifyDist };

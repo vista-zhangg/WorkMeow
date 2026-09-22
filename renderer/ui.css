@@ -1,0 +1,29 @@
+/* Shared materials, typography and motion for WorkMeow's desktop surfaces. */
+:root {
+  color-scheme: light;
+  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  --ui-text: #242529;
+  --ui-secondary: #70737c;
+  --ui-tertiary: #868a93;
+  --ui-background: #f5f5f7;
+  --ui-surface: #fff;
+  --ui-line: rgba(32, 36, 48, .08);
+  --ui-blue: #0071e3;
+  --ui-blue-soft: #edf5ff;
+  --ui-green: #24865b;
+  --ui-ease: cubic-bezier(.22, 1, .36, 1);
+  --ui-shadow: 0 2px 8px rgba(24, 32, 48, .025), 0 12px 32px rgba(24, 32, 48, .035);
+}
+* { box-sizing: border-box; }
+body { font-family: var(--ui-font); -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; }
+button { -webkit-app-region: no-drag; }
+button, [role="button"], input { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outline: 3px solid rgba(0, 113, 227, .6); outline-offset: 3px; }
+button:disabled { cursor: default; }
+[hidden] { display: none !important; }
+@keyframes surfaceIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes contentIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

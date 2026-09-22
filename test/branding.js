@@ -34,7 +34,11 @@ assert.strictEqual(pkg.build.win.artifactName, 'WorkMeow-${version}-Windows-${ar
 assert(/--publish never(?:\s|$)/.test(pkg.scripts['package:win']), 'Windows packaging must use the unified release job');
 assert.strictEqual(pkg.scripts.test, 'node test/run-all.js');
 assert(/name: workmeow-windows-x64/.test(read('.github/workflows/release.yml')), 'release artifact must use WorkMeow');
-assert(/WorkMeow \$\{GITHUB_REF_NAME#v\}/.test(read('.github/workflows/release.yml')), 'release title must follow the pushed version tag');
+assert(read('scripts/publish-release.js').includes('WorkMeow ${result.version}')
+  && read('scripts/publish-release.js').includes('process.env.GITHUB_REF_NAME !== tag'),
+  'release title and pushed tag must follow the verified package version');
+assert.strictEqual(lock.version, pkg.version);
+assert.strictEqual(lock.packages[''].version, pkg.version);
 assert.strictEqual(lock.name, 'workmeow');
 assert.strictEqual(lock.packages[''].name, 'workmeow');
 assert(/app\.setName\(BRAND\.name\)/.test(main), 'Electron app name must come from the brand registry');

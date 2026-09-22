@@ -5,43 +5,77 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { artifactNames, parseChecksums, verifyDist } = require('../scripts/verify-dist');
-
-function hash(data) {
-  return crypto.createHash('sha256').update(data).digest('hex');
-}
+const yaml = require('js-yaml');
+const { artifactNames, verifyDist } = require('../scripts/verify-dist');
+const { finalizeDist } = require('../scripts/finalize-dist');
+const { verifyReleaseAssets } = require('../scripts/publish-release');
 
 function createFixture(dist) {
   const version = '9.8.7';
-  const prefix = `WorkMeow-${version}-Windows-x64`;
+  const [name] = artifactNames(version);
   fs.mkdirSync(dist, { recursive: true });
-  const content = new Map([
-    [`${prefix}.exe`, Buffer.from('installer')],
-    [`${prefix}.exe.blockmap`, Buffer.from('blockmap')],
-    ['latest.yml', Buffer.from(`version: ${version}\nfiles:\n  - url: ${prefix}.exe\n    size: 9\npath: ${prefix}.exe\n`)],
-  ]);
-  for (const [name, data] of content) fs.writeFileSync(path.join(dist, name), data);
-  const sums = [...content].map(([name, data]) => `${hash(data)}  ${name}`).join('\n') + '\n';
-  fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), sums);
+  const exe = Buffer.alloc(128);
+  exe.write('MZ');
+  exe.writeUInt32LE(64, 60);
+  exe.writeUInt32LE(0x4550, 64);
+  const sha512 = crypto.createHash('sha512').update(exe).digest('base64');
+  fs.writeFileSync(path.join(dist, name), exe);
+  fs.writeFileSync(path.join(dist, 'latest.yml'), yaml.dump({
+    version, files: [{ url: name, size: exe.length, sha512 }], path: name, sha512,
+  }));
   return version;
 }
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-dist-test-'));
 try {
-  const full = path.join(temp, 'full');
-  const version = createFixture(full, false);
-  const verified = verifyDist({ dist: full, version, quiet: true });
-  assert.deepStrictEqual(verified.files, artifactNames(version).sort());
+  const dist = path.join(temp, 'dist');
+  const version = createFixture(dist);
+  const options = { dist, version, quiet: true };
+  const verified = verifyDist(options);
+  assert.deepStrictEqual(verified.files, artifactNames(version));
+  const release = { tag_name: `v${version}`, assets: verified.files.map((name) => ({
+    name, state: 'uploaded', size: fs.statSync(path.join(dist, name)).size, digest: `sha256:${verified.sha256[name]}`,
+  })) };
+  verifyReleaseAssets(release, verified);
+  assert.throws(() => verifyReleaseAssets({ ...release, assets: release.assets.slice(1) }, verified), /asset count/);
+  assert.throws(() => verifyReleaseAssets({ ...release, assets: release.assets.map((a) => ({ ...a, digest: 'sha256:wrong' })) }, verified), /integrity check/);
 
-  fs.writeFileSync(path.join(full, 'WorkMeow-1.5.0-Windows-x64.zip'), 'old');
-  assert.throws(() => verifyDist({ dist: full, version, quiet: true }), /Unexpected dist contents/);
-  fs.rmSync(path.join(full, 'WorkMeow-1.5.0-Windows-x64.zip'));
-  fs.writeFileSync(path.join(full, `WorkMeow-${version}-Windows-x64.zip`), 'portable builds are retired');
-  assert.throws(() => verifyDist({ dist: full, version, quiet: true }), /Unexpected dist contents/);
-  assert.strictEqual(parseChecksums(`${'a'.repeat(64)}  file.zip\n`).get('file.zip'), 'a'.repeat(64));
-  assert.throws(() => parseChecksums('not-a-checksum'), /Invalid SHA256SUMS line/);
+  const old = path.join(dist, 'WorkMeow-1.7.14-Windows-x64.exe');
+  fs.writeFileSync(old, 'previous installer');
+  fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), 'obsolete');
+  fs.mkdirSync(path.join(dist, 'win-unpacked'));
+  assert.throws(() => verifyDist(options), /Unexpected dist contents/);
+  const metadataPath = path.join(dist, 'latest.yml');
+  const metadata = fs.readFileSync(metadataPath, 'utf8');
+  fs.writeFileSync(metadataPath, metadata.replace('9.8.7', '9.8.6'));
+  assert.throws(() => finalizeDist(options), /version is not/);
+  assert(fs.existsSync(old), 'failed validation must retain the previous installer');
+  fs.writeFileSync(metadataPath, metadata);
+  const exePath = path.join(dist, artifactNames(version)[0]);
+  const exe = fs.readFileSync(exePath);
+  fs.appendFileSync(exePath, 'corruption');
+  assert.throws(() => verifyDist(options), /size is stale/);
+  fs.writeFileSync(exePath, exe);
+  const corrupt = Buffer.from(exe);
+  corrupt[100] = 1;
+  fs.writeFileSync(exePath, corrupt);
+  assert.throws(() => finalizeDist(options), /SHA-512 mismatch/);
+  assert(fs.existsSync(old), 'a corrupt build must not remove old output');
+  fs.writeFileSync(exePath, exe);
+  const withoutSize = yaml.load(metadata);
+  delete withoutSize.files[0].size;
+  fs.writeFileSync(metadataPath, yaml.dump(withoutSize));
+  assert.throws(() => verifyDist(options), /size is stale/);
+  finalizeDist(options);
+  assert.strictEqual(yaml.load(fs.readFileSync(metadataPath, 'utf8')).files[0].size, exe.length,
+    'finalization fills omitted size only after authenticating the built installer');
+  assert.deepStrictEqual(fs.readdirSync(dist).sort(), artifactNames(version).sort());
+  assert(!fs.existsSync(old));
+  fs.writeFileSync(exePath, Buffer.alloc(128));
+  assert.throws(() => verifyDist(options), /Invalid Windows PE/);
 } finally {
+  if (fs.realpathSync(path.dirname(temp)) !== fs.realpathSync(os.tmpdir())) throw new Error('Unexpected test cleanup path');
   fs.rmSync(temp, { recursive: true, force: true });
 }
 
-console.log('dist artifact verifier checks passed');
+console.log('dist verification, safe cleanup, and release digest checks passed');

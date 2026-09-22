@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="ui.css" />
     <link rel="stylesheet" href="panel.css" />
     <title>打工喵 · 详情</title>
   </head>
@@ -18,9 +20,11 @@
         </div>
         <div class="header-actions">
           <span id="agent-badge" class="agent-badge hidden"></span>
-          <button id="close" data-i18n-title="panel.close" title="关闭">✕</button>
+          <button id="close" data-i18n-title="panel.close" title="关闭" aria-label="关闭">✕</button>
         </div>
       </header>
+
+      <div class="overview-heading"><h1>工作总览</h1><span>全部工具 · 今日用量</span></div>
 
       <!-- 今日总览卡片 -->
       <section id="summary-section" class="grid summary-grid">
@@ -63,13 +67,13 @@
           <span data-i18n="panel.usageTrend">用量趋势</span>
           <span class="trend-controls">
             <span class="range-tabs">
-              <button data-range="today" class="range active" data-i18n="panel.rangeToday">今日</button>
-              <button data-range="7d" class="range" data-i18n="panel.range7d">7天</button>
-              <button data-range="30d" class="range" data-i18n="panel.range30d">30天</button>
+              <button data-range="today" class="range active" aria-pressed="true" data-i18n="panel.rangeToday">今日</button>
+              <button data-range="7d" class="range" aria-pressed="false" data-i18n="panel.range7d">7天</button>
+              <button data-range="30d" class="range" aria-pressed="false" data-i18n="panel.range30d">30天</button>
             </span>
             <span class="metric-tabs">
-              <button data-metric="tokens" class="mt active" data-i18n="panel.metricTokens">Token</button>
-              <button data-metric="cost" class="mt" data-i18n="panel.metricCost">费用</button>
+              <button data-metric="tokens" class="mt active" aria-pressed="true" data-i18n="panel.metricTokens">Token</button>
+              <button data-metric="cost" class="mt" aria-pressed="false" data-i18n="panel.metricCost">费用</button>
             </span>
           </span>
         </div>

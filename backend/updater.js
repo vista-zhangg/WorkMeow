@@ -135,6 +135,10 @@ function createUpdateService(options) {
     updater.autoDownload = false;
     updater.autoInstallOnAppQuit = false;
     updater.allowPrerelease = false;
+    // Releases contain the full installer and latest.yml only. Older clients
+    // fall back to a full download; 1.8+ skips the missing blockmap request.
+    updater.disableDifferentialDownload = true;
+    updater.disableWebInstaller = true;
     updater.on('checking-for-update', () => update({ phase: 'checking', error: null, progress: null }));
     updater.on('update-available', (info) => {
       const latestVersion = info && info.version ? String(info.version) : null;

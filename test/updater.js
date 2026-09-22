@@ -75,6 +75,8 @@ async function run() {
     shell: { openExternal: async () => {} }, onDownloaded: () => { readyPrompts += 1; },
   });
   installed.start(false);
+  assert.strictEqual(installedUpdater.disableDifferentialDownload, true, 'new clients must download full installers without requesting blockmaps');
+  assert.strictEqual(installedUpdater.disableWebInstaller, true);
   await installed.check(true);
   await flush();
   assert.strictEqual(installedUpdater.checks, 1, 'installed builds must check the update provider');
@@ -160,11 +162,29 @@ async function run() {
   assert.strictEqual(pkg.build.publish[0].owner, 'vista-zhangg');
   assert(!workflow.includes('dist/WorkMeow-*-Windows-x64.zip'),
     'releases must not upload the retired portable ZIP');
-  assert(workflow.includes('dist/latest.yml') && workflow.includes('.exe.blockmap'),
-    'releases must upload updater metadata and the differential blockmap');
-  assert(finalize.includes("'latest.yml'") && finalize.includes('`${prefix}.exe.blockmap`')
-    && !finalize.includes('.zip'),
-    'distribution finalization must retain updater metadata without a portable ZIP');
+  assert(workflow.includes('dist/latest.yml') && !workflow.includes('.exe.blockmap') && !workflow.includes('SHA256SUMS.txt'),
+    'releases retain legacy update discovery without redundant attachments');
+  assert.strictEqual(pkg.build.nsis.differentialPackage, false, 'packaging must not generate blockmaps');
+  assert(finalize.includes('verifyArtifacts(options)') && finalize.includes('verifyDist('),
+    'cleanup must validate new artifacts before removing old output');
+  assert(workflow.includes('npm run release:publish'), 'CI must use the verified draft-first publisher');
+
+  // The 1.7.x updater takes this existing fallback when the new Release has
+  // no blockmap. The full installer URL and SHA-512 still come from latest.yml.
+  const { AppUpdater } = require('electron-updater');
+  const fallback = await AppUpdater.prototype.differentialDownloadInstaller.call({
+    _logger: { info() {}, error() {} },
+    _testOnlyOptions: null,
+    app: { version: '1.7.14' },
+    downloadedUpdateHelper: { cacheDir: path.join(root, '.inspect') },
+    listenerCount: () => 0,
+    httpExecutor: { downloadToBuffer: async () => { throw new Error('404 blockmap'); } },
+  }, { url: new URL('https://github.com/vista-zhangg/WorkMeow/releases/download/v1.8.0/WorkMeow-1.8.0-Windows-x64.exe'), info: {} }, {
+    updateInfoAndProvider: { info: { version: '1.8.0' }, provider: {
+      getBlockMapFiles: () => [new URL('https://github.com/old.blockmap'), new URL('https://github.com/new.blockmap')],
+    } },
+  }, 'unused-installer.exe');
+  assert.strictEqual(fallback, true, '1.7.x must fall back to the full installer when a blockmap is absent');
   assert(settings.includes('id="auto-update-toggle"') && settings.includes('id="update-check"'),
     'settings must expose the preference and manual check');
   for (const api of ['getUpdateState', 'checkForUpdates', 'setAutoUpdate', 'downloadUpdate', 'installUpdate', 'openUpdatePage']) {

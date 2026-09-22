@@ -1,31 +1,31 @@
 'use strict';
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
+const { verifyArtifacts, verifyDist } = require('./verify-dist');
 
-const root = path.resolve(__dirname, '..');
-const dist = path.join(root, 'dist');
-const pkg = require(path.join(root, 'package.json'));
-const prefix = `WorkMeow-${pkg.version}-Windows-x64`;
-const artifacts = [`${prefix}.exe`];
-const updateArtifacts = ['latest.yml', `${prefix}.exe.blockmap`];
-const requiredArtifacts = [...artifacts, ...updateArtifacts];
-
-if (!fs.existsSync(dist)) throw new Error(`Missing build directory: ${dist}`);
-for (const name of requiredArtifacts) {
-  if (!fs.existsSync(path.join(dist, name))) throw new Error(`Missing build artifact: ${name}`);
+function finalizeDist(options = {}) {
+  const result = verifyArtifacts({ ...options, allowMissingSize: true });
+  // Without differentialPackage, electron-builder omits size. Add it only
+  // after validating the version, file name, PE header and both SHA-512 fields.
+  if (result.metadata.files[0].size == null) {
+    result.metadata.files[0].size = result.installerSize;
+    fs.writeFileSync(path.join(result.dist, 'latest.yml'), yaml.dump(result.metadata, { lineWidth: -1 }), 'utf8');
+  }
+  verifyArtifacts(options);
+  const directory = fs.realpathSync(result.dist);
+  const keep = new Set(result.files);
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (keep.has(entry.name)) continue;
+    const target = path.resolve(directory, entry.name);
+    // Resolve and check every deletion target against the validated dist.
+    if (path.dirname(target) !== directory) throw new Error(`Cleanup path escapes dist: ${target}`);
+    if (fs.lstatSync(target).isSymbolicLink()) fs.unlinkSync(target);
+    else fs.rmSync(target, { recursive: true, force: true });
+  }
+  return verifyDist({ ...options, dist: directory });
 }
 
-const keep = new Set(requiredArtifacts);
-for (const entry of fs.readdirSync(dist, { withFileTypes: true })) {
-  if (!keep.has(entry.name)) fs.rmSync(path.join(dist, entry.name), { recursive: true, force: true });
-}
-
-const checksums = requiredArtifacts.map((name) => {
-  const data = fs.readFileSync(path.join(dist, name));
-  return `${crypto.createHash('sha256').update(data).digest('hex')}  ${name}`;
-});
-fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), checksums.join('\n') + '\n', 'utf8');
-
-console.log(`Finalized ${requiredArtifacts.length} artifact(s) in ${dist}`);
+if (require.main === module) finalizeDist();
+module.exports = { finalizeDist };
