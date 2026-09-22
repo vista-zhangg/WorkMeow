@@ -34,7 +34,7 @@ assert.strictEqual(pkg.build.win.artifactName, 'WorkMeow-${version}-Windows-${ar
 assert(/--publish never(?:\s|$)/.test(pkg.scripts['package:win']), 'Windows packaging must use the unified release job');
 assert.strictEqual(pkg.scripts.test, 'node test/run-all.js');
 assert(/name: workmeow-windows-x64/.test(read('.github/workflows/release.yml')), 'release artifact must use WorkMeow');
-assert(read('scripts/publish-release.js').includes('WorkMeow ${result.version}')
+assert(read('scripts/publish-release.js').includes('${BRAND.fullName} ${result.version}')
   && read('scripts/publish-release.js').includes('process.env.GITHUB_REF_NAME !== tag'),
   'release title and pushed tag must follow the verified package version');
 assert.strictEqual(lock.version, pkg.version);
@@ -67,9 +67,9 @@ for (const file of ['CONTRIBUTING.md', 'SECURITY.md', 'docs/PRIVACY.md']) {
 
 assert(/tray\.setToolTip\(t\('tray\.tooltip'\)\)/.test(main), 'tray tooltip must come from i18n');
 const tip = i18n.DICT.zh['tray.tooltip'];
-assert(/打工喵/.test(tip) && /WorkMeow/.test(tip), 'tray tooltip must use the canonical brand');
-assert(/<title>打工喵 · 详情<\/title>/.test(read('renderer/panel.html')), 'detail title must use 打工喵');
-assert(/产品名称和所有对外发布物统一使用 \*\*打工喵（WorkMeow）\*\*/.test(readme));
+assert(tip.includes(BRAND.displayName) && tip.includes(BRAND.name), 'tray tooltip must use the canonical brand');
+assert(read('renderer/panel.html').includes(`<title>${BRAND.displayName} · 详情</title>`), 'detail title must use the canonical brand');
+assert(readme.includes(`产品名称和所有对外发布物统一使用 **${BRAND.fullName}**`));
 
 const publicFiles = [
   'README.md', 'README_EN.md', 'docs/介绍.md', 'docs/LOCAL_DEPLOYMENT.md', 'STATES.md',

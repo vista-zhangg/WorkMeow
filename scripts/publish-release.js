@@ -4,6 +4,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { verifyDist } = require('./verify-dist');
+const BRAND = require('../shared/brand');
 
 const REPOSITORY = 'vista-zhangg/WorkMeow';
 
@@ -42,11 +43,11 @@ async function publishRelease() {
   const existing = getReleaseByTag(api, tag);
   if (existing && !existing.draft) throw new Error(`${tag} is already published; publish a new version instead`);
   if (existing) {
-    gh('release', 'edit', tag, '--repo', REPOSITORY, '--title', `打工喵 WorkMeow ${result.version}`, '--notes-file', notes);
+    gh('release', 'edit', tag, '--repo', REPOSITORY, '--title', `${BRAND.fullName} ${result.version}`, '--notes-file', notes);
     gh('release', 'upload', tag, ...result.files.map((name) => path.join(result.dist, name)), '--clobber', '--repo', REPOSITORY);
   } else {
     gh('release', 'create', tag, ...result.files.map((name) => path.join(result.dist, name)),
-      '--draft', '--verify-tag', '--repo', REPOSITORY, '--title', `打工喵 WorkMeow ${result.version}`, '--notes-file', notes);
+      '--draft', '--verify-tag', '--repo', REPOSITORY, '--title', `${BRAND.fullName} ${result.version}`, '--notes-file', notes);
   }
   const draft = getReleaseByTag(api, tag);
   if (!draft || !draft.draft) throw new Error('Expected an unpublished draft before asset verification');

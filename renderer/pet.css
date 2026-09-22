@@ -45,6 +45,25 @@ html, body {
 #stage.edge-below .bubble,
 #stage.edge-below .think,
 #stage.edge-below .peek { order: 4; margin-top: 8px; margin-bottom: 0; }
+#stage.edge-below .rest-card { order: 4; margin-top: 10px; margin-bottom: 0; }
+
+.rest-card { flex: 0 0 auto; width: 290px; max-width: calc(100vw - 16px); margin-bottom: 10px; padding: 14px; border: 1px solid rgba(217,119,87,.35); border-radius: 15px; background: rgba(255,250,245,.98); color: #5a3a2a; box-shadow: 0 8px 24px rgba(120,60,35,.18); -webkit-app-region: no-drag; }
+.rest-card.hidden { display: none; }
+.rest-card-heading { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #987361; }
+.rest-card-mark { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; background: #fce9de; color: #ba7054; border-radius: 7px; font-size: 17px; }
+.rest-card-title { margin-top: 9px; font-size: 15px; line-height: 1.4; font-weight: 650; }
+.rest-card-message { margin-top: 5px; font-size: 11px; line-height: 1.65; color: #987361; }
+.rest-card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.rest-card-actions button { min-height: 29px; padding: 5px 9px; border: 1px solid #e9d7cb; border-radius: 8px; color: #795440; background: #fffaf6; font-size: 10.5px; cursor: pointer; }
+.rest-card-actions button:hover { background: #fbe9de; }
+.rest-card-actions .rest-primary { color: #fff; background: #8a604b; border-color: #8a604b; }
+.rest-card-actions .rest-primary:hover { background: #75503e; }
+.rest-card-actions button:disabled { opacity: .5; cursor: default; }
+.rest-action-status { font-size: 10px; margin-top: 6px; color: #b25142; }
+.rest-action-status:empty { display: none; }
+.rest-pending { border: 0; border-left: 1px solid #ffe9dc40; padding: 0 0 0 6px; background: transparent; color: #ffdbc0; font: inherit; cursor: pointer; }
+.rest-pending:hover { color: #fff; }
+.rest-pending:focus-visible { outline: 2px solid #ffe9dc; outline-offset: 2px; border-radius: 3px; }
 
 #stage.edge-below .bubble::after {
   top: -7px;

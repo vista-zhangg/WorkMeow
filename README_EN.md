@@ -1,8 +1,9 @@
 <div align="center">
   <img src="assets/salary-cat.png" width="112" alt="WorkMeow salary-cat avatar">
-  <h1>WorkMeow</h1>
-  <p><strong>One cat keeping an eye on every AI coding agent at work.</strong></p>
-  <p>Live status, notifications, permission requests, and unified token usage for Claude Code, Codex, TRAE, WorkBuddy, opencode, and ZCode.</p>
+  <h1>Codex 喵伴（WorkMeow）</h1>
+  <p><strong>A Windows desktop pet and companion for Codex, with support for other AI coding tools.</strong></p>
+  <p>Codex task notifications, subscription quota monitoring, token usage, and water and stretch reminders.</p>
+  <p>Supports Codex, Claude Code, TRAE, WorkBuddy, opencode, and ZCode.</p>
 
   <p>
     <a href="README.md">简体中文</a> ·
@@ -12,7 +13,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.8.1-F6A04A" alt="Version 1.8.1">
+    <img src="https://img.shields.io/badge/version-1.8.2-F6A04A" alt="Version 1.8.2">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -20,11 +21,13 @@
 > [!IMPORTANT]
 > WorkMeow currently supports **Windows x64 only**. macOS, Linux, and Windows on ARM are not supported. Documentation is available in Chinese and English; the application UI is currently Simplified Chinese. The Windows binaries are not commercially code-signed yet, so SmartScreen may display a warning on first launch.
 
+**Codex 喵伴（WorkMeow）** is an independent open-source project and is not affiliated with OpenAI. It is a Codex desktop pet, desktop companion, and usage monitor. The executable (`WorkMeow.exe`), installer filename (`WorkMeow-<version>-Windows-x64.exe`), and data directory (`~/.workmeow/`) keep their existing names so upgrades preserve settings and history.
+
 ## What it does
 
-Switching between several agent windows just to check progress is distracting. WorkMeow turns local agent activity into one small desktop companion: it works when your agents work, asks for attention when they need you, celebrates completed turns, and presents usage in one place.
+Keep Codex progress, 5h / 7d subscription quota, and token usage on your desktop, alongside sessions from your other AI coding tools. WorkMeow asks for attention when a task needs you and celebrates completed turns. Water, stretch, and eye-rest reminders follow your time at the computer even when no AI task is running, in both cat and compact capsule modes.
 
-- **One cat, six agents** — Claude Code, Codex, TRAE, WorkBuddy, opencode, and ZCode.
+- **One cat, six agents** — built around Codex, also supporting Claude Code, TRAE, WorkBuddy, opencode, and ZCode.
 - **Status at a glance** — working, thinking, parallel tasks, compaction, permission waits, user input, completion, errors, breaks, and sleep; background tasks and scheduled wakeups stay active until they actually clear.
 - **Custom expressions** — browse every state GIF, add rotating variants, replace or remove a selected item, or restore defaults.
 - **Native permission cards** — allow, deny, or permanently allow supported Claude Code requests from the pet.
@@ -34,6 +37,8 @@ Switching between several agent windows just to check progress is distracting. W
 - **One-click privacy mode** — right-click the cat to toggle the compact ON/OFF control, or use Settings, while keeping essential state and usage visible.
 - **Local-first operation** — conversations and usage stay on the machine; models.dev supplies public pricing while Codex authenticates and reads its own subscription quota.
 - **Desktop-friendly controls** — drag, edge snapping, work peek, action center, system tray, auto-start, and scheduled break animations.
+- **Reminders for your workday** — water, stretch, and eye-rest reminders run independently of AI activity in both cat and capsule modes. Set each interval and snooze duration, turn reminders on or off individually or together, or skip a reminder for today.
+- **Fullscreen and temporary quiet** — hide automatically during fullscreen use and restore afterward, or stay quiet for 15 / 30 / 60 minutes or a custom duration. Both modes share the existing window-hiding behavior while monitoring continues in the background. A manually hidden companion stays hidden until you explicitly show it.
 
 ## Real state examples
 
@@ -70,8 +75,8 @@ WorkMeow stores only a processed copy under `~/.workmeow/pet-assets` for the cur
 
 | Agent | Integration | External configuration | In-pet approval |
 | --- | --- | --- | --- |
-| Claude Code | Lifecycle hooks, transcript, and process data | Merge-safe WorkMeow hook install/uninstall | Supported |
 | Codex | Incremental local rollout JSONL reader; official App Server quota notifications | Does not modify Codex configuration or read credential files | Read-only alerts |
+| Claude Code | Lifecycle hooks, transcript, and process data | Merge-safe WorkMeow hook install/uninstall | Supported |
 | TRAE | Local IDE logs and process data | Installs a merge-safe hook only when TRAE is detected | Read-only alerts |
 | WorkBuddy | Hooks, transcripts, and usage fields | Installs a merge-safe hook only when WorkBuddy is detected | Read-only alerts |
 | opencode | Official plugin mechanism, events, and usage file | Installs/removes one standalone plugin file | Read-only alerts |
@@ -149,5 +154,5 @@ Bug reports, Windows compatibility improvements, and new agent integrations are 
 ---
 
 <div align="center">
-  <sub>Windows x64 only · Local-first · One cat, all your agents.</sub>
+  <sub>Codex desktop pet &amp; companion · Windows x64 · Local-first · Six AI coding tools.</sub>
 </div>

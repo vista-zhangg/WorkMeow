@@ -11,7 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { fileURLToPath, pathToFileURL } = require('url');
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, dialog, shell, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, dialog, shell, protocol, net, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const BRAND = require('./shared/brand');
 const { IPC } = require('./shared/ipc-channels');
@@ -60,6 +60,9 @@ const { migrateLegacyState } = require('./backend/paths');
 const i18n = require('./shared/i18n');
 const { createUpdateService } = require('./backend/updater');
 const privacy = require('./backend/privacy');
+const { createRestReminderController } = require('./backend/rest-reminders');
+const { createPetVisibilityController } = require('./backend/pet-visibility');
+const { createDesktopPresenceMonitor } = require('./backend/desktop-presence');
 
 const t = i18n.t;
 const petAssetStore = new PetAssetStore();
@@ -116,6 +119,16 @@ let traeMetering = null; // TRAE agent 日志 token 台账（只读，从 Trae C
 let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.workmeow/opencode-usage.jsonl）
 let zcodeMetering = null; // ZCode 用量台账（只读轮询 ~/.zcode/cli/db/db.sqlite 的 model_usage 表）
 let updateService = null;
+let restReminders = null;
+let petVisibility = null;
+let desktopPresence = null;
+let companionTimer = null;
+let desktopPaused = false;
+let desktopLocked = false;
+let desktopPresenceReady = false;
+let companionQuitting = false;
+let restRuntimeCache = '';
+const restRuntimePath = require('./backend/paths').statePath('rest-reminders.json');
 
 // 宠物窗口的交互状态（单宠，但保留 Map 结构以便安全处理渲染进程生命周期）。
 const petState = new Map(); // id → { agent, win, customSize, mouseIgnoring, dragId, dragSeq, lastEndedDragId }
@@ -230,6 +243,7 @@ function makePetWindow(agent) {
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
+    show: false,
     fullscreenable: false,
     webPreferences: {
       preload: PRELOAD,
@@ -270,6 +284,8 @@ function makePetWindow(agent) {
     sendWin(win, IPC.XIABAN_SCHEDULE, getXiabanSchedule());
     if (core) sendWin(win, IPC.PET_STATS, buildStats(st.agent));
     deliverQuotaAlerts(win);
+    applyPetVisibility();
+    publishCompanionState();
   });
   return win;
 }
@@ -451,6 +467,7 @@ function uninstallIntegrationHealth() {
 // 显示/藏起打工喵（单宠：只有一个开关）。
 function showPet() {
   if (!mergedWin || mergedWin.isDestroyed()) reconcilePets();
+  if (petVisibility) { petVisibility.show(); applyPetVisibility(); return; }
   if (mergedWin && !mergedWin.isDestroyed()) {
     mergedWin.show();
     deliverQuotaAlerts(mergedWin);
@@ -458,8 +475,113 @@ function showPet() {
   refreshTrayMenu();
 }
 function hidePet() {
+  if (petVisibility) { petVisibility.hide(); applyPetVisibility(); return; }
   if (mergedWin && !mergedWin.isDestroyed()) mergedWin.hide();
   refreshTrayMenu();
+}
+
+function companionState() {
+  return {
+    quietMinutes: config.get().quietMinutes,
+    rest: restReminders ? restReminders.getState() : { preferences: config.get().restReminders, pending: null },
+    visibility: { ...(petVisibility ? petVisibility.snapshot() : { visible: true, autoHideFullscreen: config.get().autoHideFullscreen, quietUntil: 0 }),
+      ...((desktopLocked || desktopPaused) ? { visible: false } : {}) },
+  };
+}
+
+function publishCompanionState() {
+  const value = companionState();
+  sendPet(IPC.COMPANION_STATE, value);
+  sendWin(settingsWin, IPC.COMPANION_STATE, value);
+}
+
+function persistRestRuntime() {
+  if (!restReminders) return;
+  const json = JSON.stringify(restReminders.serialize());
+  if (json === restRuntimeCache) return;
+  try {
+    fs.mkdirSync(path.dirname(restRuntimePath), { recursive: true });
+    const tmp = restRuntimePath + '.tmp';
+    fs.writeFileSync(tmp, json, { encoding: 'utf8', mode: 0o600 });
+    fs.renameSync(tmp, restRuntimePath);
+    restRuntimeCache = json;
+  } catch {}
+}
+
+function applyPetVisibility() {
+  if (companionQuitting) return;
+  const visible = (!petVisibility || petVisibility.snapshot().visible) && !desktopLocked && !desktopPaused
+    && (desktopPresenceReady || config.get().autoHideFullscreen === false);
+  const win = firstAlivePetWin();
+  if (win && !win.isDestroyed()) {
+    if (visible && !win.isVisible()) {
+      win.showInactive();
+      deliverQuotaAlerts(win);
+    } else if (!visible && win.isVisible()) win.hide();
+  }
+  publishCompanionState();
+  refreshTrayMenu();
+}
+
+function setFullscreenPreference(enabled) {
+  config.save({ autoHideFullscreen: enabled === true });
+  if (petVisibility) petVisibility.setAutoHideFullscreen(enabled === true);
+  applyPetVisibility();
+}
+
+function hideMenuItems() {
+  const visibility = companionState().visibility;
+  return [
+    { label: '藏起，直到我再次打开', click: hidePet },
+    { type: 'separator' },
+    ...[...new Set([config.get().quietMinutes, 15, 30, 60])].map((minutes) => ({
+      label: `安静 ${minutes} 分钟${minutes === config.get().quietMinutes ? ' · 我的时长' : ''}`,
+      click: () => { if (petVisibility) petVisibility.snooze(minutes); applyPetVisibility(); },
+    })),
+    { type: 'separator' },
+    { label: '全屏时自动藏起', type: 'checkbox', checked: visibility.autoHideFullscreen !== false,
+      click: (item) => setFullscreenPreference(item.checked) },
+  ];
+}
+
+function startCompanionServices() {
+  let runtime = null;
+  try { runtime = JSON.parse(fs.readFileSync(restRuntimePath, 'utf8')); } catch {}
+  restReminders = createRestReminderController({
+    preferences: config.get().restReminders, runtime,
+    onChange: () => { persistRestRuntime(); publishCompanionState(); },
+  });
+  petVisibility = createPetVisibilityController({
+    autoHideFullscreen: config.get().autoHideFullscreen !== false,
+    onChange: applyPetVisibility,
+  });
+  desktopPresence = createDesktopPresenceMonitor({
+    onChange: (value) => {
+      desktopPresenceReady = true;
+      petVisibility.setFullscreen(value.fullscreen);
+      applyPetVisibility();
+    },
+  });
+  desktopPresence.start();
+  const tickRest = () => {
+    let idleSeconds = 0;
+    try { idleSeconds = powerMonitor.getSystemIdleTime(); } catch {}
+    restReminders.tick({ idleSeconds, paused: desktopPaused || desktopLocked });
+  };
+  powerMonitor.on('suspend', () => { desktopPaused = true; tickRest(); applyPetVisibility(); });
+  powerMonitor.on('resume', () => { desktopPaused = false; tickRest(); applyPetVisibility(); });
+  powerMonitor.on('lock-screen', () => { desktopLocked = true; tickRest(); applyPetVisibility(); });
+  powerMonitor.on('unlock-screen', () => { desktopLocked = false; tickRest(); applyPetVisibility(); });
+  tickRest();
+  let restTickAt = Date.now();
+  companionTimer = setInterval(() => {
+    petVisibility.tick();
+    if (Date.now() - restTickAt >= 15000 || Date.now() < restTickAt) {
+      restTickAt = Date.now();
+      tickRest();
+    }
+  }, 1000);
+  companionTimer.unref();
 }
 
 
@@ -944,10 +1066,8 @@ function bootBackend() {
         );
         kind = 'waiting'; reason = 'perm';
       }
-      // A parked permission needs the user's eyes. In menubar mode (or if the pet
-      // was hidden) the ask panel would render into an invisible window and CC
-      // would hang until the park times out — so surface the pet window first.
-      try { const w = firstAlivePetWin(); if (w && !w.isVisible()) w.show(); } catch {}
+      // Respect manual hiding, fullscreen and quiet time. The request remains
+      // available in the owning Agent and is reconciled when the companion returns.
       sendPetEvent({ kind, project: choice.project, reason, sessionId: entry.sessionId, choice, agent: 'claude', ts: Date.now() });
       scheduleEmit();
     },
@@ -991,6 +1111,36 @@ function registerIpc() {
   };
 
   ipcMain.handle(IPC.GET_STATS, () => lastStats || buildStats());
+  const companionSender = (e) => !!stateOfSender(e.sender)
+    || !!(settingsWin && !settingsWin.isDestroyed() && e.sender === settingsWin.webContents);
+  ipcMain.handle(IPC.GET_COMPANION_STATE, (e) => companionSender(e) ? companionState() : null);
+  ipcMain.handle(IPC.SET_COMPANION_PREFS, (e, value) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents || !value || typeof value !== 'object') return { ok: false };
+    if (value.restReminders && typeof value.restReminders === 'object') {
+      const saved = config.save({ restReminders: { ...config.get().restReminders, ...value.restReminders } });
+      if (restReminders) restReminders.setPreferences(saved.restReminders);
+    }
+    if (typeof value.autoHideFullscreen === 'boolean') setFullscreenPreference(value.autoHideFullscreen);
+    if (Number.isInteger(value.quietMinutes) && value.quietMinutes >= 1 && value.quietMinutes <= 1440) {
+      config.save({ quietMinutes: value.quietMinutes });
+      refreshTrayMenu();
+    }
+    publishCompanionState();
+    return { ok: true, ...companionState() };
+  });
+  ipcMain.handle(IPC.REST_ACTION, (e, value) => {
+    if (!companionSender(e) || !restReminders || !value || typeof value !== 'object'
+      || typeof value.id !== 'string' || !['done', 'snooze', 'skip-today'].includes(value.action)) return { ok: false };
+    const result = restReminders.act(value);
+    persistRestRuntime();
+    publishCompanionState();
+    return { ok: result === true || !!(result && result.ok), ...companionState() };
+  });
+  ipcMain.on(IPC.OPEN_HIDE_MENU, (e) => {
+    if (!companionSender(e)) return;
+    const win = settingsWin && !settingsWin.isDestroyed() && e.sender === settingsWin.webContents ? settingsWin : senderPetWin(e);
+    Menu.buildFromTemplate(hideMenuItems()).popup({ window: win });
+  });
   ipcMain.handle(IPC.GET_WIN_POS, (e) => {
     const win = senderPetWin(e);
     if (!win) return [0, 0];
@@ -1405,6 +1555,9 @@ function refreshTrayMenu() {
     { type: 'separator' },
     { label: t('tray.panel'), click: () => openPanel() },
     { label: petVisible ? t('tray.hidePet') : t('tray.showPet'), click: () => (petVisible ? hidePet() : showPet()) },
+    { label: companionState().visibility.quietUntil > Date.now()
+      ? `临时安静 · 至 ${new Date(companionState().visibility.quietUntil).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+      : '临时安静与全屏免打扰', submenu: hideMenuItems() },
     { type: 'separator' },
     { label: t('tray.settings'), click: () => openSettings() },
     { type: 'separator' },
@@ -1440,7 +1593,7 @@ const gotTheLock = allowMulti ? true : app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => { try { for (const st of petStates()) st.win.show(); } catch {} });
+  app.on('second-instance', () => { try { showPet(); } catch {} });
   app.whenReady().then(async () => {
     const rival = await findRivalInstance();
     if (rival) {
@@ -1457,6 +1610,7 @@ if (!gotTheLock) {
     config.save({});
     registerPetAssetProtocol();
     registerIpc();
+    startCompanionServices();
     bootBackend();
     createPetWindows();
     try { buildTray(); } catch {}
@@ -1467,6 +1621,10 @@ if (!gotTheLock) {
 app.on('window-all-closed', () => { /* tray app: stay alive */ });
 
 app.on('before-quit', () => {
+  companionQuitting = true;
+  try { if (companionTimer) clearInterval(companionTimer); } catch {}
+  try { if (desktopPresence) desktopPresence.stop(); } catch {}
+  try { persistRestRuntime(); } catch {}
   try { if (quotaAlertTimer) clearTimeout(quotaAlertTimer); } catch {}
   try { if (codexWatch) codexWatch.stop(); } catch {}
   try { if (codexRateLimits) codexRateLimits.stop(); } catch {}

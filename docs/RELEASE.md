@@ -1,8 +1,10 @@
-# WorkMeow Windows EXE 发布手册
+# Codex 喵伴（WorkMeow）Windows EXE 发布手册
 
 适用于 1.8.0 及之后的 Windows x64 安装版。对外提供简洁下载入口，同时保留已安装用户的应用内升级能力。一个版本只执行一次完整本地测试和一次本地打包；CI 在独立环境中再次验证并生成正式发布包。
 
 ## 发布契约
+
+对外产品名使用「Codex 喵伴（WorkMeow）」，Release 标题由 `shared/brand.js` 统一生成。升级身份保持不变：npm 包名 `workmeow`、应用 ID `io.github.vista-zhangg.workmeow`、可执行文件 `WorkMeow.exe`、安装包文件名、仓库地址与 `~/.workmeow/` 数据目录均沿用现有值。
 
 `dist/` 和 GitHub Release 的上传附件必须恰好包含两个文件：
 

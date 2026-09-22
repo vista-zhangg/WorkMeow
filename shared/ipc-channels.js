@@ -11,6 +11,11 @@ const IPC = Object.freeze({
   PET_ASSETS: 'pet-assets:changed',
   UPDATE_STATE: 'update:state',
   PRIVACY_STATE: 'privacy:state',
+  COMPANION_STATE: 'companion:state',
+  GET_COMPANION_STATE: 'companion:get-state',
+  SET_COMPANION_PREFS: 'companion:set-preferences',
+  REST_ACTION: 'rest:action',
+  OPEN_HIDE_MENU: 'pet:hide-menu',
   GET_STATS: 'get-stats',
   GET_WIN_POS: 'get-win-pos',
   GET_WINDOW_METRICS: 'get-window-metrics',
@@ -52,9 +57,10 @@ const IPC = Object.freeze({
 
 const PUSH_CHANNELS = Object.freeze([
   'PET_EVENT', 'PET_STATS', 'PANEL_STATS', 'PANEL_PRICE', 'XIABAN_SCHEDULE',
-  'PET_ASSETS', 'UPDATE_STATE', 'PRIVACY_STATE',
+  'PET_ASSETS', 'UPDATE_STATE', 'PRIVACY_STATE', 'COMPANION_STATE',
 ]);
 const INVOKE_CHANNELS = Object.freeze([
+  'GET_COMPANION_STATE', 'SET_COMPANION_PREFS', 'REST_ACTION',
   'GET_CHIP_DISPLAY', 'SET_CHIP_DISPLAY',
   'GET_STATS', 'GET_WIN_POS', 'GET_WINDOW_METRICS', 'GET_AUTO_LAUNCH',
   'SET_AUTO_LAUNCH', 'GET_PRIVACY_MODE', 'SET_PRIVACY_MODE',
@@ -65,6 +71,7 @@ const INVOKE_CHANNELS = Object.freeze([
   'SET_AUTO_UPDATE', 'DOWNLOAD_UPDATE', 'INSTALL_UPDATE', 'OPEN_UPDATE_PAGE',
 ]);
 const COMMAND_CHANNELS = Object.freeze([
+  'OPEN_HIDE_MENU',
   'SET_WIN_POS', 'END_WIN_DRAG', 'OPEN_PANEL', 'CLOSE_PANEL', 'CLOSE_SETTINGS', 'SET_PANEL_HEIGHT',
   'CLOSE_PET', 'SET_PET_SIZE', 'PET_BLUR',
   'SET_IGNORE_MOUSE', 'QUOTA_ALERT_SHOWN',

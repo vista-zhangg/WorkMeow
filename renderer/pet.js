@@ -617,6 +617,10 @@ function fitRestingFrame(force = false, allowOverlays = false) {
   if (restingFitFrame) cancelAnimationFrame(restingFitFrame);
   restingFitFrame = requestAnimationFrame(() => {
     restingFitFrame = null;
+    if (window.WorkMeowCompanion && window.WorkMeowCompanion.isOpen()) {
+      if (force || allowOverlays) fitPopup(document.getElementById('rest-reminder'));
+      return;
+    }
     if (!allowOverlays && (askActive || actionPopOpen || peekOpen || quotaPopoverOpen || radialOpen)) return;
     const measured = measuredRestingWidth();
     const width = Math.min(
@@ -660,6 +664,7 @@ function fitPopup(el) {
 function resetPetSize() {
   fitPopupSeq++;
   fitRestingFrame(true);
+  requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
 }
 
 function settleEdgeLayout() {
@@ -789,6 +794,7 @@ function enqueueChoice(c) {
 }
 
 function showAskPanel() {
+  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
   const c = askQueue[askIdx];
   if (!c) { hideAsk(); return; }
   if (quotaPopoverOpen) closeQuotaPopover();
@@ -1174,6 +1180,7 @@ function maybeCloseEmptyPop() {
 }
 
 function openActionPop() {
+  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
   if (askActive) hideAsk(); // 别和选项面板抢窗口
   if (peekOpen) closePeek();
   if (quotaPopoverOpen) closeQuotaPopover();
@@ -1401,6 +1408,7 @@ function armPeekTimer() {
 }
 
 function openPeek() {
+  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
   if (!lastStats || askActive || actionPopOpen || radialOpen) return;
   if (quotaPopoverOpen) closeQuotaPopover();
   clearTimeout(bubbleTimer);
@@ -1672,6 +1680,11 @@ function positionQuotaPopoverTip() {
 }
 
 function showBubble(text, holdMs = 3200, force = false) {
+  if (force && window.WorkMeowCompanion) window.WorkMeowCompanion.defer(holdMs);
+  if (window.WorkMeowCompanion && window.WorkMeowCompanion.isOpen()) {
+    if (!force) return;
+    window.WorkMeowCompanion.hide();
+  }
   if (!force && (radialOpen || askActive || peekOpen || quotaPopoverOpen)) return; // 弹层开着时不用普通气泡盖住它
   // emoji → 内联 SVG（WorkMeowIcons 在 emoji 字符与 SVG 之间做安全替换；不可识别字符原样保留）
   if (window.WorkMeowIcons && window.WorkMeowIcons.hasMappedEmoji(text)) {
@@ -1694,6 +1707,7 @@ let quotaAlertRetryTimer = null;
 let quotaAlertDisplaying = false;
 function quotaAlertUiBusy() {
   return document.hidden === true || radialOpen || askActive || actionPopOpen || peekOpen || quotaPopoverOpen
+    || (window.WorkMeowCompanion && window.WorkMeowCompanion.isOpen())
     || !bubble.classList.contains('hidden');
 }
 function scheduleQuotaAlertRetry() {
@@ -1763,6 +1777,7 @@ function hideBubble() {
 const curSkinEl = () => catVisible ? cat : chip;
 
 window.pet.onEvent((ev) => {
+  requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
   if (ev.kind === 'quota-alert') {
     // Queue first: hidden windows and active popups must defer the bubble, not
     // consume the only alert for this reset cycle.
@@ -2150,6 +2165,7 @@ function closeQuotaPopover() {
 }
 
 function openQuotaPopover() {
+  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
   if (!lastStats || !quotaEl || quotaEl.hidden || askActive) return false;
   if (quotaPopoverOpen) return true;
   if (radialOpen) closeRadial();
@@ -2358,6 +2374,7 @@ function applyStats(s) {
   refreshAsk(s);
   // 速览不冻结状态机：快照到来时就地更新文字，不关闭/重开。
   if (peekOpen) renderPeek(s);
+  if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh();
 
   // 你正在看面板/打字 → 不再改打工喵状态(别动来动去打断你)，安静等你答完
   if (isInteracting()) return;
@@ -2507,11 +2524,16 @@ function finishDrag(el, e, cancelled) {
     if (peekOpen) closePeek();
     // END_WIN_DRAG is sent after the final position, so the queued size/anchor
     // settlement cannot revive an already released movement gesture.
-    setTimeout(settleEdgeLayout, 0);
+    setTimeout(() => {
+      settleEdgeLayout();
+      requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
+    }, 0);
   } else if (!wasPurr && !cancelled) {
     // 左键短按 = 按当前优先级打开待处理卡/行动中心/工作速览；
     // 拖动仍由上面的 4px 阈值独立裁决，不会误触点击。
     handleCatClick();
+  } else if (cancelled) {
+    requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
   }
 }
 
@@ -2521,7 +2543,8 @@ function attachDrag(el, options = {}) {
     if (options.hiddenOnly && catVisible) return;
     // In compact mode the capsule remains a drag handle, but its quota group
     // is a separate deliberate click target and must not start a drag gesture.
-    if (el === chip && e.target && e.target.closest && e.target.closest('#chip-quota')) return;
+    if (el === chip && e.target && e.target.closest && (e.target.closest('#chip-quota') || e.target.closest('#rest-pending'))) return;
+    if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
     try { el.setPointerCapture(e.pointerId); } catch {}
     el.classList.add('dragging');
     const gesture = {
@@ -2706,7 +2729,7 @@ async function togglePrivacyMode() {
 const MENU = [
   { ic: 'chart',  labelKey: 'menu.panel', act: () => window.pet.openPanel(AGENT) },
   // 收起只隐藏桌宠（托盘可重新显示）；应用退出保留在托盘中。
-  { ic: 'minus',  labelKey: 'menu.collapse', act: () => window.pet.closePet() },
+  { ic: 'minus',  labelKey: 'menu.collapse', act: () => window.pet.openHideMenu ? window.pet.openHideMenu() : window.pet.closePet() },
   { labelKey: 'menu.privacy', status: () => privacyModeEnabled() ? 'ON' : 'OFF', act: togglePrivacyMode },
 ];
 // The compact toolbar reads naturally from state/privacy to detail to hide.
@@ -2880,6 +2903,7 @@ function buildRadial(metrics = lastRadialMetrics) {
 }
 
 async function openRadial() {
+  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
   const seq = ++radialOpenSeq;
   if (actionPopOpen) closeActionPop();
   if (peekOpen) closePeek();
@@ -2911,6 +2935,7 @@ function closeRadial() {
   radial.removeAttribute('data-layout');
   radial.removeAttribute('data-direction');
   radialOpen = false;
+  requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
 }
 function toggleRadial() {
   if (radialOpen) closeRadial();
@@ -2952,7 +2977,7 @@ window.addEventListener('blur', () => {
 // The capsule is still the drag handle when the cat is hidden, while the
 // quota group is a deliberate click target in either layout. The rest of the
 // visible capsule remains click-through so hovering it never creates a popup.
-const HIT_SEL = '#cat,#stage.cat-hidden #chip,#chip-quota,#quota-popover,#radial,#notepad,#action-pop,#ask,#peek';
+const HIT_SEL = '#cat,#stage.cat-hidden #chip,#chip-quota,#quota-popover,#radial,#notepad,#action-pop,#ask,#peek,#rest-reminder,#rest-pending';
 let mouseIgnoring = false;
 function setMouseIgnore(on) {
   if (on === mouseIgnoring) return;

@@ -1,15 +1,15 @@
-# 在本地开发和制作打工喵（WorkMeow）EXE 安装包
+# 在本地开发和制作 Codex 喵伴（WorkMeow）EXE 安装包
 
-本文说明如何在 Windows 上进行源码开发、测试打工喵（WorkMeow），并制作本地 EXE 安装包。源码/npm 命令仅供开发者和贡献者使用，不是 Release 面向用户的安装方式。
+本文说明如何在 Windows 上进行源码开发、测试 Codex 喵伴（WorkMeow），并制作本地 EXE 安装包。源码/npm 命令仅供开发者和贡献者使用，不是 Release 面向用户的安装方式。
 
 ## 支持范围
 
 当前唯一支持的平台是 **Windows x64**。会话窗口聚焦支持 Windows Terminal、cmd、PowerShell 和 VS Code 等常见窗口。
 
-打工喵至少需要用户安装并使用过以下一个 agent：
+AI 任务与用量功能需要用户安装并使用过以下至少一个 agent；休息提醒独立于 AI 任务运行：
 
-- [Claude Code](https://claude.com/claude-code)
 - [OpenAI Codex](https://github.com/openai/codex)
+- [Claude Code](https://claude.com/claude-code)
 - TRAE
 - WorkBuddy
 - [opencode](https://opencode.ai/)
@@ -17,11 +17,12 @@
 
 ## 首次启动后
 
-- 打工喵会把本项目需要的 Claude Code / TRAE / WorkBuddy hooks、opencode 插件和 ZCode hook 块**合并/安装**，不会覆盖已有配置；
+- Codex 喵伴会把本项目需要的 Claude Code / TRAE / WorkBuddy hooks、opencode 插件和 ZCode hook 块**合并/安装**，不会覆盖已有配置；
 - Codex 不安装 hooks，只读监听 `~/.codex/sessions/YYYY/MM/DD/*.jsonl`；
 - 新开的 Claude Code / Codex / TRAE / WorkBuddy / opencode / ZCode 会话会出现在桌宠的会话列表中；
 - 配置、位置和用量历史保存在 `~/.workmeow/`；界面固定为中文；
 - 托盘菜单中的设置可以配置开机自动启动和下班彩蛋时间，默认时间为 10:55 和 16:55；
+- 「陪伴与休息」设置页可以调整喝水、伸展、远眺提醒与全屏免打扰；喵形象与胶囊均使用同一组设置；
 
 如果只使用 Codex，不希望安装 Claude hooks，可以按下方 PowerShell 示例设置 `WORKMEOW_NO_HOOKS` 后启动。
 
@@ -125,19 +126,19 @@ npm run package:win
 
 ## 卸载
 
-先从打工喵托盘选择“卸载已安装的钩子和插件”，或在源码目录运行：
+先从 Codex 喵伴托盘选择“卸载已安装的钩子和插件”，或在源码目录运行：
 
 ```powershell
 npm run uninstall:hooks
 ```
 
-然后退出打工喵。`~/.workmeow/` 是用户配置与用量历史目录；只有在确认不再需要这些数据时才手动删除。
+然后退出 Codex 喵伴。`~/.workmeow/` 是用户配置与用量历史目录；只有在确认不再需要这些数据时才手动删除。
 
 ## 常见问题
 
 ### 桌宠没有显示会话
 
 1. 确认至少有一个已接入的 agent（Claude Code / Codex / TRAE / WorkBuddy / opencode / ZCode）运行过一次；
-2. 启动打工喵后新建一个 agent 会话；
-3. Claude Code 用户可退出并重新打开打工喵，让 hooks 重新对账；
+2. 启动 Codex 喵伴后新建一个 agent 会话；
+3. Claude Code 用户可退出并重新打开 Codex 喵伴，让 hooks 重新对账；
 4. Codex 用户确认 `~/.codex/sessions/` 下存在当前会话的 rollout 文件。

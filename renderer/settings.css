@@ -42,6 +42,12 @@ main { overflow-y: auto; min-height: 0; min-width: 0; padding: 28px 28px 24px; s
 .switch[aria-checked="true"] { background: #34b96b; }
 .switch[aria-checked="true"] .switch-thumb { transform: translateX(16px); }
 .switch:disabled { opacity: .5; }
+.rest-preferences { margin-top: 8px; }
+.rest-frequency { display: flex; align-items: center; gap: 15px; }
+.rest-frequency label { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 11px; color: var(--ui-secondary); }
+.rest-frequency input { width: 62px; min-height: 32px; border: 1px solid var(--ui-line); border-radius: 8px; padding: 5px 7px; background: #fafafb; color: var(--ui-text); font-variant-numeric: tabular-nums; }
+.rest-frequency input:disabled { opacity: .45; }
+.rest-frequency input:focus-visible { outline: 2px solid #0071e355; outline-offset: 2px; }
 .switch:active:not(:disabled) .switch-thumb { width: 20px; }
 .switch[aria-checked="true"]:active:not(:disabled) .switch-thumb { transform: translateX(14px); }
 .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }

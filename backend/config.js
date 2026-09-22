@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { STATE_DIR } = require('./paths');
+const restPreferences = require('../shared/rest-preferences');
 
 const CONFIG_DIR = STATE_DIR;
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
@@ -26,6 +27,9 @@ const DEFAULTS = Object.freeze({
   showQuota: true,
   showTokens: false,
   showCost: true,
+  autoHideFullscreen: true,
+  quietMinutes: 30,
+  restReminders: restPreferences.DEFAULTS,
   xiabanTimes: DEFAULT_XIABAN_TIMES,
 });
 
@@ -47,6 +51,9 @@ function sanitize(raw) {
   if (typeof raw.hooksEnabled === 'boolean') out.hooksEnabled = raw.hooksEnabled;
   if (typeof raw.autoUpdateEnabled === 'boolean') out.autoUpdateEnabled = raw.autoUpdateEnabled;
   if (typeof raw.privacyMode === 'boolean') out.privacyMode = raw.privacyMode;
+  if (typeof raw.autoHideFullscreen === 'boolean') out.autoHideFullscreen = raw.autoHideFullscreen;
+  if (Number.isInteger(raw.quietMinutes) && raw.quietMinutes >= 1 && raw.quietMinutes <= 1440) out.quietMinutes = raw.quietMinutes;
+  out.restReminders = restPreferences.sanitizePreferences(raw.restReminders);
   for (const key of ['showCat', 'showStatus', 'showQuota', 'showTokens', 'showCost']) {
     if (typeof raw[key] === 'boolean') out[key] = raw[key];
   }

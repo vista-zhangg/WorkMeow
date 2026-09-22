@@ -1,8 +1,9 @@
 <div align="center">
   <img src="assets/salary-cat.png" width="112" alt="月薪喵头像">
-  <h1>打工喵（WorkMeow）</h1>
-  <p><strong>让一只喵替你盯住所有正在工作的 AI 编程助手。</strong></p>
-  <p>实时聚合 Claude Code、Codex、TRAE、WorkBuddy、opencode 与 ZCode 的状态、提醒、权限请求和 token 用量。</p>
+  <h1>Codex 喵伴（WorkMeow）</h1>
+  <p><strong>为 Codex 而生，兼容多款 AI 编程工具的 Windows 桌面陪伴助手。</strong></p>
+  <p>Codex 桌宠 · 订阅额度监控 · AI 任务提醒 · token 用量统计 · 喝水与伸展提醒</p>
+  <p>支持 Codex、Claude Code、TRAE、WorkBuddy、opencode 与 ZCode。</p>
 
   <p>
     <a href="README.md">简体中文</a> ·
@@ -12,7 +13,7 @@
   <p>
     <a href="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml"><img src="https://github.com/vista-zhangg/WorkMeow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows" alt="Windows x64 only">
-    <img src="https://img.shields.io/badge/version-1.8.1-F6A04A" alt="Version 1.8.1">
+    <img src="https://img.shields.io/badge/version-1.8.2-F6A04A" alt="Version 1.8.2">
     <a href="LICENSE"><img src="https://img.shields.io/badge/code%20license-MIT-2EA44F" alt="MIT License"></a>
   </p>
 </div>
@@ -20,22 +21,26 @@
 > [!IMPORTANT]
 > WorkMeow 当前**仅支持 Windows x64**，不支持 macOS、Linux 或 Windows on ARM。Windows 安装包尚未进行商业代码签名，首次运行时可能出现 SmartScreen 提示。
 
-产品名称和所有对外发布物统一使用 **打工喵（WorkMeow）**。
+产品名称和所有对外发布物统一使用 **Codex 喵伴（WorkMeow）**。
+
+这是面向 Codex 用户的独立开源桌宠项目，与 OpenAI 无隶属关系。英文检索可使用 **Codex desktop pet / desktop companion / usage monitor**。已有安装继续使用 `WorkMeow.exe`、`WorkMeow-<version>-Windows-x64.exe` 安装包和 `~/.workmeow/` 数据目录，升级保留配置与历史记录。
 
 ## 它能做什么
 
-当多个 Agent 同时工作时，频繁切换窗口查看状态很容易打断思路。WorkMeow 把本机上的会话汇聚为一个常驻桌面的小窗口：忙时开工、需要你时举手、结束时提醒，还能在统一面板中查看用量与上下文。
+Codex 喵伴让你在桌面上查看 Codex 的任务进度、5h / 7d 订阅额度与 token 用量，也能把其他 AI 编程工具的本机会话汇聚到一起：忙时开工、需要你时举手、结束时提醒。无论 AI 是否正在工作，它都能提醒坐在电脑前的你喝水、伸伸懒腰；喵形象和紧凑胶囊都可使用。
 
-- **一只喵，六个 Agent**：统一监控 Claude Code、Codex、TRAE、WorkBuddy、opencode 和 ZCode。
+- **一只喵，六个 Agent**：以 Codex 为核心，统一监控 Claude Code、TRAE、WorkBuddy、opencode 和 ZCode。
 - **状态一眼可见**：工作、思考、并行、清理、等待授权、等待回复、完成、出错、摸鱼与睡眠；后台任务或定时唤醒未结束时保持运行，不提前报完成。
 - **表情自由定制**：集中查看每个状态的全部 GIF，可新增轮换、替换或移出选中项，也可一键恢复默认。
 - **原生权限卡**：Claude Code 请求授权时，可直接在桌宠上允许、拒绝或永久允许。
 - **统一用量面板**：聚合 token、缓存读写、上下文窗口、模型、每日趋势与 API 公价折算。
 - **无需打开 Codex 即可查额度**：启动时自动发现桌面 Codex 自带的 CLI；托盘始终使用月薪喵头像，右键 WorkMeow 托盘图标即可查看当前脱敏账户、5h / 7d 剩余量、刷新点和更新时间。缺失窗口明确显示 `--`，无需手动配置。
 - **接入自检与修复**：在设置中核对六个 Agent 的 Hook、插件或只读监听状态，可一键修复或卸载 WorkMeow 接入。
-- **一键隐私模式**：右键打工喵通过 ON/OFF 快速切换，也可在设置中控制；隐藏敏感明细但保留必要状态和用量。
+- **一键隐私模式**：右键 Codex 喵伴通过 ON/OFF 快速切换，也可在设置中控制；隐藏敏感明细但保留必要状态和用量。
 - **本地优先**：会话与统计数据留在本机；公共价格由 models.dev 提供，订阅额度由 Codex 自己认证并读取。
 - **轻量桌面交互**：拖动、贴边、工作速览、行动中心、系统托盘、开机启动和下班彩蛋。
+- **照顾你的工作节奏**：喝水、伸展和远眺提醒独立于 AI 任务状态，喵和胶囊均可提醒；总开关、各类提醒、间隔和稍后提醒时长均可调整，也可今天跳过。
+- **全屏免打扰与临时安静**：全屏时自动藏起，退出全屏后恢复；可选择安静 15 / 30 / 60 分钟或自定义时长。喵和胶囊使用同一套隐藏机制，后台继续监控，手动「收起／藏起」后只在你主动显示时恢复。
 
 ## 真实状态示例
 
@@ -72,8 +77,8 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 
 | Agent | 接入方式 | 是否修改外部配置 | 桌宠内授权 |
 | --- | --- | --- | --- |
-| Claude Code | `hook/workmeow-hook.js` 生命周期 hook、transcript、进程信息 | 合并安装/卸载 WorkMeow hook，不覆盖已有 hook | 支持 |
 | Codex | 增量读取本机 rollout JSONL；官方 App Server 订阅额度通知 | 不修改 Codex 配置、不读取凭据文件 | 只读提醒 |
+| Claude Code | `hook/workmeow-hook.js` 生命周期 hook、transcript、进程信息 | 合并安装/卸载 WorkMeow hook，不覆盖已有 hook | 支持 |
 | TRAE | 读取本机 IDE 日志与进程信息 | 仅在检测到 TRAE 后合并安装 hook | 只读提醒 |
 | WorkBuddy | hook、transcript 与用量字段 | 仅在检测到 WorkBuddy 后合并安装 hook | 只读提醒 |
 | opencode | 官方插件机制、事件与用量文件 | 安装/卸载一个独立插件文件 | 只读提醒 |
@@ -106,7 +111,7 @@ WorkMeow 只把处理后的副本保存在当前用户的 `~/.workmeow/pet-asset
 - 本地 HTTP 服务只监听 loopback，写接口要求每次运行随机生成的令牌。
 - models.dev 同步只下载公开价目表，不上传 transcript、rollout、权限内容或统计数据。
 - Codex 额度通过一个长生命周期的 `codex app-server --stdio` 连接读取；WorkMeow 会先用 `account/read` 确认当前账户，再读取额度并监听更新。认证与上游请求均由 Codex 负责；WorkMeow 不读取 `~/.codex/auth.json` 的内容，也不访问 ChatGPT 网页接口。文件认证下，`auth.json` 被替换会触发立即重连；keyring / auto / ephemeral 没有可监听的文件事件，账户切换依赖 App Server 的账户通知、周期性 `account/read` 和定期重建连接收敛。因此界面表示的是 WorkMeow 自己这条 App Server 连接当前可见的账户，不承诺另一进程中的非文件认证切换能被文件 watcher 即时发现。
-- 右键打工喵或在设置中开启「隐私模式」只会遮蔽屏幕展示；监控与用量统计继续在本机运行，关闭后未处理事项自动恢复。
+- 右键 Codex 喵伴或在设置中开启「隐私模式」只会遮蔽屏幕展示；监控与用量统计继续在本机运行，关闭后未处理事项自动恢复。
 - 面板费用是按公开 API 单价折算的估计值，不等同于订阅账单或厂商最终结算。
 
 完整说明见 [隐私与数据边界](docs/PRIVACY.md)。
@@ -151,5 +156,5 @@ WorkMeow 基于 [LLMPET](https://github.com/myunwang/LLMPET) 二次开发，并�
 ---
 
 <div align="center">
-  <sub>Windows x64 only · Local-first · One cat, all your agents.</sub>
+  <sub>Codex desktop pet &amp; companion · Windows x64 · Local-first · Six AI coding tools.</sub>
 </div>

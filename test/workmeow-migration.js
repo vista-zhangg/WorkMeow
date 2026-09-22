@@ -11,7 +11,7 @@ const paths = require('../backend/paths');
 const transport = require('../backend/transport');
 
 assert.strictEqual(BRAND.name, 'WorkMeow');
-assert.strictEqual(BRAND.displayName, '打工喵');
+assert.strictEqual(BRAND.displayName, 'Codex 喵伴');
 assert.strictEqual(BRAND.appId, 'io.github.vista-zhangg.workmeow');
 assert.strictEqual(BRAND.serverId, transport.SERVER_ID);
 assert.strictEqual(BRAND.serverHeader, transport.SERVER_HEADER);

@@ -1,8 +1,8 @@
 # 贡献指南 / Contributing Guide
 
-感谢你改进打工喵（WorkMeow）。项目当前只接受能在 **Windows x64** 上验证的变更。
+感谢你改进 Codex 喵伴（WorkMeow）。项目当前只接受能在 **Windows x64** 上验证的变更。
 
-Thank you for improving WorkMeow. The project currently accepts changes that can be validated on **Windows x64**.
+Thank you for improving Codex 喵伴（WorkMeow）, a desktop companion for Codex and other AI coding tools. The project currently accepts changes that can be validated on **Windows x64**.
 
 ## 开发环境 / Development setup
 

@@ -32,6 +32,119 @@ async function initializeChipDisplay() {
 }
 initializeChipDisplay();
 
+// Rest preferences are saved together, so changing an interval never races a
+// switch update or a background fullscreen notification.
+(function initializeCompanionSettings() {
+  if (!window.pet.getCompanionState || !$('rest-enabled')) return;
+  const kinds = ['water', 'stretch', 'eyes'];
+  const master = $('rest-enabled');
+  const save = $('rest-save');
+  const status = $('rest-settings-status');
+  const fullscreen = $('fullscreen-toggle');
+  let saving = false;
+  let dirty = false;
+  let loaded = false;
+  const checked = (el) => el.getAttribute('aria-checked') === 'true';
+  function refreshControls() {
+    master.disabled = saving || !loaded;
+    save.disabled = saving || !loaded;
+    $('rest-snooze-minutes').disabled = saving || !loaded || !checked(master);
+    for (const kind of kinds) {
+      const toggle = $('rest-' + kind + '-enabled');
+      toggle.disabled = saving || !loaded || !checked(master);
+      $('rest-' + kind + '-minutes').disabled = toggle.disabled || !checked(toggle);
+    }
+  }
+  function render(value, force = false) {
+    if (!value || !value.rest || !value.visibility) return;
+    const prefs = value.rest.preferences;
+    loaded = true;
+    if (!dirty || force) {
+      master.setAttribute('aria-checked', String(prefs.enabled));
+      $('rest-snooze-minutes').value = prefs.snoozeMinutes || 10;
+      for (const kind of kinds) {
+        $('rest-' + kind + '-enabled').setAttribute('aria-checked', String(prefs[kind + 'Enabled']));
+        $('rest-' + kind + '-minutes').value = prefs[kind + 'Minutes'];
+      }
+    }
+    fullscreen.setAttribute('aria-checked', String(value.visibility.autoHideFullscreen !== false));
+    if (document.activeElement !== $('quiet-minutes')) $('quiet-minutes').value = value.quietMinutes || 30;
+    const until = Number(value.visibility.quietUntil) || 0;
+    $('quiet-description').textContent = until > Date.now()
+      ? `安静至 ${new Date(until).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}，点击托盘可提前回来。`
+      : value.visibility.manualHidden ? '已藏起，点击托盘图标即可回来。'
+        : '藏起 15、30 或 60 分钟，时间到后自动回来。';
+    refreshControls();
+  }
+  for (const button of [master, ...kinds.map(kind => $('rest-' + kind + '-enabled'))]) {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      dirty = true;
+      button.setAttribute('aria-checked', String(!checked(button)));
+      status.textContent = '调整后点击“保存提醒”生效';
+      refreshControls();
+    });
+  }
+  kinds.forEach(kind => $('rest-' + kind + '-minutes').addEventListener('input', () => { dirty = true; }));
+  $('rest-snooze-minutes').addEventListener('input', () => { dirty = true; });
+  save.addEventListener('click', async () => {
+    if (saving || !loaded) return;
+    const prefs = { enabled: checked(master), snoozeMinutes: Number($('rest-snooze-minutes').value) };
+    if (!Number.isInteger(prefs.snoozeMinutes) || prefs.snoozeMinutes < 1 || prefs.snoozeMinutes > 240) {
+      status.textContent = '稍后提醒请填写 1–240 分钟的整数'; status.classList.add('error'); return;
+    }
+    for (const kind of kinds) {
+      const minutes = Number($('rest-' + kind + '-minutes').value);
+      if (!Number.isInteger(minutes) || minutes < 5 || minutes > 240) {
+        status.textContent = '提醒间隔请填写 5–240 分钟的整数';
+        status.classList.add('error');
+        return;
+      }
+      prefs[kind + 'Minutes'] = minutes;
+      prefs[kind + 'Enabled'] = checked($('rest-' + kind + '-enabled'));
+    }
+    saving = true;
+    refreshControls();
+    try {
+      const value = await window.pet.setCompanionPreferences({ restReminders: prefs });
+      if (!value || !value.ok) throw new Error('save');
+      dirty = false;
+      render(value, true);
+      status.classList.remove('error');
+      status.textContent = prefs.enabled ? '已保存，提醒会跟随你的电脑使用时间' : '休息提醒已关闭';
+    } catch { status.textContent = '保存失败，请重试'; status.classList.add('error'); }
+    finally { saving = false; refreshControls(); }
+  });
+  fullscreen.addEventListener('click', async () => {
+    fullscreen.disabled = true;
+    try {
+      const value = await window.pet.setCompanionPreferences({ autoHideFullscreen: !checked(fullscreen) });
+      if (!value || !value.ok) throw new Error('save');
+      render(value);
+      $('fullscreen-status').textContent = '全屏免打扰设置已保存';
+    } catch { $('fullscreen-status').textContent = '保存失败，请重试'; }
+    finally { fullscreen.disabled = false; }
+  });
+  $('quiet-menu').addEventListener('click', () => window.pet.openHideMenu());
+  $('quiet-minutes').addEventListener('change', async () => {
+    const minutes = Number($('quiet-minutes').value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+      $('fullscreen-status').textContent = '安静时长请填写 1–1440 分钟的整数'; return;
+    }
+    $('quiet-menu').disabled = true;
+    try {
+      const result = await window.pet.setCompanionPreferences({ quietMinutes: minutes });
+      if (!result || !result.ok) throw new Error('save');
+      render(result);
+      $('fullscreen-status').textContent = `已保存：我的安静时长 ${minutes} 分钟`;
+    } catch { $('fullscreen-status').textContent = '安静时长保存失败，请重试'; }
+    finally { $('quiet-menu').disabled = false; }
+  });
+  if (window.pet.onCompanionState) window.pet.onCompanionState(value => render(value));
+  refreshControls();
+  window.pet.getCompanionState().then(value => render(value, true)).catch(() => { status.textContent = '陪伴设置加载失败，请重新打开设置'; });
+})();
+
 function renderChipPreview(value) {
   const fields = { showCat: 'cat', showStatus: 'status', showQuota: 'quota', showTokens: 'tokens', showCost: 'cost' };
   for (const [key, name] of Object.entries(fields)) $('preview-' + name).hidden = value[key] !== true;
@@ -649,7 +762,7 @@ async function importExpression(mode) {
   const definition = currentSlotDefinition();
   const selected = currentSlotData().active.find((asset) => asset.id === selectedAssetId) || currentSlotData().active[0];
   if (mode === 'replace-one') {
-    const irreversible = selected.kind === 'custom' ? '\n\n旧的自定义副本会从打工喵中删除，原始 GIF 文件不受影响。' : '';
+    const irreversible = selected.kind === 'custom' ? '\n\n旧的自定义副本会从Codex 喵伴中删除，原始 GIF 文件不受影响。' : '';
     const confirmed = window.confirm(`用新的 GIF 替换当前选中的“${selected.name}”吗？${irreversible}`);
     if (!confirmed) return;
   }
@@ -688,7 +801,7 @@ async function removeSelectedExpression() {
   if (assetBusy || !asset || slot.active.length <= 1) return;
   const definition = currentSlotDefinition();
   const detail = asset.kind === 'custom'
-    ? '\n\n自定义副本会从打工喵中删除，原始 GIF 文件不受影响。'
+    ? '\n\n自定义副本会从Codex 喵伴中删除，原始 GIF 文件不受影响。'
     : '\n\n可随时通过“恢复默认”重新启用它。';
   if (!window.confirm(`从“${definition.label}”的播放列表中移出“${asset.name}”吗？${detail}`)) return;
   setAssetBusy(true);
@@ -713,7 +826,7 @@ async function removeSelectedExpression() {
 async function resetSlot() {
   if (assetBusy || currentSlotData().mode === 'default') return;
   const definition = currentSlotDefinition();
-  if (!window.confirm(`恢复“${definition.label}”的默认表情吗？\n\n这个状态下添加的所有自定义表情都会从打工喵中删除。原始 GIF 文件不会受到影响。`)) return;
+  if (!window.confirm(`恢复“${definition.label}”的默认表情吗？\n\n这个状态下添加的所有自定义表情都会从Codex 喵伴中删除。原始 GIF 文件不会受到影响。`)) return;
   setAssetBusy(true);
   showAssetStatus('正在恢复默认表情…', '', true);
   try {

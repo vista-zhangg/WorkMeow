@@ -132,6 +132,14 @@ function createStubWorld() {
     onStats: (cb) => { handlers.stats = cb; },
     onXiabanSchedule: (cb) => { handlers.xiabanSchedule = cb; },
     onPetAssets: (cb) => { handlers.petAssets = cb; },
+    onCompanionState: (cb) => { handlers.companionState = cb; },
+    getCompanionState: () => Promise.resolve(behavior.companionState || null),
+    restAction: (...a) => {
+      calls.push(['restAction', a]);
+      return typeof behavior.restAction === 'function'
+        ? Promise.resolve(behavior.restAction(...a)) : Promise.resolve(behavior.restActionResult || null);
+    },
+    openHideMenu: () => calls.push(['openHideMenu']),
     getPetAssets: () => Promise.resolve(null),
     getStats: () => Promise.resolve(null),
     getWinPos: () => Promise.resolve([0, 0]),

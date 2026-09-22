@@ -10,7 +10,7 @@ let usageMetric = 'tokens';
 let usageRange = 'today';
 
 const THEME = {
-  name: '打工喵',
+  name: 'Codex 喵伴',
   color: '#0071e3',
   barGradient: 'linear-gradient(180deg, #91bdf1, #568fde)',
   nowGradient: 'linear-gradient(180deg, #4c9af0, #0071e3)',
@@ -469,7 +469,7 @@ window.pet.onPrice((m) => {
 
 function applyStaticI18n() {
   document.documentElement.lang = 'zh-CN';
-  document.title = '打工喵 · 详情';
+  document.title = 'Codex 喵伴 · 详情';
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
   for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
 }

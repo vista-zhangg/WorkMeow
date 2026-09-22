@@ -25,7 +25,7 @@ const child = spawn(electron, [appDir], {
 child.unref();
 
 child.on('error', (err) => {
-  console.error('启动打工喵失败：', err.message);
+  console.error('启动Codex 喵伴失败：', err.message);
   process.exit(1);
 });
 

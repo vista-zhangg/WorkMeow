@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="ui.css" />
     <link rel="stylesheet" href="pet.css" />
     <link rel="stylesheet" href="capsule.css" />
-    <title>打工喵 WorkMeow</title>
+    <title>Codex 喵伴 WorkMeow</title>
   </head>
   <body>
     <div id="stage">
@@ -17,6 +17,13 @@
       </div>
 
       <!-- 需要输入 / 授权卡片：Claude 要选择/授权/输入时在这处理 -->
+      <section id="rest-reminder" class="rest-card hidden" role="region" aria-labelledby="rest-title">
+        <div class="rest-card-heading"><span class="rest-card-mark" aria-hidden="true">♡</span><span>给自己一点时间</span></div>
+        <div id="rest-title" class="rest-card-title" aria-live="polite"></div>
+        <p id="rest-message" class="rest-card-message"></p>
+        <div class="rest-card-actions"><button id="rest-done" type="button" class="rest-primary">完成啦</button><button id="rest-snooze" type="button">10 分钟后</button><button id="rest-skip" type="button">今天跳过</button></div>
+        <p id="rest-action-status" class="rest-action-status" role="status"></p>
+      </section>
       <div id="ask" class="ask hidden" role="dialog" aria-live="polite" aria-label="需要输入">
         <div class="ask-head">
           <div class="ask-label" id="ask-label" data-i18n="ask.needsInput">需要输入</div>
@@ -49,7 +56,7 @@
           <span id="peek-state" class="peek-state idle" aria-hidden="true"></span>
           <div class="peek-heading">
             <div id="peek-title" class="peek-title">暂时没有任务</div>
-            <div id="peek-subtitle" class="peek-subtitle">打工喵正在待命</div>
+            <div id="peek-subtitle" class="peek-subtitle">Codex 喵伴正在待命</div>
           </div>
           <button id="peek-close" class="peek-close" type="button" data-i18n-aria="peek.close" aria-label="关闭">✕</button>
         </div>
@@ -104,18 +111,19 @@
         <div id="sessions" class="sessions"></div>
 
         <!-- 唯一形象：月薪喵（每个状态一张 GIF，动效由 GIF 自带） -->
-        <div id="cat" class="cat idle" role="button" tabindex="0" aria-label="打工喵：打开当前状态；右键打开菜单">
+        <div id="cat" class="cat idle" role="button" tabindex="0" aria-label="Codex 喵伴：打开当前状态；右键打开菜单">
           <img id="cat-img" src="../assets/salary-cat.png" alt="cat" draggable="false" />
         </div>
 
         <!-- 常驻今日用量条；额度区域是唯一的订阅详情入口，默认不弹系统 tooltip -->
-        <div id="chip" class="chip" aria-live="polite" aria-label="打工喵状态">
+        <div id="chip" class="chip" aria-live="polite" aria-label="Codex 喵伴状态">
           <span id="chip-context" class="chip-context">🐾 待命</span>
           <span id="chip-quota" class="chip-quota" role="button" tabindex="0" aria-controls="quota-popover" aria-expanded="false" aria-label="查看订阅额度刷新时间" hidden></span>
           <span id="chip-tokens-sep" class="chip-sep">·</span>
           <span id="chip-tokens" class="chip-tokens">0 tokens</span>
           <span id="chip-cost-sep" class="chip-sep">·</span>
           <span id="chip-cost" class="chip-cost">$0.000</span>
+          <button id="rest-pending" class="rest-pending" type="button" hidden>♡ 休息一下</button>
         </div>
       </div>
 
@@ -150,5 +158,6 @@
     <script src="icons.js"></script>
     <script src="../shared/pet-geometry.js"></script>
     <script src="pet.js"></script>
+    <script src="companion.js"></script>
   </body>
 </html>
