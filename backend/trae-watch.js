@@ -1,23 +1,30 @@
 'use strict';
 
-// TRAE SOLO CN 日志监听器 —— 把 ai-agent stdout 日志翻译成 core 的状态流。
+// TRAE SOLO CN 日志监听器 —— 把 TRAE 日志翻译成 core 的状态流。
 //
 // 为什么走「读日志」而不是钩子：TRAE SOLO CN 的内置 agent 是 Rust 原生模块
 // (ai_agent.dll)，不是 Claude Code CLI，不读 ~/.claude/settings.json 也不读
-// ~/.trae-cn/hooks.json。唯一可靠的活动信号源是它写到
-// %APPDATA%/TRAE SOLO CN/logs/<ts>/Modular/ai-agent_*_stdout.log 的 Rust tracing
-// 日志。每行都带 session_id=xxx、task_id=xxx、message_id=xxx，且工具生命周期
-// 用 hook=PreToolUse / hook=PostToolUse 标记——正好对应打工喵的词汇。
+// ~/.trae-cn/hooks.json。活动信号只能从 %APPDATA%/TRAE SOLO CN/logs/<ts>/ 下
+// 的日志里读。
 //
-// 与 codex-watch 不同：TRAE 日志是 Rust tracing 文本（非结构化 JSONL），所以
-// 用正则识别关键事件而非 JSON.parse。信号覆盖：
-//   do_chat:slardar_root:dispatch:execute_task:start   → thinking（用户发了消息/任务开始）
-//   [ToolcallService] Start run tool "X"               → working（PreToolUse）
-//   [ToolcallService] Run tool X finished, status:     → working（PostToolUse，任务仍在执行）
-//   hook=PreToolUse / hook=PostToolUse                 → working（兜底工具信号）
-//   execute_task:start                                  → thinking
-//   plan tool call finish                              → working
-//   plan final token cost                              → working（规划阶段仍在跑）
+// 信号源有两代（2026-09 起 TRAE 0.1.64 切换，两代都看）：
+//
+// ① 旧：Modular/ai-agent_*_stdout.log —— Rust tracing 纯文本。每行带
+//    session_id=xxx、task_id=xxx，工具生命周期用 hook=PreToolUse/PostToolUse
+//    标记。0.1.64 起该文件变成 0 字节占位，tracing 全部改写进二进制
+//    .alaudalog (AalG) 格式，无法按行 tail —— 旧信号源由此失效。
+//
+// ② 新：window*/renderer.log —— 渲染进程纯文本日志，会话生命周期以 JSON
+//    载荷形式镜像在这里：
+//    [SessionStatusTrace] Session status changed: {...sessionId,nextStatus}
+//      nextStatus 1 → thinking（新任务）；3 → working（执行中）；
+//      5 → idle（sse.done 回合完成）；4 → idle（异常终止）
+//    [PlanItemHandler] New plan item created / [AssistantMainBadge]
+//    plan_item_enqueued {...planItemId, toolCallName} → working（PreToolUse）
+//    [NotificationPort] Waiting confirm detected → notification（等用户确认）
+//    [ToolConfirm] action started → working（用户已批准，工具开跑）
+//    [MetadataHandler] received metadata / [RealtimeEventService] 等 → 活动心跳
+//    cwd 从 realtime 事件的 local_folder 提取，标题从 session_updated 的 title。
 //
 // 状态降级：文件停止增长 8 秒 → idle（TRAE 日志是事项完成才落盘，停写即停工，
 // 不像 Claude transcript 会持续流式追加）。会话陈旧 10 分钟 → 退场。
@@ -67,11 +74,56 @@ const RE_PLAN_FINISH = /plan tool call finish/;
 // 这些不算活动——否则打工喵会因后台日志持续落盘而永远停在 working 状态。
 const RE_MEANINGFUL = /(do_chat|ToolcallService|hook=PreToolUse|hook=PostToolUse|plan final token cost|plan tool call finish|execute_toolcall)/i;
 
+// ---------- renderer.log 信号（TRAE 0.1.64+） ----------
+// 会话归属：JSON 载荷里的任意一种 session id 键（比文件名稳定，一个窗口一个
+// renderer.log 可能交错多个会话）。
+const RE_R_SID = /"(?:sessionId|session_id|chat_session_id|eventSessionId|currentSessionId|targetSessionId)":"([0-9a-f]{8,})"/i;
+const RE_R_CWD = /"local_folder":"((?:[^"\\]|\\.)*)"/;
+const RE_R_TITLE = /"title":"((?:[^"\\]|\\.)*)"/;
+const RE_R_STATUS = /\[SessionStatusTrace\] Session status changed:/;
+const RE_R_PLAN_ITEM = /New plan item created|plan item first observed/;
+const RE_R_BADGE = /\[AssistantMainBadge\] received plan_item_enqueued/;
+const RE_R_WAIT_CONFIRM = /\[NotificationPort\] Waiting confirm detected/;
+const RE_R_TOOL_CONFIRM = /\[ToolConfirm\] action started/;
+const RE_R_METADATA = /\[MetadataHandler\] received metadata/;
+const RE_R_STREAM_LIFE = /\[NotificationPort\] Stream (started|stopped)/;
+// title 只从会话生命周期行收割（其它行的 JSON 里也可能嵌 title 字样）
+const RE_R_SESSION_LIFE = /session_created|session_updated|Session fetched|SessionStatusTrace/;
+// renderer.log 空闲时也在被 list_chat_sessions 轮询等后台流量持续写入，
+// 只有这些标签算活动（和旧 ai-agent 的 RE_MEANINGFUL 同一个角色）。
+const RE_R_MEANINGFUL = /(SessionStatusTrace|PlanItemHandler|sse-summary|plan_item_enqueued|ToolConfirm|NotificationPort|MetadataHandler|session_created|session_updated|Session fetched|Status conflict)/;
+
+// TRAE 的会话状态码：1=新任务 3=执行中 4=异常终止 5=回合完成。
+// prevStatus 缺失 = core.set 启动恢复（历史会话回填），不能当成实时迁移。
+function rendererStatusUpdate(next, prev) {
+  if (next === 1) return { state: 'thinking', event: 'UserPromptSubmit' };
+  if (next === 3 && prev === 5) return { state: 'thinking', event: 'UserPromptSubmit' }; // 旧会话新回合
+  if ((next === 5 || next === 4) && prev === 3) return { state: 'idle', event: 'TraeIdle' };
+  return null; // 其余（启动恢复 / 1→3 / 重复同步）只算活动
+}
+
 function parseTs(line) {
   const m = RE_TS.exec(line);
   if (!m) return 0;
   const t = Date.parse(m[1]);
   return Number.isFinite(t) ? t : 0;
+}
+
+// renderer.log 行尾的 JSON 载荷：取整行第一个 { 到最后一个 } 解析。
+function tailJson(line) {
+  const a = line.indexOf('{');
+  const b = line.lastIndexOf('}');
+  if (a === -1 || b <= a) return null;
+  try {
+    const v = JSON.parse(line.slice(a, b + 1));
+    return v && typeof v === 'object' ? v : null;
+  } catch { return null; }
+}
+
+// JSON 字符串值反转义（"d:\\Desktop\\x" → d:\Desktop\x）。
+function unquoteJson(raw) {
+  if (!raw) return '';
+  try { return JSON.parse(`"${raw}"`) || ''; } catch { return raw; }
 }
 
 function readBytes(fp, start, len) {
@@ -124,6 +176,21 @@ function listAgentLogs(dir) {
   return out;
 }
 
+// renderer.log：每个窗口目录 window<N>/renderer.log（TRAE 0.1.64+ 的活动信号源）
+function listRendererLogs(dir) {
+  let names;
+  try { names = fs.readdirSync(dir); } catch { return []; }
+  const out = [];
+  for (const n of names) {
+    if (!/^window\d+$/.test(n)) continue;
+    const fp = path.join(dir, n, 'renderer.log');
+    let st;
+    try { st = fs.statSync(fp); } catch { continue; }
+    out.push({ fp, size: st.size, mtimeMs: st.mtimeMs });
+  }
+  return out;
+}
+
 function createTraeWatch(deps) {
   const core = deps.core;
   const roots = deps.roots || candidateLogRoots();
@@ -152,10 +219,91 @@ function createTraeWatch(deps) {
     core.updateSession(t.sid, state, event, { ...baseFields(t), ...extra });
   }
 
+  // renderer.log 行处理。返回 true = 有意义的活动行（刷新 idle 计时器）。
+  // 会话归属：payload 里任意一种 session id 键；一个 renderer.log 交错多会话时
+  // 逐行跟随（与旧 ai-agent 逻辑一致）。
+  function handleRendererLine(t, line) {
+    const sid = RE_R_SID.exec(line);
+    if (sid) t.sid = sid[1];
+    // cwd 只取第一次（一个窗口 = 一个项目文件夹）；title 持续跟随最新值
+    if (t.sid) {
+      if (!t.cwd) {
+        const cwd = RE_R_CWD.exec(line);
+        if (cwd) t.cwd = unquoteJson(cwd[1]) || t.cwd;
+      }
+      if (RE_R_SESSION_LIFE.test(line)) {
+        const title = RE_R_TITLE.exec(line);
+        if (title) t.title = unquoteJson(title[1]) || t.title;
+      }
+    }
+
+    // ① 会话状态迁移（1=新任务 3=执行中 5=回合完成 4=异常终止）
+    if (RE_R_STATUS.test(line)) {
+      const p = tailJson(line);
+      const next = p ? Number(p.nextStatus) : 0;
+      const prev = p ? Number(p.prevStatus) : 0;
+      const mapped = rendererStatusUpdate(next, prev);
+      if (mapped) update(t, mapped.state, mapped.event, { sessionTitle: t.title || null });
+      // 启动恢复（core.set，无 prevStatus）不算活动，避免给历史会话建档
+      return !!(mapped || (p && Number.isFinite(prev)));
+    }
+
+    // ② 计划项 = 工具调用信号（toolCallName 为空的是纯文本段，只算活动）
+    if (RE_R_PLAN_ITEM.test(line) || RE_R_BADGE.test(line)) {
+      const p = tailJson(line);
+      if (p) {
+        // badge 载荷里 currentSessionId 是当前聚焦的会话，eventSessionId 才是
+        // 事件归属；PlanItemHandler 用 sessionId
+        const ownerSid = p.eventSessionId || p.sessionId;
+        if (typeof ownerSid === 'string' && ownerSid) t.sid = ownerSid;
+        const planItemId = String(p.planItemId || '');
+        const toolName = String(p.toolCallName || '');
+        if (toolName && planItemId && !t.toolItems.has(planItemId)) {
+          t.toolItems.set(planItemId, toolName);
+          if (t.toolItems.size > 128) t.toolItems.delete(t.toolItems.keys().next().value);
+          t.lastTool = toolName;
+          update(t, 'working', 'PreToolUse', { toolName, sessionTitle: t.title || null });
+          return true;
+        }
+      }
+      return true;
+    }
+
+    // ③ TRAE 等用户确认工具 → notification（持续到用户处理）
+    if (RE_R_WAIT_CONFIRM.test(line)) {
+      const p = tailJson(line);
+      if (p && typeof p.sessionId === 'string') t.sid = p.sessionId;
+      update(t, 'notification', 'Notification', { sessionTitle: t.title || null });
+      return true;
+    }
+
+    // ④ 用户批准工具 → 工具开跑
+    if (RE_R_TOOL_CONFIRM.test(line)) {
+      const p = tailJson(line);
+      if (p) {
+        if (typeof p.sessionId === 'string' && p.sessionId) t.sid = p.sessionId;
+        if (p.toolName) t.lastTool = String(p.toolName);
+      }
+      update(t, 'working', 'PreToolUse', { toolName: t.lastTool || null, sessionTitle: t.title || null });
+      return true;
+    }
+
+    // ⑤ 流式元数据/回合生命周期/realtime 同步：活动心跳，不发事件
+    if (RE_R_METADATA.test(line) || RE_R_STREAM_LIFE.test(line)) return true;
+    return true;
+  }
+
   // 从一行日志提取信号，转成 core 事件。返回 true 表示这是「有意义的活动行」
   // （chat 派发 / 工具调用 / 规划 / hook），用于驱动 idle 降级计时器；后台行
   // （toolhost/rpc/tenant_config 等）不匹配任何信号，返回 false。
   function handleLine(t, line) {
+    if (t.kind === 'renderer') {
+      // renderer.log 空闲时也被 list_chat_sessions 轮询等后台流量持续写入，
+      // 先过活动门控再解析，否则打工喵会永远停在 working。
+      if (!RE_R_MEANINGFUL.test(line)) return false;
+      return handleRendererLine(t, line);
+    }
+
     const sid = RE_SESSION.exec(line);
     if (sid) {
       // 用日志里的 session_id 作为会话标识（比文件名更稳定）
@@ -230,7 +378,11 @@ function createTraeWatch(deps) {
     // 历史不回放，只静默入库
     t.offset = size;
     cursors.set(t.fp, { offset: size, carry: '' });
-    // 从尾部探测一次 session_id / cwd，让会话能正确建档
+    // 从尾部探测一次 session_id / cwd，让会话能正确建档。
+    // renderer.log 的 sid/cwd 是 JSON 键值对，与 ai-agent 的 key=value 格式不同。
+    const isRenderer = t.kind === 'renderer';
+    const sidRe = isRenderer ? RE_R_SID : RE_SESSION;
+    const cwdRe = isRenderer ? RE_R_CWD : RE_REPO;
     const start = Math.max(0, size - TAIL_PROBE_BYTES);
     const tail = readBytes(t.fp, start, size - start);
     if (tail) {
@@ -238,13 +390,23 @@ function createTraeWatch(deps) {
       if (start > 0) lines.shift();
       // 从尾部往前找最后一个带 session_id 的行
       for (let i = lines.length - 1; i >= 0; i--) {
-        const sid = RE_SESSION.exec(lines[i]);
+        const sid = sidRe.exec(lines[i]);
         if (sid) { t.sid = sid[1]; break; }
       }
       // cwd 从尾部找
       for (let i = lines.length - 1; i >= 0; i--) {
-        const repo = RE_REPO.exec(lines[i]);
-        if (repo) { t.cwd = repo[1]; break; }
+        const repo = cwdRe.exec(lines[i]);
+        if (repo) {
+          t.cwd = isRenderer ? (unquoteJson(repo[1]) || t.cwd) : repo[1];
+          if (t.cwd) break;
+        }
+      }
+      // 标题（仅 renderer.log 有）：从尾部往前找第一个非空 title
+      if (isRenderer) {
+        for (let i = lines.length - 1; i >= 0 && !t.title; i--) {
+          const title = RE_R_TITLE.exec(lines[i]);
+          if (title) t.title = unquoteJson(title[1]) || null;
+        }
       }
     }
     if (!t.sid) return; // 找不到 session_id，不建档
@@ -253,7 +415,7 @@ function createTraeWatch(deps) {
       agentId: 'trae',
       cwd: t.cwd || '',
       transcriptPath: t.fp,
-      sessionTitle: null,
+      sessionTitle: t.title || null,
       contextUsage: null,
       sourcePid: null,
       headless: false,
@@ -289,6 +451,10 @@ function createTraeWatch(deps) {
       fp, sid: null, offset: cursor ? cursor.offset : 0, carry: cursor ? cursor.carry : '',
       cwd: null, model: null, lastTool: null, lastTaskId: null,
       lastActivityAt: 0,
+      // renderer.log (TRAE 0.1.64+) 专用：会话标题、已发过的计划项去重表
+      kind: /renderer\.log$/.test(fp) ? 'renderer' : 'agent',
+      title: null,
+      toolItems: new Map(),
     };
   }
 
@@ -303,11 +469,12 @@ function createTraeWatch(deps) {
     }
     if (missingLogged) missingLogged = false;
 
-    // 收集候选文件：最近 HOT_DIRS 个目录里的 ai-agent stdout
+    // 收集候选文件：最近 HOT_DIRS 个目录里的 ai-agent stdout + window*/renderer.log
     const found = [];
     const hotDirs = tsDirs.slice(0, HOT_DIRS);
     for (const { dir } of hotDirs) {
       for (const e of listAgentLogs(dir)) found.push(e);
+      for (const e of listRendererLogs(dir)) found.push(e);
     }
     if (fullSweep) {
       // 全量兜底：长寿会话可能写在较早目录里
@@ -315,6 +482,7 @@ function createTraeWatch(deps) {
       for (const { dir } of tsDirs) {
         if (hotDirs.includes(dir)) continue;
         for (const e of listAgentLogs(dir)) if (!seen.has(e.fp)) found.push(e);
+        for (const e of listRendererLogs(dir)) if (!seen.has(e.fp)) found.push(e);
       }
     }
 

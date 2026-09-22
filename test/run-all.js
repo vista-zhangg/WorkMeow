@@ -37,6 +37,7 @@ const TESTS = Object.freeze([
   'deadcode.js',
   'codex-watch.js',
   'codex-integration.js',
+  'trae-watch.js',
   'i18n.js',
   'pet-geometry.js',
   'pet-insights.js',

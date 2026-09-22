@@ -862,9 +862,9 @@ function bootBackend() {
     zcodeMetering.start(30000);
   }
 
-  // TRAE 状态监听：TRAE SOLO CN 的内置 agent 不支持 Claude hooks，唯一可靠
-  // 的活动信号源是 ai-agent stdout 日志。读日志增量 tail 把工具生命周期
-  // (hook=PreToolUse/PostToolUse) 翻译成 core 状态流。
+  // TRAE 状态监听：TRAE SOLO CN 的内置 agent 不支持 Claude hooks，活动信号源
+  // 是 logs/<ts>/ 下的文本日志（TRAE 0.1.64 起 ai-agent stdout 变 0 字节，
+  // 信号改读 window*/renderer.log，详见 backend/trae-watch.js 头注释）。
   if (!env.flag('NO_TRAE')) {
     traeWatch = createTraeWatch({ core });
     traeWatch.start();

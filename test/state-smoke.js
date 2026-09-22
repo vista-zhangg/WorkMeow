@@ -162,6 +162,13 @@ async function main() {
     const w = world();
     const cat = w.elements('cat');
     const sleepEl = w.elements('sleep');
+    // Keep this ambient-rotation contract independent of the wall clock. The
+    // default lunch/evening xiaban windows are product behavior, not part of
+    // this test; running the suite during either window would legitimately
+    // replace an ambient pose with cat-xiaban.gif.
+    const neutral = new Date();
+    neutral.setHours(12, 0, 0, 0);
+    w.clock.offset = neutral.getTime() - Date.now();
     const AMBIENT = ['cat-sleeping.gif', 'cat-sleeping-2.gif', 'cat-loafing.gif',
       'cat-loafing-2.gif', 'cat-loafing-3.gif', 'cat-loafing-4.gif', 'cat-loafing-5.gif', 'cat-idle.gif',
       'cat-thinking-2.gif', 'cat-roam.gif'];
