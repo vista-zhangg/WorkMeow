@@ -65,6 +65,12 @@ npm start
 - `npm test` 运行项目的无头回归测试；
 - `npm start` 通过脱离终端的启动器运行桌宠；调试时使用 `npm run start:console` 让 Electron 留在当前终端。
 
+### 界面预览与检查
+
+运行 `npm run preview:ui`，使用示例数据检查详情、设置和胶囊界面。预览窗口在后台渲染，不启动正式应用后端，也不读写用户的 hooks 或用量记录。截图、检查结果和日志保存在 `.inspect/ui-preview/`，进程结束后命令返回通过或失败。
+
+预览脚本将日志直接写入文件，启动器也将 Electron 的标准输出、错误输出重定向到文件，避免短命终端管道关闭后触发 `EPIPE: broken pipe` 弹窗。未捕获错误会记录日志并退出，预览超过 90 秒也会退出。不要通过临时 PowerShell 命令直接启动后台 Electron 并继承其输出管道。
+
 只验证界面、不修改 Claude Code 配置：
 
 ```powershell
