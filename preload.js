@@ -26,7 +26,7 @@ const IPC = Object.freeze({
   CLOSE_SETTINGS: 'close-settings',
   SET_PANEL_HEIGHT: 'set-panel-height', CLOSE_PET: 'close-pet',
   PERMISSION_DECIDE: 'permission-decide', FOCUS_SESSION: 'focus-session', SET_PET_SIZE: 'set-pet-size',
-  PET_BLUR: 'pet-blur', SET_IGNORE_MOUSE: 'set-ignore-mouse', QUOTA_ALERT_SHOWN: 'quota-alert:shown',
+  PET_BLUR: 'pet-blur', PET_POINTER_CHECK: 'pet:pointer-check', SET_IGNORE_MOUSE: 'set-ignore-mouse', QUOTA_ALERT_SHOWN: 'quota-alert:shown',
 });
 
 contextBridge.exposeInMainWorld('pet', {
@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('pet', {
   onUpdateState: (cb) => ipcRenderer.on(IPC.UPDATE_STATE, (_e, data) => cb(data)),
   onPrivacyMode: (cb) => ipcRenderer.on(IPC.PRIVACY_STATE, (_e, data) => cb(data)),
   onCompanionState: (cb) => ipcRenderer.on(IPC.COMPANION_STATE, (_e, data) => cb(data)),
+  onPointerCheck: (cb) => ipcRenderer.on(IPC.PET_POINTER_CHECK, (_e, point) => cb(point)),
   getCompanionState: () => ipcRenderer.invoke(IPC.GET_COMPANION_STATE),
   setCompanionPreferences: (value) => ipcRenderer.invoke(IPC.SET_COMPANION_PREFS, value),
   restAction: (value) => ipcRenderer.invoke(IPC.REST_ACTION, value),

@@ -51,6 +51,7 @@ const IPC = Object.freeze({
   FOCUS_SESSION: 'focus-session',
   SET_PET_SIZE: 'set-pet-size',
   PET_BLUR: 'pet-blur',
+  PET_POINTER_CHECK: 'pet:pointer-check',
   SET_IGNORE_MOUSE: 'set-ignore-mouse',
   QUOTA_ALERT_SHOWN: 'quota-alert:shown',
 });
@@ -58,6 +59,7 @@ const IPC = Object.freeze({
 const PUSH_CHANNELS = Object.freeze([
   'PET_EVENT', 'PET_STATS', 'PANEL_STATS', 'PANEL_PRICE', 'XIABAN_SCHEDULE',
   'PET_ASSETS', 'UPDATE_STATE', 'PRIVACY_STATE', 'COMPANION_STATE',
+  'PET_POINTER_CHECK',
 ]);
 const INVOKE_CHANNELS = Object.freeze([
   'GET_COMPANION_STATE', 'SET_COMPANION_PREFS', 'REST_ACTION',

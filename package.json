@@ -1,6 +1,6 @@
 {
   "name": "workmeow",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "description": "Codex 喵伴（WorkMeow）：面向 Codex 的 Windows 桌宠与 AI 编程陪伴助手，提供状态提醒、订阅额度监控、token 用量统计和休息提醒，兼容 Claude Code、TRAE、WorkBuddy、opencode 与 ZCode。Codex desktop pet, companion and usage monitor.",
   "keywords": [
     "codex",

@@ -123,7 +123,7 @@ function createStubWorld() {
   };
 
   // Captured renderer callbacks (registered via window.pet.onX)
-  const handlers = { event: null, stats: null, xiabanSchedule: null, petAssets: null };
+  const handlers = { event: null, stats: null, xiabanSchedule: null, petAssets: null, pointerCheck: null };
   const calls = []; // record of preload calls for assertions
   const behavior = { focusResult: true };
 
@@ -133,6 +133,7 @@ function createStubWorld() {
     onXiabanSchedule: (cb) => { handlers.xiabanSchedule = cb; },
     onPetAssets: (cb) => { handlers.petAssets = cb; },
     onCompanionState: (cb) => { handlers.companionState = cb; },
+    onPointerCheck: (cb) => { handlers.pointerCheck = cb; },
     getCompanionState: () => Promise.resolve(behavior.companionState || null),
     restAction: (...a) => {
       calls.push(['restAction', a]);
@@ -168,6 +169,7 @@ function createStubWorld() {
     static now() { return RealDate.now() + clock.offset; }
   }
 
+  const windowListeners = {};
   const window = {
     pet,
     WorkMeowIcons: undefined,
@@ -176,7 +178,8 @@ function createStubWorld() {
       getItem(key) { return this._data.has(String(key)) ? this._data.get(String(key)) : null; },
       setItem(key, value) { this._data.set(String(key), String(value)); },
     },
-    addEventListener: () => {},
+    addEventListener: (ev, fn) => { (windowListeners[ev] = windowListeners[ev] || []).push(fn); },
+    dispatch: (ev, arg) => { for (const fn of windowListeners[ev] || []) fn(arg || {}); },
   };
 
   const sandbox = {

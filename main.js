@@ -123,6 +123,7 @@ let restReminders = null;
 let petVisibility = null;
 let desktopPresence = null;
 let companionTimer = null;
+let petPointerTimer = null;
 let desktopPaused = false;
 let desktopLocked = false;
 let desktopPresenceReady = false;
@@ -256,6 +257,8 @@ function makePetWindow(agent) {
   applyWindowBranding(win);
   win.setAlwaysOnTop(true, 'floating');
   try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch {}
+  // Keep the native hit-test state in sync with the renderer's initial state.
+  try { win.setIgnoreMouseEvents(true, { forward: true }); } catch {}
   hardenWindow(win, path.join(__dirname, 'renderer', 'pet.html'));
   // ?agent= 仅保留兼容参数；单宠模式始终由统一的 all 形象渲染。
   win.loadFile(path.join(__dirname, 'renderer', 'pet.html'), { query: { agent } });
@@ -467,9 +470,10 @@ function uninstallIntegrationHealth() {
 // 显示/藏起打工喵（单宠：只有一个开关）。
 function showPet() {
   if (!mergedWin || mergedWin.isDestroyed()) reconcilePets();
-  if (petVisibility) { petVisibility.show(); applyPetVisibility(); return; }
+  if (petVisibility) { petVisibility.show(); applyPetVisibility(); raisePetWindow(); return; }
   if (mergedWin && !mergedWin.isDestroyed()) {
     mergedWin.show();
+    raisePetWindow();
     deliverQuotaAlerts(mergedWin);
   }
   refreshTrayMenu();
@@ -508,6 +512,30 @@ function persistRestRuntime() {
   } catch {}
 }
 
+function raisePetWindow() {
+  const win = firstAlivePetWin();
+  if (!win || win.isDestroyed() || !win.isVisible()) return;
+  // Windows may reorder topmost windows as another app becomes foreground.
+  // Reassert the pet's z-order without activating it or taking keyboard focus.
+  try { win.setAlwaysOnTop(true, 'floating'); } catch {}
+  try { win.moveTop(); } catch {}
+}
+
+function samplePetPointer() {
+  const win = firstAlivePetWin();
+  if (!win || win.isDestroyed() || !win.isVisible()) return;
+  const st = primaryPetState();
+  if (!st) return;
+  try {
+    const point = screen.getCursorScreenPoint();
+    const bounds = win.getBounds();
+    const x = point.x - bounds.x;
+    const y = point.y - bounds.y;
+    const inside = x >= 0 && y >= 0 && x < bounds.width && y < bounds.height;
+    if (inside || !st.mouseIgnoring) sendWin(win, IPC.PET_POINTER_CHECK, { x, y });
+  } catch {}
+}
+
 function applyPetVisibility() {
   if (companionQuitting) return;
   const visible = (!petVisibility || petVisibility.snapshot().visible) && !desktopLocked && !desktopPaused
@@ -516,6 +544,7 @@ function applyPetVisibility() {
   if (win && !win.isDestroyed()) {
     if (visible && !win.isVisible()) {
       win.showInactive();
+      raisePetWindow();
       deliverQuotaAlerts(win);
     } else if (!visible && win.isVisible()) win.hide();
   }
@@ -561,6 +590,7 @@ function startCompanionServices() {
       petVisibility.setFullscreen(value.fullscreen);
       applyPetVisibility();
     },
+    onForegroundChange: () => raisePetWindow(),
   });
   desktopPresence.start();
   const tickRest = () => {
@@ -582,6 +612,8 @@ function startCompanionServices() {
     }
   }, 1000);
   companionTimer.unref();
+  petPointerTimer = setInterval(samplePetPointer, 125);
+  petPointerTimer.unref();
 }
 
 
@@ -1379,8 +1411,10 @@ function registerIpc() {
     const st = stateOfSender(e.sender);
     const w = st && st.win && !st.win.isDestroyed() ? st.win : null;
     if (!w) return;
-    st.mouseIgnoring = !!ignore; // 记录 renderer 期望的穿透状态
-    try { w.setIgnoreMouseEvents(!!ignore, { forward: true }); } catch {}
+    try {
+      w.setIgnoreMouseEvents(!!ignore, { forward: true });
+      st.mouseIgnoring = !!ignore;
+    } catch {}
   });
 
 }
@@ -1623,6 +1657,7 @@ app.on('window-all-closed', () => { /* tray app: stay alive */ });
 app.on('before-quit', () => {
   companionQuitting = true;
   try { if (companionTimer) clearInterval(companionTimer); } catch {}
+  try { if (petPointerTimer) clearInterval(petPointerTimer); } catch {}
   try { if (desktopPresence) desktopPresence.stop(); } catch {}
   try { persistRestRuntime(); } catch {}
   try { if (quotaAlertTimer) clearTimeout(quotaAlertTimer); } catch {}

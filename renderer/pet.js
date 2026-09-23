@@ -613,6 +613,11 @@ function measuredRestingWidth() {
   return widths.length ? Math.max(...widths) : CAPSULE_FRAME_MIN_W;
 }
 
+function desiredRestingWidth() {
+  return Math.min(CAPSULE_FRAME_MAX_W,
+    Math.max(CAPSULE_FRAME_MIN_W, Math.ceil(measuredRestingWidth() + CAPSULE_FRAME_GUTTER)));
+}
+
 function fitRestingFrame(force = false, allowOverlays = false) {
   if (restingFitFrame) cancelAnimationFrame(restingFitFrame);
   restingFitFrame = requestAnimationFrame(() => {
@@ -622,11 +627,7 @@ function fitRestingFrame(force = false, allowOverlays = false) {
       return;
     }
     if (!allowOverlays && (askActive || actionPopOpen || peekOpen || quotaPopoverOpen || radialOpen)) return;
-    const measured = measuredRestingWidth();
-    const width = Math.min(
-      CAPSULE_FRAME_MAX_W,
-      Math.max(CAPSULE_FRAME_MIN_W, Math.ceil(measured + CAPSULE_FRAME_GUTTER)),
-    );
+    const width = desiredRestingWidth();
     const current = Number(window.innerWidth) || CAPSULE_FRAME_MIN_W;
     if (!force && Math.abs(current - width) <= 2) return;
     setRequestedPetSize(width, BASE_PET_FRAME_H);
@@ -2705,7 +2706,7 @@ document.addEventListener('keydown', (e) => {
 
 // ---------- 泡泡菜单 ----------
 let radialOpenSeq = 0;
-let lastRadialMetrics = null;
+let radialRelayoutSeq = 0;
 
 function privacyModeEnabled() {
   return privacyModeCache;
@@ -2749,17 +2750,19 @@ function radialFrame() {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-async function settledRadialMetrics() {
+async function settledRadialMetrics(resting = false) {
   if (!window.pet || typeof window.pet.getWindowMetrics !== 'function') return null;
   let metrics = null;
   try { metrics = usableRadialMetrics(await window.pet.getWindowMetrics()); } catch { return null; }
   // setPetSize/resetPetSize 在主进程同步落 bounds，但 renderer 的 resize 与
   // flex 重排会晚一拍。等到 DOM viewport 也追上主进程尺寸后再取 pet rect。
-  for (let i = 0; metrics && i < 6; i++) {
+  for (let i = 0; metrics && i < (resting ? 12 : 6); i++) {
     const wr = metrics.window;
+    const expectedW = resting ? Math.min(metrics.workArea.width, desiredRestingWidth()) : wr.width;
+    const expectedH = resting ? Math.min(metrics.workArea.height, BASE_PET_FRAME_H) : wr.height;
     const settled = Math.abs((window.innerWidth || 0) - wr.width) <= 1
       && Math.abs((window.innerHeight || 0) - wr.height) <= 1;
-    if (settled) break;
+    if (settled && Math.abs(wr.width - expectedW) <= 1 && Math.abs(wr.height - expectedH) <= 1) break;
     await radialFrame();
     try { metrics = usableRadialMetrics(await window.pet.getWindowMetrics()) || metrics; } catch {}
   }
@@ -2842,10 +2845,9 @@ function buildCompactRadial() {
     : 'translate(-50%, -100%)';
 }
 
-function buildRadial(metrics = lastRadialMetrics) {
+function buildRadial(metrics = null) {
   radial.innerHTML = '';
   const exact = usableRadialMetrics(metrics);
-  if (exact) lastRadialMetrics = exact;
   if (!catVisible) {
     buildCompactRadial();
     return;
@@ -2859,11 +2861,13 @@ function buildRadial(metrics = lastRadialMetrics) {
   const items = MENU;
   const n = items.length;
   const frame = exact && exact.window;
-  const viewportW = Math.max(1, frame ? frame.width : (window.innerWidth || 320));
-  const viewportH = Math.max(1, frame ? frame.height : (window.innerHeight || 340));
+  // DOM geometry and BrowserWindow bounds can briefly disagree while a popup
+  // shrinks. Buttons must always fit the viewport that actually clips them.
+  const viewportW = Math.max(1, window.innerWidth || (frame ? frame.width : 320));
+  const viewportH = Math.max(1, window.innerHeight || (frame ? frame.height : 340));
   const wa = exact ? exact.workArea : browserWorkArea();
-  const winX = frame ? frame.x : (Number.isFinite(window.screenX) ? window.screenX : wa.x);
-  const winY = frame ? frame.y : (Number.isFinite(window.screenY) ? window.screenY : wa.y);
+  const winX = Number.isFinite(window.screenX) ? window.screenX : (frame ? frame.x : wa.x);
+  const winY = Number.isFinite(window.screenY) ? window.screenY : (frame ? frame.y : wa.y);
   const pad = 5;
   // Intersect the BrowserWindow viewport with the actually visible work area.
   // This protects old saved positions that may still have part of the
@@ -2918,7 +2922,7 @@ async function openRadial() {
   let metrics = await settledRadialMetrics();
   if (seq !== radialOpenSeq || !radialOpen) return;
   settleEdgeLayout();
-  metrics = await settledRadialMetrics() || metrics;
+  metrics = await settledRadialMetrics(true) || metrics;
   if (seq !== radialOpenSeq || !radialOpen) return;
   buildRadial(metrics);
   radial.classList.remove('hidden');
@@ -2929,8 +2933,18 @@ async function openRadial() {
     });
   }
 }
+function scheduleRadialRelayout() {
+  if (!radialOpen || !catVisible || radial.classList.contains('hidden')) return;
+  const openSeq = radialOpenSeq;
+  const layoutSeq = ++radialRelayoutSeq;
+  settledRadialMetrics().then((metrics) => {
+    if (openSeq === radialOpenSeq && layoutSeq === radialRelayoutSeq
+      && radialOpen && catVisible) buildRadial(metrics);
+  }).catch(() => {});
+}
 function closeRadial() {
   radialOpenSeq++;
+  radialRelayoutSeq++;
   radial.classList.add('hidden');
   radial.removeAttribute('data-layout');
   radial.removeAttribute('data-direction');
@@ -2984,9 +2998,9 @@ function setMouseIgnore(on) {
   mouseIgnoring = on;
   try { window.pet.setIgnoreMouse(on); } catch {}
 }
-window.addEventListener('mousemove', (e) => {
+function updateMouseHit(x, y) {
   if (g) { setMouseIgnore(false); return; } // 拖动中保持可点
-  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const el = document.elementFromPoint(x, y);
   // 命中测试权威同步悬停态：穿透切换时 pointerleave 可能漏发，会把 askHover 卡在 true，
   // 进而让 isInteracting() 永远为真、refreshAsk 永不对账（旧卡片冻结、新卡片进不来）。
   askHover = !!(el && el.closest('#ask'));
@@ -2999,7 +3013,14 @@ window.addEventListener('mousemove', (e) => {
     }
   }
   setMouseIgnore(!(el && el.closest(HIT_SEL)));
-}, true);
+}
+window.addEventListener('mousemove', (e) => updateMouseHit(e.clientX, e.clientY), true);
+// Windows can stop forwarding mousemove after another app changes z-order.
+// The main process samples the OS cursor so a visible pet never stays stuck
+// in click-through mode (or leaves a transparent rectangle blocking clicks).
+window.pet.onPointerCheck((point) => {
+  if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) updateMouseHit(point.x, point.y);
+});
 // 启动即默认穿透（透明区不挡），光标移到内容上时由上面的命中测试恢复
 setMouseIgnore(true);
 
@@ -3009,5 +3030,6 @@ window.addEventListener('resize', () => requestAnimationFrame(() => {
   positionQuotaPopoverTip();
   if (propEl && propEl.classList.contains('on')) positionProp();
   if (radialOpen && !catVisible) positionCompactRadial();
+  if (radialOpen && catVisible) scheduleRadialRelayout();
   if (!askActive && !actionPopOpen && !peekOpen && !quotaPopoverOpen && !radialOpen) fitRestingFrame();
 }));

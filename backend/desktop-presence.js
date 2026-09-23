@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 // https://github.com/moujunjie/Codex-Desktop-PET
 // An independent implementation of foreground-window/monitor comparison. One
 // hidden helper compiles Win32 interop once; only a boolean heartbeat leaves it.
-const DEFAULT_INTERVAL_MS = 2000;
+const DEFAULT_INTERVAL_MS = 1000;
 const RETRY_MS = 30000;
 const STARTUP_TIMEOUT_MS = 20000;
 const MAX_LINE_BYTES = 4096;
@@ -20,7 +20,11 @@ function safeInterval(value) {
 function parsePresenceLine(line) {
   try {
     const value = JSON.parse(line);
-    return value && typeof value.fullscreen === 'boolean' ? { fullscreen: value.fullscreen } : null;
+    if (!value || typeof value.fullscreen !== 'boolean') return null;
+    if (value.foregroundChanged !== undefined && typeof value.foregroundChanged !== 'boolean') return null;
+    return value.foregroundChanged === undefined
+      ? { fullscreen: value.fullscreen }
+      : { fullscreen: value.fullscreen, foregroundChanged: value.foregroundChanged };
   } catch {
     return null;
   }
@@ -37,6 +41,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 public static class WorkMeowDesktopPresence {
+  static IntPtr lastForeground = IntPtr.Zero;
   [StructLayout(LayoutKind.Sequential)]
   public struct Rect { public int Left, Top, Right, Bottom; }
   [StructLayout(LayoutKind.Sequential)]
@@ -57,27 +62,30 @@ public static class WorkMeowDesktopPresence {
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out Rect rect, int size);
 
-  public static bool Read(uint ownProcessId) {
+  public static int Read(uint ownProcessId) {
     // Match physical monitor/window coordinates on mixed-scale displays. The
     // context applies to this helper's thread only, never to the Electron app.
     try { SetThreadDpiAwarenessContext(new IntPtr(-4)); }
     catch (EntryPointNotFoundException) { SetProcessDPIAware(); }
     IntPtr window = GetForegroundWindow();
+    bool changed = window != lastForeground;
+    lastForeground = window;
+    int foregroundFlag = changed ? 2 : 0;
     if (window == IntPtr.Zero || window == GetDesktopWindow() || window == GetShellWindow()
-        || !IsWindowVisible(window) || IsIconic(window)) return false;
+        || !IsWindowVisible(window) || IsIconic(window)) return foregroundFlag;
     uint processId;
     GetWindowThreadProcessId(window, out processId);
-    if (processId == ownProcessId) return false;
+    if (processId == ownProcessId) return 0;
     var name = new StringBuilder(256);
     GetClassName(window, name, name.Capacity);
     string windowClass = name.ToString();
     if (windowClass == "Progman" || windowClass == "WorkerW" || windowClass == "Shell_TrayWnd"
-        || windowClass == "Shell_SecondaryTrayWnd") return false;
+        || windowClass == "Shell_SecondaryTrayWnd") return foregroundFlag;
     // With an auto-hidden taskbar, a normal maximized, captioned window can
     // cover the entire monitor. It is still ordinary desktop work.
-    if (IsZoomed(window) && (GetWindowLong(window, -16) & 0x00C00000) == 0x00C00000) return false;
+    if (IsZoomed(window) && (GetWindowLong(window, -16) & 0x00C00000) == 0x00C00000) return foregroundFlag;
     Rect bounds;
-    if (!GetWindowRect(window, out bounds)) return false;
+    if (!GetWindowRect(window, out bounds)) return foregroundFlag;
     Rect frame;
     // DWM bounds remove invisible resize borders that otherwise fake coverage.
     if (DwmGetWindowAttribute(window, 9, out frame, Marshal.SizeOf(typeof(Rect))) == 0
@@ -85,17 +93,20 @@ public static class WorkMeowDesktopPresence {
     var info = new MonitorInfo();
     info.Size = Marshal.SizeOf(typeof(MonitorInfo));
     IntPtr monitor = MonitorFromWindow(window, 2);
-    if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return false;
+    if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return foregroundFlag;
     const int tolerance = 2;
-    return bounds.Left <= info.Monitor.Left + tolerance && bounds.Top <= info.Monitor.Top + tolerance
+    bool fullscreen = bounds.Left <= info.Monitor.Left + tolerance && bounds.Top <= info.Monitor.Top + tolerance
         && bounds.Right >= info.Monitor.Right - tolerance && bounds.Bottom >= info.Monitor.Bottom - tolerance;
+    return foregroundFlag | (fullscreen ? 1 : 0);
   }
 }
 '@
 while ($true) {
   try {
-    if ([WorkMeowDesktopPresence]::Read([uint32]${ownPid})) { [Console]::Out.WriteLine('{"fullscreen":true}') }
-    else { [Console]::Out.WriteLine('{"fullscreen":false}') }
+    $sample = [WorkMeowDesktopPresence]::Read([uint32]${ownPid})
+    $fullscreen = if (($sample -band 1) -ne 0) { 'true' } else { 'false' }
+    $foregroundChanged = if (($sample -band 2) -ne 0) { 'true' } else { 'false' }
+    [Console]::Out.WriteLine('{"fullscreen":' + $fullscreen + ',"foregroundChanged":' + $foregroundChanged + '}')
   } catch { [Console]::Out.WriteLine('{"fullscreen":false}') }
   [Console]::Out.Flush()
   Start-Sleep -Milliseconds ${interval}
@@ -105,6 +116,7 @@ while ($true) {
 
 function createDesktopPresenceMonitor({
   onChange = () => {},
+  onForegroundChange = () => {},
   intervalMs = DEFAULT_INTERVAL_MS,
   platform = process.platform,
   ownProcessId = process.pid,
@@ -180,6 +192,7 @@ function createDesktopPresenceMonitor({
         const value = parsePresenceLine(line);
         if (!value) { fail(record); return; }
         emit(value.fullscreen);
+        if (value.foregroundChanged && !value.fullscreen) onForegroundChange();
         if (!running || child !== record || record.terminal) return;
         armWatchdog(record, Math.max(10000, interval * 3 + 2000));
       }

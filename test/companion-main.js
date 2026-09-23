@@ -65,6 +65,9 @@ function fixture(preferences = {}) {
   let hides = 0;
   let quotaDeliveries = 0;
   let trayRefreshes = 0;
+  let raises = 0;
+  const pointerState = { mouseIgnoring: true };
+  let cursor = { x: -100, y: -100 };
   const win = {
     visible: false, destroyed: false, webContents: { id: 1 },
     isDestroyed() { return this.destroyed; },
@@ -72,6 +75,9 @@ function fixture(preferences = {}) {
     showInactive() { this.visible = true; shows++; },
     show() { this.visible = true; shows++; },
     hide() { this.visible = false; hides++; },
+    setAlwaysOnTop() { raises++; },
+    moveTop() { raises++; },
+    getBounds() { return { x: 100, y: 100, width: 320, height: 340 }; },
   };
   const settingsWin = { isDestroyed: () => false, webContents: { id: 2 } };
   class FakeDate extends Date {
@@ -86,6 +92,7 @@ function fixture(preferences = {}) {
     mergedWin: null, petWin: null, settingsWin,
     restRuntimePath: 'virtual-state/rest-runtime.json', restRuntimeCache: '',
     powerMonitor,
+    screen: { getCursorScreenPoint: () => cursor },
     createRestReminderController: (options) => createRestReminderController({ ...options, now: () => time }),
     createPetVisibilityController: (options) => createPetVisibilityController({ ...options, now: () => time }),
     createDesktopPresenceMonitor(options) {
@@ -94,6 +101,7 @@ function fixture(preferences = {}) {
         start() { this.starts++; },
         stop() { options.onChange({ fullscreen: false }); },
         emit(fullscreen) { options.onChange({ fullscreen }); },
+        foreground() { options.onForegroundChange(); },
       };
       return detector;
     },
@@ -103,6 +111,7 @@ function fixture(preferences = {}) {
       return timer;
     },
     firstAlivePetWin: () => context.mergedWin && !context.mergedWin.isDestroyed() ? context.mergedWin : null,
+    primaryPetState: () => context.mergedWin ? pointerState : null,
     reconcilePets() { context.mergedWin = win; context.petWin = win; },
     sendPet(channel, value) { if (context.mergedWin) pushes.push({ target: 'pet', channel, value: clone(value) }); },
     sendWin(target, channel, value) { if (target) pushes.push({ target: 'settings', channel, value: clone(value) }); },
@@ -118,8 +127,11 @@ function fixture(preferences = {}) {
   context.startCompanionServices();
   const test = {
     context, config, disk, win, settingsWin, powerMonitor, pushes, timers,
-    counts: () => ({ shows, hides, quotaDeliveries, trayRefreshes }),
+    counts: () => ({ shows, hides, quotaDeliveries, trayRefreshes, raises }),
     sample: (fullscreen) => detector.emit(fullscreen),
+    foreground: () => detector.foreground(),
+    cursorAt(x, y) { cursor = { x, y }; return test; },
+    pointerState,
     attach() { context.reconcilePets(); context.applyPetVisibility(); return test; },
     invoke(channel, value, sender = settingsWin.webContents) { return handlers.get(channel)({ sender }, value); },
     advance(seconds) {
@@ -147,7 +159,7 @@ check('startup waits for the first fullscreen sample with windows created in eit
   early.sample(false);
   early.attach();
   assert.equal(early.win.visible, true);
-  assert.equal(early.timers.length, 1);
+  assert.equal(early.timers.length, 2);
 });
 
 check('disabled fullscreen setting bypasses initial detection and remains visible in fullscreen', () => {
@@ -155,6 +167,42 @@ check('disabled fullscreen setting bypasses initial detection and remains visibl
   assert.equal(test.win.visible, true);
   test.sample(true);
   assert.equal(test.win.visible, true);
+});
+
+check('foreground switches restore z-order only while the companion is visible', () => {
+  const test = fixture().attach();
+  test.sample(false);
+  const initial = test.counts().raises;
+  test.foreground();
+  assert.equal(test.counts().raises, initial + 2);
+  test.context.hidePet();
+  test.foreground();
+  assert.equal(test.counts().raises, initial + 2);
+  test.context.showPet();
+  assert.ok(test.counts().raises >= initial + 4);
+  test.sample(true);
+  const duringFullscreen = test.counts().raises;
+  test.foreground();
+  assert.equal(test.counts().raises, duringFullscreen);
+});
+
+check('OS cursor sampling repairs lost click-through transitions', () => {
+  const test = fixture().attach();
+  test.sample(false);
+  test.cursorAt(120, 130);
+  test.context.samplePetPointer();
+  assert.ok(test.pushes.some(push => push.channel === IPC.PET_POINTER_CHECK && push.value.x === 20 && push.value.y === 30));
+  const before = test.pushes.length;
+  test.cursorAt(0, 0);
+  test.context.samplePetPointer();
+  assert.equal(test.pushes.length, before, 'an ignored window needs no outside sample');
+  test.pointerState.mouseIgnoring = false;
+  test.context.samplePetPointer();
+  assert.equal(test.pushes.at(-1).channel, IPC.PET_POINTER_CHECK);
+  test.context.hidePet();
+  const hiddenCount = test.pushes.length;
+  test.context.samplePetPointer();
+  assert.equal(test.pushes.length, hiddenCount);
 });
 
 check('cat and capsule use the same explicit hide/show and automatic restore policy', () => {

@@ -226,28 +226,35 @@
       { dir: 'bottom-left',  sx: -1, sy:  1, score: roomBottom * roomLeft },
     ];
 
-    // Honour an explicit preference (from edge layout) by boosting its score.
+    // A stale edge hint must never win over a quadrant where all three
+    // buttons fit. Score actual button bounds before applying the preference.
     const prefIndex = new Map(preferred.map((d, i) => [d, preferred.length - i]));
     const edgeBoost = (q) => {
       const vertKey = q.sy < 0 ? 'above' : 'below';
       const horzKey = q.sx > 0 ? 'right' : 'left';
       return (prefIndex.get(vertKey) || 0) * 1e6 + (prefIndex.get(horzKey) || 0) * 1e6;
     };
-    quadrants.forEach((q) => { q.score += edgeBoost(q); });
-    quadrants.sort((a, b) => b.score - a.score);
+    for (const q of quadrants) {
+      const outerX = cx + q.sx * (halfW + itemRadius + gap);
+      const outerY = cy + q.sy * (halfH + itemRadius + gap);
+      q.points = [
+        { x: cx + q.sx * offset, y: outerY },
+        { x: outerX, y: outerY },
+        { x: outerX, y: cy + q.sy * offset },
+      ];
+      q.overflow = q.points.reduce((total, p) => total
+        + Math.max(0, safe.x + itemRadius - p.x)
+        + Math.max(0, p.x - (safe.right - itemRadius))
+        + Math.max(0, safe.y + itemRadius - p.y)
+        + Math.max(0, p.y - (safe.bottom - itemRadius)), 0);
+      q.preference = edgeBoost(q);
+    }
+    quadrants.sort((a, b) => a.overflow - b.overflow
+      || b.preference - a.preference
+      || b.score - a.score);
     const chosen = quadrants[0];
 
-    const outerX = cx + chosen.sx * (halfW + itemRadius + gap);
-    const outerY = cy + chosen.sy * (halfH + itemRadius + gap);
-
-    // Three buttons form an L: top-arm, corner, side-arm.
-    const raw = [
-      { x: cx + chosen.sx * offset, y: outerY },
-      { x: outerX, y: outerY },
-      { x: outerX, y: cy + chosen.sy * offset },
-    ];
-
-    const points = raw.map((p) => ({
+    const points = chosen.points.map((p) => ({
       x: clamp(p.x, safe.x + itemRadius, safe.right - itemRadius),
       y: clamp(p.y, safe.y + itemRadius, safe.bottom - itemRadius),
     }));

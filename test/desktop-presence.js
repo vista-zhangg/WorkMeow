@@ -11,10 +11,12 @@ function setup(options = {}) {
   const timers = new Map();
   const helpers = [];
   const changes = [];
+  const foregroundChanges = [];
   const spawns = [];
   let nextId = 0;
   const monitor = createDesktopPresenceMonitor({
     platform: 'win32', ownProcessId: 1234, onChange: (state) => changes.push(state),
+    onForegroundChange: () => foregroundChanges.push(true),
     setTimer(fn, delay) { const id = ++nextId; timers.set(id, { fn, delay }); return id; },
     clearTimer(id) { timers.delete(id); },
     spawnProcess(command, args, spawnOptions) {
@@ -35,13 +37,14 @@ function setup(options = {}) {
     timers.delete(entry[0]);
     entry[1].fn();
   }
-  return { monitor, helpers, changes, spawns, timers, fireTimer };
+  return { monitor, helpers, changes, foregroundChanges, spawns, timers, fireTimer };
 }
 
 check('wire format accepts strict booleans and drops malformed values', () => {
   assert.deepEqual(parsePresenceLine('{"fullscreen":false}'), { fullscreen: false });
   assert.deepEqual(parsePresenceLine('{"fullscreen":true,"title":"not retained"}'), { fullscreen: true });
-  for (const line of ['oops', '{}', 'null', '{"fullscreen":"false"}', '{"fullscreen":1}']) {
+  assert.deepEqual(parsePresenceLine('{"fullscreen":false,"foregroundChanged":true}'), { fullscreen: false, foregroundChanged: true });
+  for (const line of ['oops', '{}', 'null', '{"fullscreen":"false"}', '{"fullscreen":1}', '{"fullscreen":false,"foregroundChanged":1}']) {
     assert.equal(parsePresenceLine(line), null);
   }
 });
@@ -56,7 +59,7 @@ check('helper is hidden, compiles once and only starts once per start cycle', ()
   const script = Buffer.from(spawns[0].args.at(-1), 'base64').toString('utf16le');
   assert.ok(script.includes('[uint32]1234'));
   assert.ok(script.includes('SetThreadDpiAwarenessContext'));
-  assert.ok(script.includes('Start-Sleep -Milliseconds 2000'));
+  assert.ok(script.includes('Start-Sleep -Milliseconds 1000'));
   monitor.stop();
 });
 
@@ -70,6 +73,18 @@ check('fragmented CRLF lines are reconstructed and identical heartbeats deduplic
   assert.equal([...timers.values()][0].delay, 10000);
   helpers[0].stdout.emit('data', Buffer.from('{"fullscreen":false}\n'));
   assert.deepEqual(changes, [{ fullscreen: true }, { fullscreen: false }]);
+  monitor.stop();
+});
+
+check('foreground changes are reported without changing fullscreen state or raising over fullscreen', () => {
+  const { monitor, helpers, changes, foregroundChanges } = setup();
+  monitor.start();
+  helpers[0].stdout.emit('data', Buffer.from('{"fullscreen":false,"foregroundChanged":true}\n'));
+  helpers[0].stdout.emit('data', Buffer.from('{"fullscreen":false,"foregroundChanged":false}\n'));
+  helpers[0].stdout.emit('data', Buffer.from('{"fullscreen":false,"foregroundChanged":true}\n'));
+  helpers[0].stdout.emit('data', Buffer.from('{"fullscreen":true,"foregroundChanged":true}\n'));
+  assert.deepEqual(changes, [{ fullscreen: false }, { fullscreen: true }]);
+  assert.equal(foregroundChanges.length, 2);
   monitor.stop();
 });
 
@@ -173,7 +188,7 @@ check('unsupported platforms remain visible without subprocesses', () => {
 });
 
 check('script interpolation only permits finite interval and positive process IDs', () => {
-  assert.ok(buildWatcherScript(Infinity, '0; bad').includes('Start-Sleep -Milliseconds 2000'));
+  assert.ok(buildWatcherScript(Infinity, '0; bad').includes('Start-Sleep -Milliseconds 1000'));
   assert.ok(buildWatcherScript(1, -3).includes('[uint32]0'));
   assert.ok(buildWatcherScript(1, 1).includes('Start-Sleep -Milliseconds 500'));
   assert.ok(buildWatcherScript(1e12, 1).includes('Start-Sleep -Milliseconds 60000'));

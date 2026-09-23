@@ -224,4 +224,22 @@ assertMenuAvoidsPet('top-edge action dock', {
   gap: 10,
 });
 
+for (const [label, petRect, direction] of [
+  ['bottom-right', { x: 205, y: 155, width: 120, height: 120 }, 'top-left'],
+  ['bottom-left', { x: 0, y: 155, width: 120, height: 120 }, 'top-right'],
+  ['top-right', { x: 205, y: 0, width: 120, height: 120 }, 'bottom-left'],
+  ['top-left', { x: 0, y: 0, width: 120, height: 120 }, 'bottom-right'],
+]) {
+  const safeRect = { x: 5, y: 5, width: 310, height: 330 };
+  const result = geometry.cornerMenuLayout({ petRect, safeRect,
+    preferred: ['right', 'above'], itemRadius: 26, gap: 10 });
+  assert.strictEqual(result.direction, direction, `${label}: choose the quadrant where all controls fit`);
+  for (const point of result.points) {
+    assert(point.x >= safeRect.x + 26 && point.x <= safeRect.x + safeRect.width - 26,
+      `${label}: button must fit horizontally`);
+    assert(point.y >= safeRect.y + 26 && point.y <= safeRect.y + safeRect.height - 26,
+      `${label}: button must fit vertically`);
+  }
+}
+
 console.log('pet edge geometry checks passed');
