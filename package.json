@@ -63,7 +63,7 @@
     "release:publish": "node scripts/publish-release.js"
   },
   "devDependencies": {
-    "electron": "^43.4.0",
+    "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
     "js-yaml": "4.3.2"
   },
