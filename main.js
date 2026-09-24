@@ -1,6 +1,6 @@
 'use strict';
 
-// 打工喵 WorkMeow — Electron main process.
+// 打工伙伴 AgentPaw — Electron main process.
 //
 // Boot order: core (session state) → metering (cost) → permissions → HTTP
 // server → install Claude Code hooks (using the bound port) → start watcher.
@@ -15,16 +15,17 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, dialog, sh
 const { autoUpdater } = require('electron-updater');
 const BRAND = require('./shared/brand');
 const { IPC } = require('./shared/ipc-channels');
-const { PetAssetStore, isAssetId } = require('./backend/pet-assets');
+const { isAssetId } = require('./backend/pet-assets');
+const { PetCharacterStore } = require('./backend/pet-characters');
 const { GifImportError } = require('./backend/gif-normalizer');
 
-const PET_ASSET_SCHEME = 'workmeow-asset';
+const PET_ASSET_SCHEME = 'agentpaw-asset';
 protocol.registerSchemesAsPrivileged([{
   scheme: PET_ASSET_SCHEME,
   privileges: { standard: true, secure: true, supportFetchAPI: true },
 }]);
 
-// Give the dev app the public WorkMeow identity so it isn't shown as a generic
+// Give the dev app the public AgentPaw identity so it isn't shown as a generic
 // "Electron" window or confused with an older legacy build.
 try { app.setName(BRAND.name); } catch {}
 try { app.setAppUserModelId(BRAND.appId); } catch {}
@@ -65,14 +66,14 @@ const { createPetVisibilityController } = require('./backend/pet-visibility');
 const { createDesktopPresenceMonitor } = require('./backend/desktop-presence');
 
 const t = i18n.t;
-const petAssetStore = new PetAssetStore();
+const petAssetStore = new PetCharacterStore();
 
 // Windows 下由 `npm start` 的 detached 启动器（start-detached.js）
 // 让 GUI 进程脱离启动它的控制台，关闭终端后桌宠仍继续运行。
 
 const PRELOAD = path.join(__dirname, 'preload.js');
-const WINDOW_ICON_PATH = path.join(__dirname, 'assets', 'salary-cat.ico');
-const WINDOW_ICON_PNG_PATH = path.join(__dirname, 'assets', 'salary-cat.png');
+const WINDOW_ICON_PATH = path.join(__dirname, 'assets', 'agentpaw-icon.ico');
+const WINDOW_ICON_PNG_PATH = path.join(__dirname, 'assets', 'agentpaw-icon.png');
 const WINDOW_ICON_FILE = nativeImage.createFromPath(WINDOW_ICON_PATH);
 const WINDOW_ICON = WINDOW_ICON_FILE.isEmpty()
   ? nativeImage.createFromPath(WINDOW_ICON_PNG_PATH)
@@ -94,8 +95,8 @@ function applyWindowBranding(win) {
 }
 
 // 单宠模型（2026-08-07 起）：
-//   只有一只「打工喵」(mergedWin, agent='all')，统一展示和统计所有 AI 工具；
-//   所有后端只通过这一只喵展示和统计。
+//   只有一只「打工伙伴」(mergedWin, agent='all')，统一展示和统计所有 AI 工具；
+//   所有后端只通过这一只伙伴展示和统计。
 // petWin 仅作兼容别名（被旧引用使用）。
 let mergedWin = null;
 let petWin = null;
@@ -116,7 +117,7 @@ let codexRateLimits = null; // Codex App Server 订阅额度（独立于 rollout
 let codexQuotaState = unavailableCodexQuota('idle');
 let workbuddyMetering = null; // WorkBuddy 转录 token 台账（只读，从 ~/.workbuddy/projects 扫描）
 let traeMetering = null; // TRAE agent 日志 token 台账（只读，从 Trae CN logs 扫描）
-let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.workmeow/opencode-usage.jsonl）
+let opencodeMetering = null; // opencode 用量台账（只读，tail ~/.agentpaw/opencode-usage.jsonl）
 let zcodeMetering = null; // ZCode 用量台账（只读轮询 ~/.zcode/cli/db/db.sqlite 的 model_usage 表）
 let updateService = null;
 let restReminders = null;
@@ -467,7 +468,7 @@ function uninstallIntegrationHealth() {
   return { ...health, ok, error: ok ? null : 'partial', uninstallRetryable: !ok };
 }
 
-// 显示/藏起打工喵（单宠：只有一个开关）。
+// 显示/藏起打工伙伴（单宠：只有一个开关）。
 function showPet() {
   if (!mergedWin || mergedWin.isDestroyed()) reconcilePets();
   if (petVisibility) { petVisibility.show(); applyPetVisibility(); raisePetWindow(); return; }
@@ -748,7 +749,7 @@ function combinedPriceInfo() {
   };
 }
 
-// 单宠：所有事件都发给这唯一的一只打工喵。
+// 单宠：所有事件都发给这唯一的一只打工伙伴。
 function sendPetEvent(ev) {
   sendPet(IPC.PET_EVENT, privacy.protectEvent(ev, config.get().privacyMode === true));
 }
@@ -931,7 +932,7 @@ function bootBackend() {
     codexMetering.start(30000);
     codexWatch = createCodexWatch({
       core,
-      // 开发/E2E 可用 WORKMEOW_CODEX_DIR 指到假目录，不碰真实 ~/.codex
+      // 开发/E2E 可用 AGENTPAW_CODEX_DIR 指到假目录，不碰真实 ~/.codex
       sessionsDir: codexDir,
     });
     codexWatch.start();
@@ -964,7 +965,7 @@ function bootBackend() {
   metering.start(30000);
 
   // WorkBuddy token ledger: scans ~/.workbuddy/projects transcripts read-only.
-  // Same gating as Codex (WORKMEOW_NO_CODEX disables that; no equivalent flag yet
+  // Same gating as Codex (AGENTPAW_NO_CODEX disables that; no equivalent flag yet
   // for WorkBuddy, but it's cheap and isolated).
   workbuddyMetering = createWorkbuddyMetering({
     projectsDir: env.value('WORKBUDDY_DIR') || undefined,
@@ -978,8 +979,8 @@ function bootBackend() {
   });
   traeMetering.start(30000);
 
-  // opencode 用量台账：tail ~/.workmeow/opencode-usage.jsonl（插件写入），
-  // 只读，与状态推送（插件直接 POST /state）解耦。WORKMEOW_NO_OPENCODE=1 跳过。
+  // opencode 用量台账：tail ~/.agentpaw/opencode-usage.jsonl（插件写入），
+  // 只读，与状态推送（插件直接 POST /state）解耦。AGENTPAW_NO_OPENCODE=1 跳过。
   if (!env.flag('NO_OPENCODE')) {
     opencodeMetering = createOpenCodeMetering({
       usageFile: env.value('OPENCODE_USAGE') || undefined,
@@ -992,7 +993,7 @@ function bootBackend() {
   // 同一趟扫描顺带产出「会话活性心跳」：该会话有新的模型产出、或在飞工具
   // 仍在执行时触摸 core（touchSession）——ZCode 没有持久 transcript，长任务
   // 在事件间隙靠它免于 5 分钟无事件就被误判卡死、猫进入「休息中」。
-  // WORKMEOW_NO_ZCODE=1 跳过；WORKMEOW_ZCODE_DB 可指向其他数据库路径。
+  // AGENTPAW_NO_ZCODE=1 跳过；AGENTPAW_ZCODE_DB 可指向其他数据库路径。
   if (!env.flag('NO_ZCODE')) {
     zcodeMetering = createZcodeMetering({
       dbPath: env.value('ZCODE_DB') || undefined,
@@ -1030,11 +1031,11 @@ function bootBackend() {
   }
 
   // Pricing sync: fetches models.dev's open pricing JSON once on boot + every 24h.
-  // metering.loadPricing() now reads ~/.workmeow/pricing-cache.json beneath the
+  // metering.loadPricing() now reads ~/.agentpaw/pricing-cache.json beneath the
   // user override. Public-data only — no credentials, no API calls.
   // On a fresh sync: reload the in-memory price table (so new prices apply this
   // run, not next restart) and push the updated source line to the panel.
-  // WORKMEOW_NO_NET=1 keeps WorkMeow fully offline: pricing uses the built-in
+  // AGENTPAW_NO_NET=1 keeps AgentPaw fully offline: pricing uses the built-in
   // table and the Codex quota rows remain unavailable (`--`).
   if (!env.flag('NO_NET')) {
     pricingSync = createPricingSync({
@@ -1110,7 +1111,7 @@ function bootBackend() {
   server.start();
 
   // Install hooks once the server has a port (defer so listen wins the race).
-  // WORKMEOW_NO_HOOKS=1 skips touching ~/.claude/settings.json +
+  // AGENTPAW_NO_HOOKS=1 skips touching ~/.claude/settings.json +
   // ~/.trae-cn/hooks.json + ~/.workbuddy/settings.json +
   // ~/.config/opencode/plugins/opencode-plugin.js +
   // ~/.zcode/cli/config.json (dev/verify mode).
@@ -1314,11 +1315,41 @@ function registerIpc() {
   ipcMain.handle(IPC.GET_XIABAN_SCHEDULE, () => getXiabanSchedule());
   ipcMain.handle(IPC.SET_XIABAN_SCHEDULE, (_e, schedule) => setXiabanSchedule(schedule));
   ipcMain.handle(IPC.GET_PET_ASSETS, () => petAssetStore.catalog());
+  const characterAction = async (e, action) => {
+    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false, error: 'forbidden' };
+    try {
+      const result = await action();
+      if (result.ok) publishPetAssets(result.catalog);
+      return result;
+    } catch (error) {
+      return { ok: false, error: error instanceof GifImportError ? error.code : 'character-failed',
+        message: error instanceof GifImportError ? error.message : '角色操作失败，请检查素材后重试' };
+    }
+  };
+  ipcMain.handle(IPC.SELECT_PET_CHARACTER, (e, id) => characterAction(e, () => petAssetStore.select(id)));
+  ipcMain.handle(IPC.REMOVE_PET_CHARACTER, (e, id) => characterAction(e, () => petAssetStore.removeCharacter(id)));
+  ipcMain.handle(IPC.CREATE_PET_CHARACTER, (e, name, options) => characterAction(e, async () => {
+    const picked = await dialog.showOpenDialog(settingsWin, {
+      title: '选择新角色的待命 GIF', buttonLabel: '创建角色', properties: ['openFile'],
+      filters: [{ name: 'GIF 动画', extensions: ['gif'] }],
+    });
+    if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+    return petAssetStore.createFromGif(name, picked.filePaths[0], { removeBackground: options?.removeBackground === true });
+  }));
+  ipcMain.handle(IPC.IMPORT_PET_CHARACTER, (e) => characterAction(e, async () => {
+    const picked = await dialog.showOpenDialog(settingsWin, {
+      title: '选择角色包中的 character.json', buttonLabel: '导入角色', properties: ['openFile'],
+      filters: [{ name: 'AgentPaw 角色配置', extensions: ['json'] }],
+    });
+    if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+    return petAssetStore.importPack(picked.filePaths[0]);
+  }));
   ipcMain.handle(IPC.IMPORT_PET_GIF, async (e, slotId, mode, options) => {
     if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) {
       return { ok: false, error: 'forbidden', message: '只能在设置窗口中导入表情' };
     }
     const replacing = mode === 'replace' || mode === 'replace-one';
+    const characterId = petAssetStore.activeId();
     const picked = await dialog.showOpenDialog(settingsWin, {
       title: replacing ? '选择用于替换的新表情 GIF' : '选择要新增的表情 GIF',
       buttonLabel: replacing ? '选择并替换' : '选择并添加',
@@ -1327,7 +1358,7 @@ function registerIpc() {
     });
     if (picked.canceled || !picked.filePaths || !picked.filePaths[0]) return { ok: false, canceled: true };
     try {
-      const result = await petAssetStore.importGif(picked.filePaths[0], slotId, mode, options || {});
+      const result = await petAssetStore.importGif(picked.filePaths[0], slotId, mode, { ...options, characterId });
       publishPetAssets(result.catalog);
       return result;
     } catch (error) {
@@ -1339,18 +1370,8 @@ function registerIpc() {
       };
     }
   });
-  ipcMain.handle(IPC.REMOVE_PET_ASSET, (e, slotId, assetId) => {
-    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false, error: 'forbidden' };
-    const result = petAssetStore.removeAsset(slotId, assetId);
-    if (result.ok) publishPetAssets(result.catalog);
-    return result;
-  });
-  ipcMain.handle(IPC.RESET_PET_SLOT, (e, slotId) => {
-    if (!settingsWin || settingsWin.isDestroyed() || e.sender !== settingsWin.webContents) return { ok: false, error: 'forbidden' };
-    const result = petAssetStore.resetSlot(slotId);
-    if (result.ok) publishPetAssets(result.catalog);
-    return result;
-  });
+  ipcMain.handle(IPC.REMOVE_PET_ASSET, (e, slotId, assetId) => characterAction(e, () => petAssetStore.removeAsset(slotId, assetId)));
+  ipcMain.handle(IPC.RESET_PET_SLOT, (e, slotId) => characterAction(e, () => petAssetStore.resetSlot(slotId)));
   ipcMain.on(IPC.CLOSE_SETTINGS, closeSettings);
 
   // 详情面板按内容高度自适应：clamp 到屏幕工作区，阈值防抖避免每次 stats 都抖
@@ -1365,7 +1386,7 @@ function registerIpc() {
     win.setBounds({ x: b.x, y: b.y, width: b.width, height: clamped });
   });
 
-  // 收起 = 隐藏唯一的一只打工喵（托盘菜单可重新显示）。
+  // 收起 = 隐藏唯一的一只打工伙伴（托盘菜单可重新显示）。
   ipcMain.on(IPC.CLOSE_PET, (e) => {
     const st = stateOfSender(e.sender);
     if (!st || !st.win || st.win.isDestroyed()) return;
@@ -1419,7 +1440,7 @@ function registerIpc() {
 
 }
 
-// 单宠对账：确保唯一的一只打工喵存在。不存在就创建；存在就不动。
+// 单宠对账：确保唯一的一只打工伙伴存在。不存在就创建；存在就不动。
 function reconcilePets() {
   if (!mergedWin || mergedWin.isDestroyed()) mergedWin = makePetWindow('all');
   petWin = mergedWin; // 兼容别名
@@ -1429,8 +1450,8 @@ function reconcilePets() {
 function buildTray() {
   let img;
   try {
-    // 托盘始终使用月薪喵头像；额度只在右键菜单里展示。
-    img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'salary-cat-tray.png'));
+    // 托盘使用独立产品图标；额度只在右键菜单里展示。
+    img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'agentpaw-tray.png'));
     if (img && !img.isEmpty()) {
       img = img.resize({ width: 32, height: 32 });
     }
@@ -1475,7 +1496,7 @@ function autoLaunchMatchOptions() {
   return options;
 }
 
-const LEGACY_AUTO_LAUNCH_NAMES = Object.freeze(['io.github.youraccount.workmeow']);
+const LEGACY_AUTO_LAUNCH_NAMES = require('./backend/windows-brand-compat');
 
 function autoLaunchSettings(enabled, name = BRAND.appId) {
   return { ...autoLaunchMatchOptions(), name, openAtLogin: !!enabled };
@@ -1605,7 +1626,7 @@ function refreshTrayMenu() {
 //  1) Electron 实例锁：同一份 app 重复启动 → 新实例静默退出；
 //  2) 启动探测：候选端口上已有同身份 server 在跑（多为另一份代码副本）→ 提示并退出；
 //  3) server.js 里的 runtime 守护：存活期间 runtime.json 被别的副本覆盖 → 抢回。
-// 开发需要多开时用 WORKMEOW_ALLOW_MULTI=1 跳过 1/2。
+// 开发需要多开时用 AGENTPAW_ALLOW_MULTI=1 跳过 1/2。
 const allowMulti = env.flag('ALLOW_MULTI');
 
 // 并行探测所有候选端口，找到任一存活的同身份 server 就返回其端口
@@ -1640,7 +1661,7 @@ if (!gotTheLock) {
     }
     migrateLegacyState();
     // Rewrite legacy config once so removed appearance/layout/budget fields disappear
-    // from ~/.workmeow/config.json instead of remaining as dead state.
+    // from ~/.agentpaw/config.json instead of remaining as dead state.
     config.save({});
     registerPetAssetProtocol();
     registerIpc();

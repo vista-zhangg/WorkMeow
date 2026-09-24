@@ -3,7 +3,7 @@
 // Single source of truth for every user-visible string.
 //
 // Required by the main process (main.js, backend/adapter.js) and loaded as a
-// <script> by the renderer (pet.html / panel.html → window.WorkMeowI18n), mirroring
+// <script> by the renderer (pet.html / panel.html → window.AgentPawI18n), mirroring
 // the shared/states.js UMD shim.
 //
 // Localized strings shared by the pet and detail panel.
@@ -14,15 +14,15 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.WorkMeowI18n = api;
+  if (root) root.AgentPawI18n = api;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   const zh = {
     // ── tray ────────────────────────────────────────────────────────────────
-    'tray.tooltip': 'Codex 喵伴（WorkMeow）— Codex 与多款 AI 工具的桌面陪伴助手',
-    'tray.tooltipPrivate': 'Codex 喵伴（WorkMeow）— 隐私模式已开启',
+    'tray.tooltip': 'AgentPaw · AI 桌伴— Codex 与多款 AI 工具的桌面陪伴助手',
+    'tray.tooltipPrivate': 'AgentPaw · AI 桌伴— 隐私模式已开启',
     'tray.panel': '详情面板',
-    'tray.showPet': '显示 Codex 喵伴',
-    'tray.hidePet': '藏起 Codex 喵伴',
+    'tray.showPet': '显示 AgentPaw · AI 桌伴',
+    'tray.hidePet': '藏起 AgentPaw · AI 桌伴',
     'tray.quotaTitle': 'Codex　账户 {account}',
     'tray.quotaWindow': '{label}　剩余 {remaining}　{reset} 刷新',
     'tray.quotaUpdated': '更新于 {time}',
@@ -37,10 +37,10 @@
     'tray.quit': '退出',
 
     // ── dialogs ─────────────────────────────────────────────────────────────
-    'dlg.dupTitle': 'Codex 喵伴已在运行',
-    'dlg.dupBody': '检测到另一个 Codex 喵伴实例正在端口 {port} 上服务（可能来自其他代码副本）。\n',
-    'dlg.dupHint': '本实例将退出，避免抢占会话事件。\n开发需要多开时：WORKMEOW_ALLOW_MULTI=1',
-    'dlg.integrationsTitle': 'Codex 喵伴已准备好',
+    'dlg.dupTitle': 'AgentPaw · AI 桌伴已在运行',
+    'dlg.dupBody': '检测到另一个 AgentPaw · AI 桌伴实例正在端口 {port} 上服务（可能来自其他代码副本）。\n',
+    'dlg.dupHint': '本实例将退出，避免抢占会话事件。\n开发需要多开时：AGENTPAW_ALLOW_MULTI=1',
+    'dlg.integrationsTitle': 'AgentPaw · AI 桌伴已准备好',
     'dlg.integrationsMessage': '便携运行环境已经就绪',
     'dlg.integrationsReady': '已接入',
     'dlg.integrationsMissing': '未检测到，安装或首次使用后会自动接入',
@@ -49,13 +49,13 @@
     'dlg.integrationsHint': '无需安装 Node.js。以后可以在设置的 Agent 接入区域再次检查与修复。',
 
     // ── settings ────────────────────────────────────────────────────────────
-    'settings.title': 'Codex 喵伴 · 设置',
-    'settings.subtitle': '调整休息提醒、免打扰、隐私、接入和喵咪表情',
+    'settings.title': 'AgentPaw · AI 桌伴 · 设置',
+    'settings.subtitle': '调整休息提醒、免打扰、隐私、接入和角色表情',
     'settings.generalTab': '常规',
-    'settings.expressionsTab': '喵咪表情',
+    'settings.expressionsTab': '角色与表情',
     'settings.startupSection': '启动设置',
     'settings.autoLaunchTitle': '开机自动启动',
-    'settings.autoLaunchDescription': '登录 Windows 后自动运行 Codex 喵伴',
+    'settings.autoLaunchDescription': '登录 Windows 后自动运行 AgentPaw · AI 桌伴',
     'settings.enabled': '已开启',
     'settings.disabled': '已关闭',
     'settings.saving': '保存中…',
@@ -70,7 +70,7 @@
     'settings.privacyDisabled': '已关闭，正常显示任务详情',
     'settings.privacySaving': '正在切换隐私模式…',
     'settings.privacyFailed': '切换失败，请重试',
-    'settings.privacyHint': '也可以右键 Codex 喵伴，通过 ON/OFF 快速切换。',
+    'settings.privacyHint': '也可以右键 AgentPaw · AI 桌伴，通过 ON/OFF 快速切换。',
     'settings.integrationsSection': 'Agent 接入',
     'settings.integrationsTitle': '接入健康检查',
     'settings.integrationsDescription': '核对各工具的 Hook、插件或只读监听器是否正常',
@@ -95,11 +95,11 @@
     'settings.integrationsPartial': '仍有接入未恢复，请重启对应工具后再检查',
     'settings.integrationsCheckFailed': '检查失败，请重试',
     'settings.integrationsEnvDisabled': '当前运行模式禁止修改 Hook',
-    'settings.integrationsUninstallConfirm': '卸载 WorkMeow 已写入的 Hook 和插件吗？\n\n不会卸载 AI Agent 本身；之后可以通过“一键修复”重新接入。',
-    'settings.integrationsUninstalling': '正在卸载 WorkMeow 接入…',
-    'settings.integrationsUninstalled': 'WorkMeow 接入已卸载，可随时一键修复',
+    'settings.integrationsUninstallConfirm': '卸载 AgentPaw 已写入的 Hook 和插件吗？\n\n不会卸载 AI Agent 本身；之后可以通过“一键修复”重新接入。',
+    'settings.integrationsUninstalling': '正在卸载 AgentPaw 接入…',
+    'settings.integrationsUninstalled': 'AgentPaw 接入已卸载，可随时一键修复',
     'settings.integrationsUninstallPartial': '部分接入未能卸载，请关闭对应 Agent 后重试',
-    'settings.integrationsHint': '修复只处理已检测工具；卸载只移除 WorkMeow 写入的 Hook 和插件，不影响 Agent 本身。',
+    'settings.integrationsHint': '修复只处理已检测工具；卸载只移除 AgentPaw 写入的 Hook 和插件，不影响 Agent 本身。',
     'settings.updateSection': '版本更新',
     'settings.autoUpdateTitle': '自动检查更新',
     'settings.installerUpdateDescription': '自动检查并下载 EXE 安装版更新，安装前会请你确认',
@@ -122,8 +122,8 @@
     'settings.updateUnsupported': '当前系统不支持自动更新',
     'settings.updateInstallerHint': '自动更新不会强制退出；下载完成后由你决定何时重启安装。',
     'settings.updatePortableHint': 'ZIP 免安装版不会自动覆盖当前目录，下载后请解压新版。',
-    'update.readyTitle': 'Codex 喵伴更新已就绪',
-    'update.readyMessage': 'Codex 喵伴 {version} 已下载完成',
+    'update.readyTitle': 'AgentPaw · AI 桌伴更新已就绪',
+    'update.readyMessage': 'AgentPaw · AI 桌伴 {version} 已下载完成',
     'update.readyDetail': '现在重启即可完成更新；正在运行的 AI 任务不会被终止。',
     'update.restartNow': '立即重启更新',
     'update.later': '稍后',
@@ -137,9 +137,9 @@
     'settings.timeSaved': '下班时间已更新',
     'settings.timeInvalid': '请输入有效的时间',
     'settings.timeSaveFailed': '下班时间保存失败，请重试',
-    'settings.timeHint': '彩蛋持续 10 分钟，仅在 Codex 喵伴空闲或休息时播放。',
-    'settings.expressionsTitle': '自定义每一种喵咪状态',
-    'settings.expressionsDescription': '选择状态和具体表情后，可以新增、替换或移出。导入后会自动透明化、等比缩放并适配到 120×120。',
+    'settings.timeHint': '彩蛋持续 10 分钟，仅在 AgentPaw · AI 桌伴空闲或休息时播放。',
+    'settings.expressionsTitle': '自定义这个角色的每一种状态',
+    'settings.expressionsDescription': '选择状态和具体表情后，可以新增、替换或移出。GIF 会等比适配到 120×120；可选择是否清理纯色背景。',
     'settings.removeBackground': '自动清理纯色背景',
     'settings.allStates': '全部状态',
     'settings.allStatesHint': '点击卡片进行管理',
@@ -320,14 +320,14 @@
     'bub.needReply': '💬 {project} 等你回复',
     'bub.greet': '👋 {project} 新会话，你好！',
     'bub.slowCmd': '💦 这条命令有点久，稍等…',
-    'bub.online': '喵伴上线，陪你工作，也记得休息！',
+    'bub.online': '伙伴上线，陪你工作，也记得休息！',
 
     // ── purr payday easter egg ──────────────────────────────────────────────
     'purr.title': '🐾 今日工资条',
     'purr.first': '呼噜……今天陪你跑了 {rounds} 轮，处理 {tokens} tokens，缓存命中 {cacheRate}%。摸鱼许可已批准五分钟。',
-    'purr.empty': '呼噜……今天还没开工，喵先陪你坐会儿。',
-    'purr.repeat': '呼噜……今日工资条已经发过啦，喵继续陪你待命。',
-    'purr.hint': '长按喵，可查看今日陪伴工资条',
+    'purr.empty': '呼噜……今天还没开工，伙伴先陪你坐会儿。',
+    'purr.repeat': '呼噜……今日工资条已经发过啦，伙伴继续陪你待命。',
+    'purr.hint': '长按伙伴，可查看今日陪伴工资条',
     'purr.ariaLabel': '今日陪伴工资条',
 
     // ── radial menu ─────────────────────────────────────────────────────────
@@ -335,7 +335,7 @@
     'bub.xiabanLunch2': '🍱 上午巡逻结束，工位我看着，你去吃饭吧！',
     'bub.xiabanLunch3': '🥢 到饭点啦，代码不会趁你吃饭时长腿跑掉的。',
     'bub.xiabanEvening1': '🍜 下班时间到！今天的 bug 留给明天，先去干饭～',
-    'bub.xiabanEvening2': '🌃 工位已由喵接管，放心下班，记得按时吃饭！',
+    'bub.xiabanEvening2': '🌃 工位已由伙伴接管，放心下班，记得按时吃饭！',
     'bub.xiabanEvening3': '🔔 收工收工！再不走，晚饭就要开始等你回复了。',
 
     // ── left-click work peek ───────────────────────────────────────────────
@@ -346,8 +346,8 @@
     'peek.viewOnly': '该会话没有可用的窗口定位信息，点击查看详情',
     'peek.panel': '查看详情',
     'peek.idleTitle': '暂时没有任务',
-    'peek.idleSub': 'Codex 喵伴正在待命',
-    'peek.sleepingSub': '工位已由喵接管',
+    'peek.idleSub': 'AgentPaw · AI 桌伴正在待命',
+    'peek.sleepingSub': '工位已由伙伴接管',
     'peek.multiTitle': '{count} 个任务正在进行',
     'peek.attentionTitle': '{count} 件事需要你处理',
     'peek.errorTitle': '{count} 个任务遇到问题',

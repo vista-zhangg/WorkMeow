@@ -7,7 +7,7 @@
 //
 // 解决：用普通 node 以 `detached: true` + `stdio: 'ignore'` 拉起 electron，
 // 让 GUI 进程拥有独立的进程组、不再挂接原控制台 —— 关终端后 PET 继续后台运行。
-// （打包后的 WorkMeow.exe 本身就是独立 GUI 进程，不走这里。）
+// （打包后的 AgentPaw.exe 本身就是独立 GUI 进程，不走这里。）
 
 const { spawn } = require('child_process');
 const path = require('path');
@@ -25,7 +25,7 @@ const child = spawn(electron, [appDir], {
 child.unref();
 
 child.on('error', (err) => {
-  console.error('启动Codex 喵伴失败：', err.message);
+  console.error('启动AgentPaw · AI 桌伴失败：', err.message);
   process.exit(1);
 });
 

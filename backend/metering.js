@@ -9,7 +9,7 @@
 // response streams; later rows contain the completed output token count. We keep
 // the component-wise maximum snapshot per message and apply only the positive
 // delta, so neither the first partial row nor a resumed/copied transcript can
-// under-count or double-count usage. Aggregates persist to ~/.workmeow/usage.json
+// under-count or double-count usage. Aggregates persist to ~/.agentpaw/usage.json
 // so the retained 95-day calendar survives restarts; the first run backfills
 // from the existing transcripts.
 //
@@ -36,7 +36,7 @@ const STATE_SCHEMA = 3;
 
 // USD per 1,000,000 tokens. Family-level ESTIMATES — only a last-resort fallback
 // now that we price by exact model id (pricing._models, synced from models.dev).
-// Override via ~/.workmeow/pricing.json (families and/or a "models" map):
+// Override via ~/.agentpaw/pricing.json (families and/or a "models" map):
 //   { "opus": {...}, "models": { "claude-opus-4-8": {"input":5,"output":25,...} } }
 const DEFAULT_PRICING = {
   opus:    { input: 15, output: 75, cacheWrite5m: 18.75, cacheWrite1h: 30, cacheRead: 1.5 },
@@ -78,7 +78,7 @@ function normalizePriceRow(row, fallback = DEFAULT_PRICING.default) {
 
 function mergePriceRow(base, incoming) {
   const row = incoming && typeof incoming === 'object' ? { ...incoming } : {};
-  // Backward compatibility with pricing.json files documented by older WorkMeow
+  // Backward compatibility with pricing.json files documented by older AgentPaw
   // versions. A legacy cacheWrite override must beat the new built-in 5m field.
   if (!Number.isFinite(row.cacheWrite5m) && Number.isFinite(row.cacheWrite)) {
     row.cacheWrite5m = row.cacheWrite;
@@ -91,7 +91,7 @@ function loadPricing(options = {}) {
   const overridePath = options.pricingOverridePath || PRICING_OVERRIDE_PATH;
   const out = JSON.parse(JSON.stringify(DEFAULT_PRICING));
   out._models = {}; // exact per-model-id prices (claude-fable-5 → {...}); wins over family
-  // layer 1: synced cache (~/.workmeow/pricing-cache.json)
+  // layer 1: synced cache (~/.agentpaw/pricing-cache.json)
   try {
     const c = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
     if (c && c.pricing && typeof c.pricing === 'object') {
@@ -109,7 +109,7 @@ function loadPricing(options = {}) {
       }
     }
   } catch {}
-  // layer 2: user override (~/.workmeow/pricing.json) — wins. Supports both family
+  // layer 2: user override (~/.agentpaw/pricing.json) — wins. Supports both family
   // keys and a "models" map of exact ids.
   try {
     const raw = JSON.parse(fs.readFileSync(overridePath, 'utf8'));

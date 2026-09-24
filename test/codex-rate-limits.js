@@ -115,7 +115,7 @@ async function main() {
   assert.strictEqual(missingRows.fiveHour.remaining, '--');
   assert.strictEqual(missingRows.weekly.reset, '--');
   assert.strictEqual(missingRows.updated, '--');
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-rate-limits-'));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-rate-limits-'));
   const dedupePath = path.join(temp, 'alerts.json');
   const alerts = [];
   const service = createCodexRateLimits({
@@ -185,7 +185,7 @@ async function main() {
   assert.deepStrictEqual(spawnArgs.args, ['app-server', '--stdio']);
   assert.strictEqual(spawnArgs.options.shell, false);
   assert.strictEqual(writes[0].method, 'initialize');
-  assert.strictEqual(writes[0].params.clientInfo.name, 'workmeow');
+  assert.strictEqual(writes[0].params.clientInfo.name, 'agentpaw');
 
   proc.stdout.write(`${JSON.stringify({ id: writes[0].id, result: { userAgent: 'codex' } })}\n`);
   await tick();

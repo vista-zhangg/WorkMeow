@@ -404,7 +404,7 @@ async function main() {
   check('ended 会话 30min 后被回收（终端 pid 存活也不豁免）', () => assert.strictEqual(core.getSession(clrSid), null));
 
   console.log('\n[12] hook 契约：无 session_id 丢弃 + op 标签不陈旧');
-  const hook = require('../hook/workmeow-hook');
+  const hook = require('../hook/agentpaw-hook');
   const opSid = 'op-label-jjjj';
   await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: opSid, cwd: '/Users/me/proj-op' });
   await post('/state', { state: 'thinking', event: 'UserPromptSubmit', session_id: opSid, cwd: '/Users/me/proj-op' });
@@ -484,7 +484,7 @@ async function main() {
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-test-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-test-'));
   const histFile = path.join(tmpDir, 'hist.jsonl');
   fs.writeFileSync(histFile, JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: '之前聊过' }] } }) + '\n'
     + JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: '好的' }] } }) + '\n');
@@ -553,9 +553,9 @@ async function main() {
   const intSid = 'interrupt-session-nnnn';
   // 像真实 hook 那样直接带 transcript_path（server 存 s.transcriptPath，core 直接读），
   // 不再靠 cwd 反推编码目录 —— 也不再往用户真实的 ~/.claude/projects 写测试文件。
-  const intDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-int-'));
+  const intDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-int-'));
   const intFile = path.join(intDir, `${intSid}.jsonl`);
-  await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: intSid, cwd: '/Users/me/workmeow-int', transcript_path: intFile });
+  await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: intSid, cwd: '/Users/me/agentpaw-int', transcript_path: intFile });
   await sleep(30);
   fs.writeFileSync(intFile,
     JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'text', text: '[Request interrupted by user]' }] } }) + '\n');
@@ -568,7 +568,7 @@ async function main() {
   }
   // 新事件到达（用户继续）→ lastEvent 晚于中断标记 → 不再触发
   await sleep(30);
-  await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: intSid, cwd: '/Users/me/workmeow-int', transcript_path: intFile });
+  await post('/state', { state: 'working', event: 'PreToolUse', tool_name: 'Bash', session_id: intSid, cwd: '/Users/me/agentpaw-int', transcript_path: intFile });
   core.cleanStaleSessions();
   check('中断后继续对话不误判', () => assert.strictEqual(core.getSession(intSid).state, 'working'));
   fs.rmSync(intDir, { recursive: true, force: true });
@@ -576,9 +576,9 @@ async function main() {
 
   console.log('\n[18] 网络重试检测：API 错误间隙不再误判成思考中');
   const netSid = 'netretry-session-rrrr';
-  const netDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-net-'));
+  const netDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-net-'));
   const netFile = path.join(netDir, `${netSid}.jsonl`);
-  await post('/state', { state: 'thinking', event: 'UserPromptSubmit', session_id: netSid, cwd: '/Users/me/workmeow-net', transcript_path: netFile });
+  await post('/state', { state: 'thinking', event: 'UserPromptSubmit', session_id: netSid, cwd: '/Users/me/agentpaw-net', transcript_path: netFile });
   await sleep(30);
   fs.writeFileSync(netFile,
     JSON.stringify({ type: 'assistant', isApiErrorMessage: true, error: 'server_error', sessionId: netSid, timestamp: new Date().toISOString(), message: { role: 'assistant', content: [{ type: 'text', text: 'API Error: Connection closed mid-response.' }] } }) + '\n');

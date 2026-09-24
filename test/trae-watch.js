@@ -35,7 +35,7 @@ const TS = '2026-09-21T16:48:14.354+08:00';
 
 // 伪造 logs/<ts>/ 结构，返回 {root, tsDir}
 function mkLogs(extra) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-trae-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-trae-'));
   tempRoots.push(root);
   const tsDir = path.join(root, '20260921T162209');
   fs.mkdirSync(tsDir, { recursive: true });

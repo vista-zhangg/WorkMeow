@@ -1,7 +1,7 @@
 'use strict';
 
-const { t } = window.WorkMeowI18n;
-const ASSETS = window.WorkMeowPetAssets;
+const { t } = window.AgentPawI18n;
+const ASSETS = window.AgentPawPetAssets;
 const $ = (id) => document.getElementById(id);
 
 async function initializeChipDisplay() {
@@ -202,6 +202,7 @@ let assetBusy = false;
 let selectedSlotId = 'working';
 let selectedAssetId = null;
 let assetCatalog = ASSETS.defaultCatalog();
+let renderedCharacterId = null;
 let assetStatusTimer = null;
 
 function applyStaticI18n() {
@@ -691,7 +692,7 @@ function describeAsset(asset) {
   const duration = Number(meta.durationMs) || 0;
   const background = meta.backgroundMode === 'removed-solid' ? '已清理纯色背景'
     : meta.backgroundMode === 'preserved-transparency' ? '保留透明背景' : '保留原背景';
-  return `自定义 · ${asset.name} · ${frames} 帧${duration ? ` · ${(duration / 1000).toFixed(1)} 秒` : ''} · ${background}`;
+  return `${asset.kind === 'preset' ? '角色默认' : '自定义'} · ${asset.name} · ${frames} 帧${duration ? ` · ${(duration / 1000).toFixed(1)} 秒` : ''} · ${background}`;
 }
 
 function createVariant(asset) {
@@ -724,7 +725,7 @@ function renderInspector() {
   }
   $('asset-detail-icon').textContent = definition.icon;
   $('asset-detail-title').textContent = definition.label;
-  $('asset-detail-description').textContent = definition.description;
+  $('asset-detail-description').textContent = [definition.description, slot.note].filter(Boolean).join(' ');
   $('asset-detail-preview').src = selected.url;
   $('asset-detail-preview').alt = `${definition.label}：${selected.name}`;
   $('asset-detail-meta').textContent = describeAsset(selected);
@@ -744,6 +745,7 @@ function renderInspector() {
 
 function renderAssets() {
   assetCatalog = ASSETS.normalizeCatalog(assetCatalog);
+  renderCharacters();
   renderGallery();
   renderInspector();
 }
@@ -755,6 +757,74 @@ function setAssetBusy(next) {
   assetRemove.disabled = next || currentSlotData().active.length <= 1;
   assetReset.disabled = next || currentSlotData().mode === 'default';
   removeBackground.disabled = next;
+  renderCharacters();
+}
+
+function renderCharacters() {
+  const character = assetCatalog.character;
+  if (!$('character-list')) return;
+  if (renderedCharacterId !== character.id) {
+    renderedCharacterId = character.id;
+    selectedAssetId = null;
+    removeBackground.checked = character.removeBackground;
+  }
+  const cards = assetCatalog.characters.map((item) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'character-card';
+    button.dataset.characterId = item.id;
+    button.setAttribute('aria-pressed', String(item.id === character.id));
+    button.disabled = assetBusy;
+    const img = document.createElement('img'); img.src = item.thumbnail; img.alt = ''; img.draggable = false;
+    const name = document.createElement('span'); name.textContent = item.name;
+    const kind = document.createElement('small'); kind.textContent = item.id === character.id ? '正在陪伴你' : item.builtin ? '内置角色' : '我的角色';
+    button.append(img, name, kind);
+    button.addEventListener('click', () => runCharacterAction(() => window.pet.selectPetCharacter(item.id), `已切换为“${item.name}”。`));
+    return { builtin: item.builtin, button };
+  });
+  const add = document.createElement('button');
+  add.type = 'button'; add.id = 'character-add'; add.className = 'character-card character-add';
+  add.disabled = assetBusy;
+  add.setAttribute('aria-controls', 'character-name');
+  const plus = document.createElement('span'); plus.className = 'character-add-icon'; plus.textContent = '+';
+  plus.setAttribute('aria-hidden', 'true');
+  const label = document.createElement('span'); label.textContent = '自定义角色';
+  const hint = document.createElement('small'); hint.textContent = '用自己的 GIF 创建';
+  add.append(plus, label, hint);
+  add.addEventListener('click', () => {
+    $('character-name').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    $('character-name').focus({ preventScroll: true });
+  });
+  $('character-list').replaceChildren(...cards.filter(c => c.builtin).map(c => c.button), add,
+    ...cards.filter(c => !c.builtin).map(c => c.button));
+  $('character-current').textContent = `正在编辑：${character.name}`;
+  $('character-credit').textContent = character.credit || '';
+  $('character-credit').hidden = !character.credit;
+  $('character-remove').hidden = !character.canDelete;
+  for (const id of ['character-create', 'character-import', 'character-remove', 'character-name']) $(id).disabled = assetBusy;
+  const preview = $('preview-cat');
+  if (preview) { preview.src = assetCatalog.slots.working.active[0].url; preview.alt = character.name; }
+}
+
+async function runCharacterAction(action, success) {
+  if (assetBusy) return;
+  setAssetBusy(true);
+  showAssetStatus('正在处理角色素材，请稍候…', '', true);
+  try {
+    const result = await action();
+    if (result?.canceled) { showAssetStatus('已取消，当前角色保持不变。'); return; }
+    if (!result?.ok) throw new Error(result?.message || '角色操作失败，请重试');
+    assetCatalog = ASSETS.normalizeCatalog(result.catalog);
+    selectedAssetId = null;
+    renderAssets();
+    showAssetStatus(success, 'success');
+  } catch (error) { showAssetStatus(error.message || '角色操作失败，请重试', 'error'); }
+  finally { setAssetBusy(false); renderAssets(); }
+}
+
+async function createCharacter() {
+  const name = $('character-name').value.trim();
+  if (!name) { showAssetStatus('先给新角色起个名字。', 'error'); $('character-name').focus(); return; }
+  await runCharacterAction(() => window.pet.createPetCharacter(name, { removeBackground: removeBackground.checked }), `已创建“${name}”，可以开始补充各个状态的动作。`);
 }
 
 async function importExpression(mode) {
@@ -762,7 +832,7 @@ async function importExpression(mode) {
   const definition = currentSlotDefinition();
   const selected = currentSlotData().active.find((asset) => asset.id === selectedAssetId) || currentSlotData().active[0];
   if (mode === 'replace-one') {
-    const irreversible = selected.kind === 'custom' ? '\n\n旧的自定义副本会从Codex 喵伴中删除，原始 GIF 文件不受影响。' : '';
+    const irreversible = selected.kind === 'custom' ? '\n\n旧的自定义副本会从AgentPaw · AI 桌伴中删除，原始 GIF 文件不受影响。' : '';
     const confirmed = window.confirm(`用新的 GIF 替换当前选中的“${selected.name}”吗？${irreversible}`);
     if (!confirmed) return;
   }
@@ -801,7 +871,7 @@ async function removeSelectedExpression() {
   if (assetBusy || !asset || slot.active.length <= 1) return;
   const definition = currentSlotDefinition();
   const detail = asset.kind === 'custom'
-    ? '\n\n自定义副本会从Codex 喵伴中删除，原始 GIF 文件不受影响。'
+    ? '\n\n自定义副本会从AgentPaw · AI 桌伴中删除，原始 GIF 文件不受影响。'
     : '\n\n可随时通过“恢复默认”重新启用它。';
   if (!window.confirm(`从“${definition.label}”的播放列表中移出“${asset.name}”吗？${detail}`)) return;
   setAssetBusy(true);
@@ -826,7 +896,7 @@ async function removeSelectedExpression() {
 async function resetSlot() {
   if (assetBusy || currentSlotData().mode === 'default') return;
   const definition = currentSlotDefinition();
-  if (!window.confirm(`恢复“${definition.label}”的默认表情吗？\n\n这个状态下添加的所有自定义表情都会从Codex 喵伴中删除。原始 GIF 文件不会受到影响。`)) return;
+  if (!window.confirm(`恢复“${definition.label}”的默认表情吗？\n\n这个状态下添加的所有自定义表情都会从AgentPaw · AI 桌伴中删除。原始 GIF 文件不会受到影响。`)) return;
   setAssetBusy(true);
   showAssetStatus('正在恢复默认表情…', '', true);
   try {
@@ -860,6 +930,13 @@ assetAdd.addEventListener('click', () => importExpression('append'));
 assetReplace.addEventListener('click', () => importExpression('replace-one'));
 assetRemove.addEventListener('click', removeSelectedExpression);
 assetReset.addEventListener('click', resetSlot);
+$('character-create').addEventListener('click', createCharacter);
+$('character-import').addEventListener('click', () => runCharacterAction(() => window.pet.importPetCharacter(), '角色包已导入，并已切换到新角色。'));
+$('character-remove').addEventListener('click', () => {
+  const character = assetCatalog.character;
+  if (assetBusy || !character.canDelete || !window.confirm(`从角色列表移除“${character.name}”吗？\n当前会切回打工猫，角色文件将保留在本机归档中。`)) return;
+  runCharacterAction(() => window.pet.removePetCharacter(character.id), '角色已移除，已切回打工猫。');
+});
 const settingsTabs = [...document.querySelectorAll('.settings-tab')];
 for (const tab of settingsTabs) {
   tab.addEventListener('click', () => setTab(tab.dataset.tab));

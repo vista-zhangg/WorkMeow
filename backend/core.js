@@ -101,7 +101,7 @@ function deriveBadge(s) {
   const events = Array.isArray(s.recentEvents) ? s.recentEvents : [];
   const latest = events.length ? events[events.length - 1] : null;
   const ev = latest && latest.event;
-  // A failure wins regardless of the current state word (WorkMeow stores the
+  // A failure wins regardless of the current state word (AgentPaw stores the
   // 'error' state, unlike clawd which stores idle, so check this first).
   // TurnAborted = Codex 回合被用户叫停（ESC），和 Claude 的 ESC 中断同一个徽标。
   if ((ev === 'StopFailure' || ev === 'PostToolUseFailure' || ev === 'ApiError' || ev === 'TurnAborted')

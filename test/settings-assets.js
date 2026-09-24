@@ -16,7 +16,7 @@ for (const id of ['tab-expressions', 'asset-gallery', 'asset-inspector', 'asset-
   'asset-reset', 'asset-variants', 'remove-bg-toggle']) {
   assert(html.includes(`id="${id}"`), `settings must expose ${id}`);
 }
-assert(/img-src 'self' data: workmeow-asset:/.test(html), 'settings CSP must allow only the controlled custom asset scheme');
+assert(/img-src 'self' data: agentpaw-asset:/.test(html), 'settings CSP must allow only the controlled custom asset scheme');
 assert(html.includes('../shared/pet-assets.js'), 'settings must use the shared visual slot registry');
 assert(/importPetGif\(selectedSlotId, mode/.test(js), 'the selected slot must drive imports');
 assert(/importExpression\('append'\)/.test(js), 'adding a GIF must preserve the current playlist');

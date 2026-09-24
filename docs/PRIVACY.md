@@ -2,7 +2,7 @@
 
 ## 中文
 
-Codex 喵伴（WorkMeow）是本地优先的 Windows 桌面应用，不提供云端账户、遥测或远程会话同步。
+AgentPaw · AI 桌伴是本地优先的 Windows 桌面应用，不提供云端账户、遥测或远程会话同步。
 
 ### 本机读取的数据
 
@@ -17,15 +17,15 @@ Codex 喵伴（WorkMeow）是本地优先的 Windows 桌面应用，不提供云
 
 ### 本机写入的数据
 
-WorkMeow 将配置、窗口位置、运行时令牌、模型价格缓存、用量台账和 Codex 额度提醒去重键写入 `~/.workmeow/`。去重键只包含窗口标识与刷新时间，不包含认证信息。hook 与插件安装采用合并写入，修改前保留备份，卸载只移除本项目管理的条目。
+AgentPaw 将配置、窗口位置、运行时令牌、模型价格缓存、用量台账和 Codex 额度提醒去重键写入 `~/.agentpaw/`。去重键只包含窗口标识与刷新时间，不包含认证信息。hook 与插件安装采用合并写入，修改前保留备份，卸载只移除本项目管理的条目。
 
 休息提醒使用系统提供的空闲时长、锁屏和休眠状态累计电脑使用时间；全屏免打扰检查前台窗口是否覆盖显示器。不会记录按键、鼠标点击内容、屏幕画面或前台窗口标题。提醒偏好和「今天跳过」日期保存在同一本机配置目录，不上传使用习惯。
 
 ### 网络访问
 
-常规运行中，WorkMeow 会从 [models.dev](https://models.dev) 下载公共模型价目表。Windows 版使用 Electron 网络层并继承系统代理或 PAC 设置；启动时同步一次，成功后每 24 小时刷新，失败时自动重试。该请求不携带 transcript、rollout、权限内容或用量统计。设置 `WORKMEOW_NO_NET=1` 会禁用价格同步和 Codex 额度上游连接，使 WorkMeow 保持完全离线；额度显示为 `--`。
+常规运行中，AgentPaw 会从 [models.dev](https://models.dev) 下载公共模型价目表。Windows 版使用 Electron 网络层并继承系统代理或 PAC 设置；启动时同步一次，成功后每 24 小时刷新，失败时自动重试。该请求不携带 transcript、rollout、权限内容或用量统计。设置 `AGENTPAW_NO_NET=1` 会禁用价格同步和 Codex 额度上游连接，使 AgentPaw 保持完全离线；额度显示为 `--`。
 
-Codex 订阅额度通过官方 `codex app-server --stdio` 读取。WorkMeow 完成 App Server 初始化后先调用 `account/read`，再调用 `account/rateLimits/read` 并监听 `account/updated` 与 `account/rateLimits/updated`；认证和上游访问由 Codex 负责。WorkMeow 只监听 `~/.codex/auth.json` 目录项的替换，将它作为 file auth 的快速重连信号，且不打开或解析凭据文件。keyring / auto / ephemeral 没有对应的文件 watcher 保证，账户变化依靠 App Server 通知、周期性 `account/read` 与定期重建连接收敛；界面表示 WorkMeow 自己这条连接当前可见的账户。WorkMeow 不保存 Codex 邮箱或凭据，也不调用 ChatGPT 网页接口。退出 WorkMeow 时会终止它启动的 App Server 子进程。
+Codex 订阅额度通过官方 `codex app-server --stdio` 读取。AgentPaw 完成 App Server 初始化后先调用 `account/read`，再调用 `account/rateLimits/read` 并监听 `account/updated` 与 `account/rateLimits/updated`；认证和上游访问由 Codex 负责。AgentPaw 只监听 `~/.codex/auth.json` 目录项的替换，将它作为 file auth 的快速重连信号，且不打开或解析凭据文件。keyring / auto / ephemeral 没有对应的文件 watcher 保证，账户变化依靠 App Server 通知、周期性 `account/read` 与定期重建连接收敛；界面表示 AgentPaw 自己这条连接当前可见的账户。AgentPaw 不保存 Codex 邮箱或凭据，也不调用 ChatGPT 网页接口。退出 AgentPaw 时会终止它启动的 App Server 子进程。
 
 本地服务只监听 loopback。写接口校验 Host、Origin、请求体大小、字段形状和每次运行随机生成的令牌。
 
@@ -35,16 +35,16 @@ Codex 订阅额度通过官方 `codex app-server --stdio` 读取。WorkMeow 完�
 
 ### 用户控制
 
-- 右键 Codex 喵伴可通过 ON/OFF 一键切换「隐私模式」，设置中也提供同步开关：桌宠和详情面板会隐藏项目/会话名、回复正文、授权命令、方案、问题选项与操作流明细，同时保留工作/等待/异常状态和用量汇总。
+- 右键 AgentPaw · AI 桌伴可通过 ON/OFF 一键切换「隐私模式」，设置中也提供同步开关：桌宠和详情面板会隐藏项目/会话名、回复正文、授权命令、方案、问题选项与操作流明细，同时保留工作/等待/异常状态和用量汇总。
 - 隐私模式只是本机展示层遮蔽，不停止 watcher、hook、权限等待或用量统计。开启时当前气泡和敏感卡片会立即关闭；关闭后仍未处理的事项会恢复显示。
-- 退出 WorkMeow 即停止 watcher 与本地服务；
+- 退出 AgentPaw 即停止 watcher 与本地服务；
 - 可在设置的 Agent 接入区域或通过 `npm run uninstall:hooks` 卸载本项目 hook/插件；
-- `~/.workmeow/` 包含用户配置和历史，只有确认不再需要时才应手动删除；
+- `~/.agentpaw/` 包含用户配置和历史，只有确认不再需要时才应手动删除；
 - 发布问题时不要附加真实 transcript、运行时令牌、个人目录或含敏感内容的截图。
 
 ## English
 
-Codex 喵伴（WorkMeow） is a local-first Windows desktop application. It has no cloud account, telemetry service, or remote conversation synchronization.
+AgentPaw · AI 桌伴 is a local-first Windows desktop application. It has no cloud account, telemetry service, or remote conversation synchronization.
 
 ### Data read locally
 
@@ -59,15 +59,15 @@ This data powers status, session titles, context usage, token reporting, and per
 
 ### Data written locally
 
-Configuration, window position, runtime token, model-price cache, usage ledgers, and Codex quota-alert dedupe keys are stored under `~/.workmeow/`. A dedupe key contains only a window identifier and reset time, never authentication data. Hook and plugin installation is merge-safe, creates backups before changes, and removes only WorkMeow-managed entries during uninstall.
+Configuration, window position, runtime token, model-price cache, usage ledgers, and Codex quota-alert dedupe keys are stored under `~/.agentpaw/`. A dedupe key contains only a window identifier and reset time, never authentication data. Hook and plugin installation is merge-safe, creates backups before changes, and removes only AgentPaw-managed entries during uninstall.
 
 Break reminders use system idle duration and lock/suspend state to count time at the computer. Fullscreen quiet mode checks whether the foreground window covers a display. Neither feature records keystrokes, click contents, screenshots, or foreground window titles. Reminder preferences and skip-for-today dates stay in the same local configuration directory; usage habits are not uploaded.
 
 ### Network access
 
-During normal operation, WorkMeow may download the public model price list from [models.dev](https://models.dev). On Windows it uses Electron's network stack and follows the system proxy or PAC configuration; it syncs at startup, refreshes every 24 hours after success, and retries transient failures. Transcripts, rollouts, permission contents, and usage statistics are not attached to that request. Set `WORKMEOW_NO_NET=1` to disable both pricing synchronization and the Codex quota upstream connection, keeping WorkMeow fully offline; quota displays `--`.
+During normal operation, AgentPaw may download the public model price list from [models.dev](https://models.dev). On Windows it uses Electron's network stack and follows the system proxy or PAC configuration; it syncs at startup, refreshes every 24 hours after success, and retries transient failures. Transcripts, rollouts, permission contents, and usage statistics are not attached to that request. Set `AGENTPAW_NO_NET=1` to disable both pricing synchronization and the Codex quota upstream connection, keeping AgentPaw fully offline; quota displays `--`.
 
-Codex subscription quota is read through the official `codex app-server --stdio` transport. WorkMeow initializes App Server, calls `account/read` before `account/rateLimits/read`, and listens for both account and rate-limit updates; Codex owns authentication and upstream access. WorkMeow watches replacement of the `~/.codex/auth.json` directory entry only as a fast reconnect signal for file auth, without opening or parsing the credential file. Keyring, auto, and ephemeral auth have no corresponding file-watcher guarantee; account changes converge through App Server notifications, periodic `account/read`, and scheduled connection recycling, and the UI represents the account visible to WorkMeow's own connection. WorkMeow does not persist the Codex email or credentials and does not call ChatGPT web endpoints. Exiting WorkMeow terminates the App Server child process it started.
+Codex subscription quota is read through the official `codex app-server --stdio` transport. AgentPaw initializes App Server, calls `account/read` before `account/rateLimits/read`, and listens for both account and rate-limit updates; Codex owns authentication and upstream access. AgentPaw watches replacement of the `~/.codex/auth.json` directory entry only as a fast reconnect signal for file auth, without opening or parsing the credential file. Keyring, auto, and ephemeral auth have no corresponding file-watcher guarantee; account changes converge through App Server notifications, periodic `account/read`, and scheduled connection recycling, and the UI represents the account visible to AgentPaw's own connection. AgentPaw does not persist the Codex email or credentials and does not call ChatGPT web endpoints. Exiting AgentPaw terminates the App Server child process it started.
 
 The local service binds to loopback only. Write endpoints validate Host, Origin, body size, field shape, and a fresh random token generated for each run.
 
@@ -79,7 +79,7 @@ Displayed cost is calculated from public API prices for local trend analysis. It
 
 - Toggle **Privacy mode** from the cat's compact ON/OFF context action or the synchronized Settings switch. It hides project/session names, response text, permission commands, plans, question options, and operation details while keeping essential state and aggregate usage visible.
 - Privacy mode masks the local presentation layer only. It does not stop watchers, hooks, pending permissions, or usage accounting. Existing bubbles and sensitive cards close immediately; unresolved items return after privacy mode is disabled.
-- Exiting WorkMeow stops its watchers and local service.
-- Use the Agent integration area in Settings or `npm run uninstall:hooks` to remove WorkMeow-managed hooks and plugins.
-- `~/.workmeow/` contains user configuration and history; delete it manually only when that data is no longer needed.
+- Exiting AgentPaw stops its watchers and local service.
+- Use the Agent integration area in Settings or `npm run uninstall:hooks` to remove AgentPaw-managed hooks and plugins.
+- `~/.agentpaw/` contains user configuration and history; delete it manually only when that data is no longer needed.
 - Never attach real transcripts, runtime tokens, personal paths, or sensitive screenshots to a public report.

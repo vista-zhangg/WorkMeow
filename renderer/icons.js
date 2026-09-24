@@ -1,7 +1,7 @@
 'use strict';
 
 // SVG icon set — replaces emoji glyphs so the UI renders identically on every
-// machine and matches the WorkMeow art style (no system-font emoji jitter).
+// machine and matches the AgentPaw art style (no system-font emoji jitter).
 //
 // Each icon is a raw SVG string sized 1em via `width=1em height=1em` so it
 // inherits font-size and color (fill=currentColor) — drop them inline anywhere
@@ -18,7 +18,7 @@
 
 (function (root) {
   // 24x24 viewBox, outline+fill strokes mostly. Pure SVG, no fonts.
-  // Picked to match the WorkMeow art language: clean rounded lines, no gradients.
+  // Picked to match the AgentPaw art language: clean rounded lines, no gradients.
   const ICONS = {
     // ✅ 完成/允许
     check: '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 L10 17.5 L19 7"/></svg>',
@@ -83,5 +83,5 @@
     return EMOJI_TEST_RE.test(String(text == null ? '' : text));
   }
 
-  root.WorkMeowIcons = { icon, withIcons, setTextWithIcons, hasMappedEmoji, EMOJI_TO_ICON };
+  root.AgentPawIcons = { icon, withIcons, setTextWithIcons, hasMappedEmoji, EMOJI_TO_ICON };
 })(typeof window !== 'undefined' ? window : globalThis);

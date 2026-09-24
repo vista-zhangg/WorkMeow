@@ -7,7 +7,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.WorkMeowPetInsights = api;
+  if (root) root.AgentPawPetInsights = api;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   const BUSY_STATES = Object.freeze(['working', 'juggling', 'sweeping', 'thinking', 'loafing']);
   const STATE_PRIORITY = Object.freeze({

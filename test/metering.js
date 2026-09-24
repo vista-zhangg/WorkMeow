@@ -11,7 +11,7 @@ const path = require('path');
 const { createMetering } = require('../backend/metering');
 
 async function main() {
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-metering-'));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-metering-'));
 const projectsDir = path.join(root, 'projects');
 const stateDir = path.join(root, 'state');
 fs.mkdirSync(projectsDir, { recursive: true });

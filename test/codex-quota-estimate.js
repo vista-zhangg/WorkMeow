@@ -52,7 +52,7 @@ assert.strictEqual(createWeeklyQuotaEstimator().observe({ quotaHistory: [] }, st
 assert.strictEqual(estimator.observe(usage, state(), now + 6 * 60000), null, 'stale quotas are not live forecasts');
 assert.strictEqual(estimator.observe(usage, state(21, now, now / 1000 - 1), now), null);
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-quota-'));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-quota-'));
 try {
   const statePath = path.join(root, 'calibration.json');
   let persistent = createWeeklyQuotaEstimator({ statePath });

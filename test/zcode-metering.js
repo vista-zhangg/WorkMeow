@@ -50,7 +50,7 @@ async function main() {
     console.log('zcode metering checks passed (DB-backed checks skipped: node:sqlite unavailable in this runtime)');
     return;
   }
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-zcode-meter-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-zcode-meter-'));
   const stateDir = path.join(root, 'state');
   fs.mkdirSync(stateDir, { recursive: true });
   const dbPath = path.join(root, 'db.sqlite');

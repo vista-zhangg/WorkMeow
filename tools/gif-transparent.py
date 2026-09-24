@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把纯色背景的 GIF 转成透明背景 GIF，并可直接安装为Codex 喵伴的状态素材。
+"""把纯色背景的 GIF 转成透明背景 GIF，并可直接安装为AgentPaw · AI 桌伴的状态素材。
 
 为什么不能"把所有白像素变透明"
 ------------------------------------
@@ -203,7 +203,7 @@ def convert(src, dst, bg_hex=None, tol=40, shrink=1, size=TARGET_SIZE, quiet=Fal
 
 def main():
     ap = argparse.ArgumentParser(
-        description="纯色背景 GIF → 透明背景 GIF（Codex 喵伴素材工具）",
+        description="纯色背景 GIF → 透明背景 GIF（AgentPaw · AI 桌伴素材工具）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("src", help="输入 GIF 文件或目录")

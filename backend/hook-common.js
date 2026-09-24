@@ -2,7 +2,7 @@
 
 // Shared hook logic for EVERY agent entry script.
 //
-// workmeow-hook.js (Claude Code), workbuddy-hook.js (WorkBuddy), trae-hook.js
+// agentpaw-hook.js (Claude Code), workbuddy-hook.js (WorkBuddy), trae-hook.js
 // (TRAE) are all thin wrappers that call runHook(event, agentId). Keeping the
 // heavy lifting here means adding a new tool = one tiny wrapper file, no logic
 // duplication, and the transcript/pidwalk/emotion enrichment stays in one place.

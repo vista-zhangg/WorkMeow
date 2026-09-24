@@ -20,7 +20,7 @@ const PLUGINS_DIR = path.join(os.homedir(), '.config', 'opencode', 'plugins');
 const DETECT_PATH = path.join(os.homedir(), '.config', 'opencode');
 const SETTINGS_PATH = path.join(PLUGINS_DIR, 'opencode-plugin.js');
 const HOOK_SCRIPT = path.join(__dirname, '..', 'hook', 'opencode-plugin.js');
-const MARKER = 'workmeow-opencode-plugin';
+const MARKER = 'agentpaw-opencode-plugin';
 
 function readSource() {
   const source = fs.readFileSync(HOOK_SCRIPT, 'utf8');

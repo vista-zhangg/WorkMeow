@@ -43,14 +43,15 @@ function sanitizeRecord(value) {
   };
 }
 
-function sanitizeManifest(value) {
+function defaultKey(asset) { return asset.kind === 'builtin' ? asset.id.slice('builtin:'.length) : asset.id; }
+function sanitizeManifest(value, defaultsBySlot = null) {
   const out = cloneDefaultManifest();
   if (!value || typeof value !== 'object' || !value.slots || typeof value.slots !== 'object') return out;
   for (const slotId of REGISTRY.SLOT_IDS) {
     const source = value.slots[slotId];
     if (!source || typeof source !== 'object' || !Array.isArray(source.assets)) continue;
     const assets = source.assets.map(sanitizeRecord).filter(Boolean).slice(0, MAX_CUSTOM_PER_SLOT);
-    const defaults = REGISTRY.SLOT_BY_ID[slotId].defaultFiles;
+    const defaults = defaultsBySlot ? defaultsBySlot[slotId].map(defaultKey) : REGISTRY.SLOT_BY_ID[slotId].defaultFiles;
     let excludedDefaults = Array.isArray(source.excludedDefaults)
       ? [...new Set(source.excludedDefaults.filter((file) => defaults.includes(file)))]
       : [];
@@ -72,15 +73,17 @@ class PetAssetStore {
     this.assetsDir = path.join(this.rootDir, 'assets');
     this.manifestPath = path.join(this.rootDir, 'manifest.json');
     this.normalizer = options.normalizer || normalizeGif;
+    this.defaultsBySlot = options.defaultsBySlot || null;
+    this.presetRecords = options.presetRecords || [];
   }
 
   readManifest() {
-    try { return sanitizeManifest(JSON.parse(fs.readFileSync(this.manifestPath, 'utf8'))); }
+    try { return sanitizeManifest(JSON.parse(fs.readFileSync(this.manifestPath, 'utf8')), this.defaultsBySlot); }
     catch { return cloneDefaultManifest(); }
   }
 
   writeManifest(manifest) {
-    const clean = sanitizeManifest(manifest);
+    const clean = sanitizeManifest(manifest, this.defaultsBySlot);
     fs.mkdirSync(this.rootDir, { recursive: true });
     const temp = path.join(this.rootDir, `.manifest.${process.pid}.${randomUUID()}.tmp`);
     try {
@@ -100,7 +103,7 @@ class PetAssetStore {
       name: record.originalName,
       createdAt: record.createdAt,
       meta: record.meta,
-      url: `workmeow-asset://asset/${record.id}.gif?v=${encodeURIComponent(record.createdAt)}`,
+      url: `agentpaw-asset://asset/${record.id}.gif?v=${encodeURIComponent(record.createdAt)}`,
     };
   }
 
@@ -110,12 +113,13 @@ class PetAssetStore {
       const saved = manifest.slots[slot.id];
       const custom = saved ? saved.assets.map((record) => this.customRef(record)) : [];
       const excluded = new Set(saved ? saved.excludedDefaults : []);
-      const builtins = slot.defaultFiles.filter((file) => !excluded.has(file)).map((file) => ({
+      const defaults = this.defaultsBySlot ? this.defaultsBySlot[slot.id] : slot.defaultFiles.map((file) => ({
         id: `builtin:${file}`,
         kind: 'builtin',
         name: file,
         url: `../assets/cat/${file}`,
       }));
+      const builtins = defaults.filter((asset) => !excluded.has(defaultKey(asset)));
       const replace = !!(saved && saved.mode === 'replace' && custom.length);
       const modified = !!(saved && (custom.length || excluded.size));
       slots[slot.id] = {
@@ -139,7 +143,7 @@ class PetAssetStore {
       ? this.catalog(manifest).slots[slotId].active.find((asset) => asset.id === targetId)
       : null;
     if (mode === 'replace-one' && !target) throw new GifImportError('invalid-target', '请选择当前播放列表中的一个表情');
-    const addsCustom = mode === 'append' || (mode === 'replace-one' && target.kind === 'builtin');
+    const addsCustom = mode === 'append' || (mode === 'replace-one' && target.kind !== 'custom');
     if (addsCustom && current.assets.length >= MAX_CUSTOM_PER_SLOT) {
       throw new GifImportError('slot-limit', `每个状态最多添加 ${MAX_CUSTOM_PER_SLOT} 个自定义表情`);
     }
@@ -181,7 +185,7 @@ class PetAssetStore {
         excludedDefaults: current.excludedDefaults,
       };
     } else if (mode === 'replace-one') {
-      const file = target.id.slice('builtin:'.length);
+      const file = defaultKey(target);
       manifest.slots[slotId] = {
         mode: current.mode,
         assets: [...current.assets, record],
@@ -219,8 +223,9 @@ class PetAssetStore {
       if (!removed) return { ok: false, error: 'missing' };
       current.assets = current.assets.filter((record) => record.id !== assetId);
     } else {
-      const file = assetId.slice('builtin:'.length);
-      if (!definition.defaultFiles.includes(file) || current.mode === 'replace') return { ok: false, error: 'invalid' };
+      const file = defaultKey(active);
+      const defaults = this.defaultsBySlot ? this.defaultsBySlot[slotId].map(defaultKey) : definition.defaultFiles;
+      if (!defaults.includes(file) || current.mode === 'replace') return { ok: false, error: 'invalid' };
       current.excludedDefaults = [...new Set([...current.excludedDefaults, file])];
     }
     if (!current.assets.length && !current.excludedDefaults.length) delete manifest.slots[slotId];
@@ -249,7 +254,7 @@ class PetAssetStore {
   assetPath(assetId) {
     if (!isAssetId(assetId)) return null;
     const manifest = this.readManifest();
-    for (const slot of Object.values(manifest.slots)) {
+    for (const slot of [{ assets: this.presetRecords }, ...Object.values(manifest.slots)]) {
       const record = slot.assets.find((item) => item.id === assetId);
       if (!record) continue;
       const candidate = path.join(this.assetsDir, record.file);
@@ -262,4 +267,4 @@ class PetAssetStore {
   }
 }
 
-module.exports = { PetAssetStore, sanitizeManifest, isAssetId, MAX_CUSTOM_PER_SLOT };
+module.exports = { PetAssetStore, sanitizeManifest, sanitizeRecord, isAssetId, MAX_CUSTOM_PER_SLOT };

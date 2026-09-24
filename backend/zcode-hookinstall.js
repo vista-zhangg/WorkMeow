@@ -111,7 +111,7 @@ function createZcodeHookInstaller(options = {}) {
         touched = true;
         // ZCode's schema rejects `matcher: ""` (min 1 char) and rejects the
         // whole config file over it — an omitted matcher is the documented
-        // catch-all. Heal groups an earlier WorkMeow install wrote broken.
+        // catch-all. Heal groups an earlier AgentPaw install wrote broken.
         if (group.matcher === '') {
           delete group.matcher;
           result.updated++;

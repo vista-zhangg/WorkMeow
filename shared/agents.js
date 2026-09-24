@@ -12,12 +12,12 @@
 // panel/session row. The product now has one shared pet, so per-agent display
 // names do not belong in this table.
 //
-// UMD-ish: module.exports for Node, window.WorkMeowAgents for the renderer (<script>).
+// UMD-ish: module.exports for Node, window.AgentPawAgents for the renderer (<script>).
 
-// 产品决定（2026-08-07）：对外只有一只「打工喵」，不再按工具分出独立桌宠。
+// 产品决定（2026-08-07）：对外只有一只「打工伙伴」，不再按工具分出独立桌宠。
 const AGENTS = {
   claude: {
-    id: 'claude-code',          // session agentId stamped by workmeow-hook.js
+    id: 'claude-code',          // session agentId stamped by agentpaw-hook.js
     label: 'Claude Code',
     short: 'Claude',
   },
@@ -94,4 +94,4 @@ const agentRegistry = {
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = agentRegistry;
-if (typeof window !== 'undefined') window.WorkMeowAgents = agentRegistry;
+if (typeof window !== 'undefined') window.AgentPawAgents = agentRegistry;

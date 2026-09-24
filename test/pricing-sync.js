@@ -29,7 +29,7 @@ const TABLE = {
 };
 
 async function main() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-pricing-sync-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-pricing-sync-'));
   const cachePath = path.join(dir, 'pricing-cache.json');
   const statuses = [];
   let updated = 0;

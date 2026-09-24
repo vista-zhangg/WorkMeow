@@ -34,7 +34,7 @@ function todayDir(root) {
 }
 
 function mkSessions() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-codex-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-codex-'));
   const dir = todayDir(root);
   fs.mkdirSync(dir, { recursive: true });
   return { root, dir };

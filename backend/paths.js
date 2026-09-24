@@ -1,7 +1,7 @@
 'use strict';
 
-// WorkMeow-owned filesystem paths and the one-time upgrade bridge from earlier
-// project names. New runtime code only writes to ~/.workmeow. Migration copies
+// AgentPaw-owned filesystem paths and the one-time upgrade bridge from earlier
+// project names. New runtime code only writes to ~/.agentpaw. Migration copies
 // missing files and leaves the old directories untouched as a recovery backup.
 
 const fs = require('fs');
@@ -9,7 +9,7 @@ const os = require('os');
 const path = require('path');
 const BRAND = require('../shared/brand');
 
-const LEGACY_STATE_DIR_NAMES = Object.freeze(['.octopus', '.llmpet']);
+const LEGACY_STATE_DIR_NAMES = Object.freeze(['.workmeow', '.octopus', '.llmpet']);
 
 function stateDir(homeDir = os.homedir()) {
   return path.join(homeDir, BRAND.stateDirName);
@@ -45,9 +45,19 @@ function copyMissing(source, target, copied) {
 function migrateLegacyState(homeDir = os.homedir()) {
   const target = stateDir(homeDir);
   const copied = [];
+  const marker = path.join(target, '.completed-migrations.json');
+  let completed = [];
+  try { const saved = JSON.parse(fs.readFileSync(marker, 'utf8')); if (Array.isArray(saved)) completed = saved; } catch {}
   for (const source of legacyStateDirs(homeDir)) {
-    if (!fs.existsSync(source)) continue;
-    try { copyMissing(source, target, copied); } catch {}
+    const name = path.basename(source);
+    if (completed.includes(name) || !fs.existsSync(source)) continue;
+    try {
+      copyMissing(source, target, copied);
+      completed.push(name);
+      const temp = `${marker}.${process.pid}.tmp`;
+      fs.writeFileSync(temp, JSON.stringify(completed), { mode: 0o600 });
+      fs.renameSync(temp, marker);
+    } catch {}
   }
   return { stateDir: target, copied };
 }

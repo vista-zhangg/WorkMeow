@@ -15,7 +15,7 @@ async function main(args = process.argv.slice(2)) {
   const source = path.resolve(args[1]);
   const snapshot = JSON.parse(fs.readFileSync(source, 'utf8'));
   const live = await Promise.all(getPortCandidates().map(port => new Promise(resolve => probe(port, 500, resolve))));
-  if (live.some(Boolean)) throw new Error('Exit WorkMeow before restoring its usage ledger.');
+  if (live.some(Boolean)) throw new Error('Exit AgentPaw before restoring its usage ledger.');
   const meter = createCodexMetering();
   const stats = await meter.restoreLifetime(snapshot, source);
   console.log(JSON.stringify({ source, lifetime: stats.lifetime, historyBase: meter._state.historyBase }, null, 2));

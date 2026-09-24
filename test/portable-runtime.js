@@ -9,7 +9,7 @@ const { spawnSync } = require('child_process');
 const runtime = require('../backend/hook-runtime');
 
 const root = path.join(__dirname, '..');
-const home = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-portable-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-portable-'));
 
 try {
   const electron = require('electron');
@@ -46,13 +46,13 @@ try {
   assert.strictEqual(manifest.executable, path.resolve(electron));
   assert.strictEqual(manifest.runAsNode, true);
 
-  const script = runtime.runtimeHookPath('workmeow-hook.js', home);
+  const script = runtime.runtimeHookPath('agentpaw-hook.js', home);
   const command = runtime.buildHookCommand(script, 'SessionStart', manifest);
   assert(command.startsWith("$env:ELECTRON_RUN_AS_NODE='1'; & "));
   assert(command.includes("'SessionStart'"));
 
   const quoted = runtime.buildHookCommand("C:\\Users\\O'Brien\\hook.js", 'Stop', {
-    executable: "C:\\Apps\\Cat's Home\\打工喵.exe",
+    executable: "C:\\Apps\\Cat's Home\\打工伙伴.exe",
     runAsNode: true,
   });
   assert(quoted.includes("Cat''s Home"), 'PowerShell executable path must escape apostrophes');
@@ -62,7 +62,7 @@ try {
   // Node mode. An unknown event exits immediately after all modules load.
   // Probe every staged hook entry point — zcode-hook.js pulls in backend
   // modules the others don't, and a missing staged file only fails here.
-  for (const hookName of ['workmeow-hook.js', 'zcode-hook.js', 'trae-hook.js', 'workbuddy-hook.js']) {
+  for (const hookName of ['agentpaw-hook.js', 'zcode-hook.js', 'trae-hook.js', 'workbuddy-hook.js']) {
     const hookScript = runtime.runtimeHookPath(hookName, home);
     const probe = spawnSync(electron, [hookScript, 'PortableRuntimeProbe'], {
       cwd: root,

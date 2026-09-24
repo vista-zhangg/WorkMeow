@@ -60,12 +60,12 @@ async function run() {
   assert.strictEqual(detectDistribution(app(false), { platform: 'win32' }), 'development');
   assert.strictEqual(detectDistribution(app(), { platform: 'darwin' }), 'unsupported');
   assert.strictEqual(detectDistribution(app(), {
-    platform: 'win32', execPath: 'C:\\WorkMeow\\WorkMeow.exe',
-    fs: { readdirSync: () => ['WorkMeow.exe', 'Uninstall 打工喵.exe'] }, path: path.win32,
+    platform: 'win32', execPath: 'C:\\AgentPaw\\AgentPaw.exe',
+    fs: { readdirSync: () => ['AgentPaw.exe', 'Uninstall 打工伙伴.exe'] }, path: path.win32,
   }), 'installer');
   assert.strictEqual(detectDistribution(app(), {
-    platform: 'win32', execPath: 'C:\\WorkMeow\\WorkMeow.exe',
-    fs: { readdirSync: () => ['WorkMeow.exe', 'resources'] }, path: path.win32,
+    platform: 'win32', execPath: 'C:\\AgentPaw\\AgentPaw.exe',
+    fs: { readdirSync: () => ['AgentPaw.exe', 'resources'] }, path: path.win32,
   }), 'portable');
 
   const installedUpdater = new FakeUpdater();
@@ -160,7 +160,7 @@ async function run() {
     'Windows packaging must target NSIS explicitly');
   assert.strictEqual(pkg.build.publish[0].provider, 'github');
   assert.strictEqual(pkg.build.publish[0].owner, 'vista-zhangg');
-  assert(!workflow.includes('dist/WorkMeow-*-Windows-x64.zip'),
+  assert(!workflow.includes('dist/AgentPaw-*-Windows-x64.zip'),
     'releases must not upload the retired portable ZIP');
   assert(workflow.includes('dist/latest.yml') && !workflow.includes('.exe.blockmap') && !workflow.includes('SHA256SUMS.txt'),
     'releases retain legacy update discovery without redundant attachments');
@@ -179,7 +179,7 @@ async function run() {
     downloadedUpdateHelper: { cacheDir: path.join(root, '.inspect') },
     listenerCount: () => 0,
     httpExecutor: { downloadToBuffer: async () => { throw new Error('404 blockmap'); } },
-  }, { url: new URL('https://github.com/vista-zhangg/codex-desktop-pet/releases/download/v1.8.0/WorkMeow-1.8.0-Windows-x64.exe'), info: {} }, {
+  }, { url: new URL('https://github.com/vista-zhangg/codex-desktop-pet/releases/download/v1.8.0/AgentPaw-1.8.0-Windows-x64.exe'), info: {} }, {
     updateInfoAndProvider: { info: { version: '1.8.0' }, provider: {
       getBlockMapFiles: () => [new URL('https://github.com/old.blockmap'), new URL('https://github.com/new.blockmap')],
     } },

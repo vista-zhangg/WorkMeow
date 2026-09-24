@@ -2,9 +2,9 @@
 
 ## 支持范围 / Supported versions
 
-Codex 喵伴（WorkMeow）当前维护最新发布版本和 `main` 分支。旧版本只在修复能安全回移时获得安全更新。
+AgentPaw · AI 桌伴当前维护最新发布版本和 `main` 分支。旧版本只在修复能安全回移时获得安全更新。
 
-Codex 喵伴（WorkMeow） currently maintains the latest release and the `main` branch. Older versions receive security fixes only when a safe backport is practical.
+AgentPaw · AI 桌伴 currently maintains the latest release and the `main` branch. Older versions receive security fixes only when a safe backport is practical.
 
 ## 私下报告 / Private reporting
 

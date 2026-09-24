@@ -40,7 +40,7 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-public static class WorkMeowDesktopPresence {
+public static class AgentPawDesktopPresence {
   static IntPtr lastForeground = IntPtr.Zero;
   [StructLayout(LayoutKind.Sequential)]
   public struct Rect { public int Left, Top, Right, Bottom; }
@@ -103,7 +103,7 @@ public static class WorkMeowDesktopPresence {
 '@
 while ($true) {
   try {
-    $sample = [WorkMeowDesktopPresence]::Read([uint32]${ownPid})
+    $sample = [AgentPawDesktopPresence]::Read([uint32]${ownPid})
     $fullscreen = if (($sample -band 1) -ne 0) { 'true' } else { 'false' }
     $foregroundChanged = if (($sample -band 2) -ne 0) { 'true' } else { 'false' }
     [Console]::Out.WriteLine('{"fullscreen":' + $fullscreen + ',"foregroundChanged":' + $foregroundChanged + '}')

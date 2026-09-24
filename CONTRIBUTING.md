@@ -1,8 +1,8 @@
 # 贡献指南 / Contributing Guide
 
-感谢你改进 Codex 喵伴（WorkMeow）。项目当前只接受能在 **Windows x64** 上验证的变更。
+感谢你改进 AgentPaw · AI 桌伴。项目当前只接受能在 **Windows x64** 上验证的变更。
 
-Thank you for improving Codex 喵伴（WorkMeow）, a desktop companion for Codex and other AI coding tools. The project currently accepts changes that can be validated on **Windows x64**.
+Thank you for improving AgentPaw · AI 桌伴, a desktop companion for Codex and other AI coding tools. The project currently accepts changes that can be validated on **Windows x64**.
 
 ## 开发环境 / Development setup
 
@@ -21,7 +21,7 @@ npm run start:console
 To inspect the UI without changing any agent configuration:
 
 ```powershell
-$env:WORKMEOW_NO_HOOKS='1'
+$env:AGENTPAW_NO_HOOKS='1'
 npm run start:console
 ```
 
@@ -32,7 +32,7 @@ npm run start:console
 3. 提交前运行 `npm test`。Run `npm test` before submitting.
 4. 不提交 `node_modules/`、`dist/`、日志、本机配置、transcript 或用量台账。Never commit dependencies, builds, logs, local configuration, transcripts, or usage ledgers.
 5. 新增第三方代码或素材时必须记录来源、许可证和再分发权限。Record origin, license, and redistribution rights for every third-party dependency or asset.
-6. 不得删除 [`LICENSE`](LICENSE) 中的上游版权声明，也不得删除 [`assets/cat/CREDITS.md`](assets/cat/CREDITS.md) 的月薪喵署名。Do not remove the upstream copyright notice or the 月薪喵 attribution.
+6. 不得删除 [`LICENSE`](LICENSE) 中的上游版权声明，也不得删除 [`assets/cat/CREDITS.md`](assets/cat/CREDITS.md) 的打工猫署名。Do not remove the upstream copyright notice or the 打工猫 attribution.
 
 推荐使用简洁的 Conventional Commit，例如：
 

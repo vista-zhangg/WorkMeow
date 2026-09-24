@@ -2,7 +2,7 @@
 
 // opencode plugin test. The plugin is ESM (Bun parses it at runtime under
 // opencode), so Node tests import a .mjs copy via dynamic import. Home is
-// redirected through USERPROFILE so the plugin writes/reads a temp ~/.workmeow
+// redirected through USERPROFILE so the plugin writes/reads a temp ~/.agentpaw
 // and the real machine is never touched. A local HTTP server captures the
 // /state POSTs exactly like the pet's server would.
 
@@ -27,9 +27,9 @@ async function until(fn, timeoutMs = 3000) {
 const PLUGIN_SRC = path.join(__dirname, '..', 'hook', 'opencode-plugin.js');
 
 async function main() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-opencode-plugin-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-opencode-plugin-'));
   const home = path.join(root, 'home');
-  fs.mkdirSync(path.join(home, '.workmeow'), { recursive: true });
+  fs.mkdirSync(path.join(home, '.agentpaw'), { recursive: true });
 
   // ── capture server ──────────────────────────────────────────────────────
   const got = [];
@@ -37,8 +37,8 @@ async function main() {
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
-      got.push({ path: req.url, token: req.headers['x-workmeow-token'], body: (() => { try { return JSON.parse(body); } catch { return null; } })() });
-      res.writeHead(200, { 'x-workmeow-server': 'workmeow' });
+      got.push({ path: req.url, token: req.headers['x-agentpaw-token'], body: (() => { try { return JSON.parse(body); } catch { return null; } })() });
+      res.writeHead(200, { 'x-agentpaw-server': 'agentpaw' });
       res.end('{}');
     });
   });
@@ -49,12 +49,12 @@ async function main() {
   // ── plugin under test (imported after USERPROFILE redirect) ─────────────
   const oldProfile = process.env.USERPROFILE;
   process.env.USERPROFILE = home;
-  fs.writeFileSync(path.join(home, '.workmeow', 'runtime.json'),
-    JSON.stringify({ app: 'workmeow', port, token }));
+  fs.writeFileSync(path.join(home, '.agentpaw', 'runtime.json'),
+    JSON.stringify({ app: 'agentpaw', port, token }));
   const tmpPlugin = path.join(root, 'opencode-plugin.mjs');
   fs.copyFileSync(PLUGIN_SRC, tmpPlugin);
   const mod = await import(pathToFileURL(tmpPlugin).href);
-  const hooks = await mod.WorkMeowOpenCodePlugin({ directory: home });
+  const hooks = await mod.AgentPawOpenCodePlugin({ directory: home });
   assert.strictEqual(typeof hooks.event, 'function');
   assert.strictEqual(typeof hooks['tool.execute.before'], 'function');
   assert.strictEqual(typeof hooks['tool.execute.after'], 'function');
@@ -70,7 +70,7 @@ async function main() {
   assert.strictEqual(start.session_id, 'sess-1');
   assert.strictEqual(start.agent_id, 'opencode');
   assert.strictEqual(start.cwd, 'C:\\proj');
-  assert.strictEqual(got[0].token, token, 'x-workmeow-token header sent');
+  assert.strictEqual(got[0].token, token, 'x-agentpaw-token header sent');
 
   // user prompt: part streams in first, then message.updated
   await ev('message.part.updated', { part: { sessionID: 'sess-1', messageID: 'msg-u1', part: { type: 'text', text: '帮我看看这个 bug' } } });
@@ -108,7 +108,7 @@ async function main() {
   assert.strictEqual(stop.assistant_last_output, 'done!', 'streamed text tail attached to Stop');
 
   // usage line landed exactly once
-  const usageFile = path.join(home, '.workmeow', 'opencode-usage.jsonl');
+  const usageFile = path.join(home, '.agentpaw', 'opencode-usage.jsonl');
   assert(await until(() => fs.existsSync(usageFile)), 'usage file created');
   let lines = fs.readFileSync(usageFile, 'utf8').trim().split('\n').filter(Boolean);
   assert.strictEqual(lines.length, 1, 'one usage line per finished message');
@@ -190,7 +190,7 @@ async function main() {
     'hello world', 'full text updates replace the same part instead of concatenating duplicates');
 
   // no pet running (runtime.json gone) → everything stays silent, no throw
-  fs.rmSync(path.join(home, '.workmeow', 'runtime.json'));
+  fs.rmSync(path.join(home, '.agentpaw', 'runtime.json'));
   await ev('session.created', { info: { id: 'sess-2', directory: 'C:\\x', title: '' } });
   await hooks['tool.execute.before']({ tool: { type: 'command', raw: {} }, sessionID: 'sess-2', callID: 'c2' });
   await sleep(100);
@@ -206,7 +206,7 @@ async function main() {
   assert.strictEqual(res.added, 1);
   const installed = path.join(home2, '.config', 'opencode', 'plugins', 'opencode-plugin.js');
   assert(fs.existsSync(installed), 'plugin copied into plugins dir');
-  assert(fs.readFileSync(installed, 'utf8').includes('workmeow-opencode-plugin'));
+  assert(fs.readFileSync(installed, 'utf8').includes('agentpaw-opencode-plugin'));
   assert.strictEqual(installer.hooksCurrent(), true);
   res = installer.registerHooks();
   assert.strictEqual(res.skipped, 1, 'idempotent install');

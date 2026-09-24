@@ -3,18 +3,18 @@
 // Single source of truth for the pet state vocabulary.
 //
 // Required by the main process (backend/core.js), loaded as a <script> by the
-// renderer (renderer/pet.html → window.WorkMeowStates), and imported by the
+// renderer (renderer/pet.html → window.AgentPawStates), and imported by the
 // state-machine test. Keeping ONE copy ends the historical drift where five
 // separate lists disagreed — e.g. the test's hand-copy silently missed
 // 'loafing', blinding the class-leak assertion to that state.
 //
-// UMD shim: module.exports for Node require(), window.WorkMeowStates for the browser
+// UMD shim: module.exports for Node require(), window.AgentPawStates for the browser
 // <script> and the vm-sandboxed test.
 
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.WorkMeowStates = api;
+  if (root) root.AgentPawStates = api;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   // Backend aggregation priority — highest wins for the global mood across
   // multiple sessions.

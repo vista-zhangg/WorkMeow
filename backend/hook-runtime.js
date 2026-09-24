@@ -3,7 +3,7 @@
 // Portable hook runtime deployment.
 //
 // A ZIP build may live anywhere and the target computer may not have Node.js.
-// On every WorkMeow start we copy the small, self-contained hook payload to a
+// On every AgentPaw start we copy the small, self-contained hook payload to a
 // stable per-user directory and remember the current GUI executable. Electron
 // can run that payload with ELECTRON_RUN_AS_NODE=1, so hooks do not depend on a
 // system-wide `node.exe` or on the ZIP's resource layout.
@@ -14,7 +14,7 @@ const path = require('path');
 const { statePath } = require('./paths');
 
 const RUNTIME_FILES = Object.freeze([
-  'hook/workmeow-hook.js',
+  'hook/agentpaw-hook.js',
   'hook/trae-hook.js',
   'hook/workbuddy-hook.js',
   'hook/zcode-hook.js',

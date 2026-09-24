@@ -31,7 +31,7 @@ const HEADLESS_RE = /\s(-p|--print)(\s|$)/;
 // One PowerShell invocation walks the whole parent chain and prints
 // `pid|name|commandline` per level. That costs ~0.5–1.5s of PowerShell startup,
 // which is too much for a PreToolUse hook that fires on every tool call — so we
-// cache the resolved chain in ~/.workmeow/pidwalk-cache.json keyed by the start
+// cache the resolved chain in ~/.agentpaw/pidwalk-cache.json keyed by the start
 // pid (the claude CLI process, stable for the life of a session).
 
 const WIN_CACHE = statePath('pidwalk-cache.json');

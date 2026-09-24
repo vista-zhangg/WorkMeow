@@ -1,19 +1,19 @@
-// 打工喵 WorkMeow — opencode 状态/用量插件（自包含，无任何外部依赖）。
+// 打工伙伴 AgentPaw — opencode 状态/用量插件（自包含，无任何外部依赖）。
 //
 // 由 opencode-install.js 复制到 ~/.config/opencode/plugins/opencode-plugin.js
 // 后，opencode 的插件运行时（Bun）会自动加载并调用导出对象上的钩子。
 //
 // 职责：
-//   1. 把 opencode 事件流翻译成打工喵 /state 协议（POST 127.0.0.1:<port>/state，
-//      身份头 x-workmeow-token，端口/令牌读自 ~/.workmeow/runtime.json）；
+//   1. 把 opencode 事件流翻译成打工伙伴 /state 协议（POST 127.0.0.1:<port>/state，
+//      身份头 x-agentpaw-token，端口/令牌读自 ~/.agentpaw/runtime.json）；
 //   2. 每个完成的 assistant 消息把用量行追加写入
-//      ~/.workmeow/opencode-usage.jsonl，供打工喵 opencode-metering 增量读取。
+//      ~/.agentpaw/opencode-usage.jsonl，供打工伙伴 opencode-metering 增量读取。
 //
-// 铁律（与 workmeow-hook.js 一致）：永远不抛错、永远不阻塞 agent —— 所有
+// 铁律（与 agentpaw-hook.js 一致）：永远不抛错、永远不阻塞 agent —— 所有
 // 失败（宠物没开、端口变化、磁盘异常）都静默吞掉。插件是给 agent 用的，
-// 任何异常都只能由打工喵自己兜底，绝不能反过来拖慢/弄崩 opencode。
+// 任何异常都只能由打工伙伴自己兜底，绝不能反过来拖慢/弄崩 opencode。
 //
-// marker: workmeow-opencode-plugin
+// marker: agentpaw-opencode-plugin
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -21,16 +21,16 @@ import * as path from 'node:path';
 import * as http from 'node:http';
 
 const AGENT_ID = 'opencode';
-const WORKMEOW_DIR = path.join(os.homedir(), '.workmeow');
-const RUNTIME_PATH = path.join(WORKMEOW_DIR, 'runtime.json');
-const USAGE_PATH = path.join(WORKMEOW_DIR, 'opencode-usage.jsonl');
+const AGENTPAW_DIR = path.join(os.homedir(), '.agentpaw');
+const RUNTIME_PATH = path.join(AGENTPAW_DIR, 'runtime.json');
+const USAGE_PATH = path.join(AGENTPAW_DIR, 'opencode-usage.jsonl');
 const STATE_PATH = '/state';
-const TOKEN_HEADER = 'x-workmeow-token';
+const TOKEN_HEADER = 'x-agentpaw-token';
 const POST_TIMEOUT_MS = 500;
 const LAST_OUTPUT_MAX = 2400;   // 与 server 的 ASSISTANT_LAST_OUTPUT_MAX 对齐
 const MAX_BODY_BYTES = 16384;   // 与 server 的 MAX_STATE_BODY_BYTES 对齐
 
-// opencode 工具类型 → 打工喵词汇（未知类型原样首字母大写兜底）。
+// opencode 工具类型 → 打工伙伴词汇（未知类型原样首字母大写兜底）。
 const TOOL_NAMES = {
   command: 'Bash',
   shell: 'Bash',
@@ -63,7 +63,7 @@ function readRuntime() {
     const obj = JSON.parse(fs.readFileSync(RUNTIME_PATH, 'utf8'));
     const port = Number(obj && obj.port);
     const token = typeof (obj && obj.token) === 'string' && /^[a-f0-9]{48,128}$/i.test(obj.token) ? obj.token : '';
-    return obj && obj.app === 'workmeow' && Number.isInteger(port) && token ? { port, token } : null;
+    return obj && obj.app === 'agentpaw' && Number.isInteger(port) && token ? { port, token } : null;
   } catch {
     return null;
   }
@@ -113,7 +113,7 @@ function postState(body) {
 
 function appendUsage(line) {
   try {
-    fs.mkdirSync(WORKMEOW_DIR, { recursive: true });
+    fs.mkdirSync(AGENTPAW_DIR, { recursive: true });
     fs.appendFileSync(USAGE_PATH, JSON.stringify(line) + '\n');
   } catch {}
 }
@@ -130,7 +130,7 @@ function toolName(tool) {
   return TOOL_NAMES[t] || (t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Tool');
 }
 
-export const WorkMeowOpenCodePlugin = async ({ directory }) => {
+export const AgentPawOpenCodePlugin = async ({ directory }) => {
   const sessions = new Map();        // sessionID -> { cwd, title, model }
   const lastTurnAt = new Map();      // sessionID -> 最近一次回合活动 ms
   const lastRoleBySession = new Map(); // sessionID -> 最近 message.updated 的 role

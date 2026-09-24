@@ -10,7 +10,7 @@ if (process.argv.includes('--uninstall')) {
 } else {
   const runtime = readRuntimeConfig();
   if (!runtime) {
-    console.error('Codex 喵伴尚未运行，无法获取本次运行的本机端口和令牌。');
+    console.error('AgentPaw · AI 桌伴尚未运行，无法获取本次运行的本机端口和令牌。');
     process.exitCode = 1;
   } else {
     console.log(hooks.install(runtime.port, runtime.token));

@@ -28,7 +28,7 @@ assert(first.cachedInput <= first.input, 'cached input is a subset, not extra to
 assert(first.reasoningOutput <= first.output, 'reasoning output is a subset, not extra total tokens');
 
 async function main() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-codex-meter-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-codex-meter-'));
   const sessionsDir = path.join(root, 'sessions', '2026', '07', '29');
   const stateDir = path.join(root, 'state');
   fs.mkdirSync(sessionsDir, { recursive: true });

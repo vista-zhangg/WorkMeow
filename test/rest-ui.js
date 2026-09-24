@@ -259,7 +259,7 @@ async function main() {
     const w = test.world;
     test.advance(5);
     vm.runInContext('showBubble("重要操作失败，请重试", 80, true)', w.sandbox);
-    w.window.WorkMeowCompanion.refresh();
+    w.window.AgentPawCompanion.refresh();
     assert.strictEqual(visible(w), false, 'forced error bubble gets its complete display interval');
     assert.strictEqual(w.elements('bubble').classList.contains('hidden'), false);
     await new Promise((resolve) => setTimeout(resolve, 130));
@@ -275,7 +275,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     vm.runInContext('showBubble("操作失败二", 160, true)', w.sandbox);
     await new Promise((resolve) => setTimeout(resolve, 90));
-    w.window.WorkMeowCompanion.refresh();
+    w.window.AgentPawCompanion.refresh();
     assert.strictEqual(visible(w), false, 'another forced bubble extends the existing deferral');
     assert.strictEqual(w.elements('bubble-text').textContent, '操作失败二');
     await new Promise((resolve) => setTimeout(resolve, 120));

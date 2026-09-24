@@ -1,6 +1,6 @@
 'use strict';
 
-// Resolve the native Codex CLI without assuming that a GUI-launched WorkMeow
+// Resolve the native Codex CLI without assuming that a GUI-launched AgentPaw
 // inherited the user's terminal PATH. No credential files are read here.
 
 const fs = require('fs');
@@ -77,7 +77,7 @@ function pathDirectories(env = process.env) {
 function resolveCodexCommand(options = {}) {
   const env = options.env || process.env;
   const fsImpl = options.fs || fs;
-  const explicit = options.command || env.WORKMEOW_CODEX_CLI;
+  const explicit = options.command || env.AGENTPAW_CODEX_CLI;
   if (explicit) return direct(explicit, 'explicit');
 
   if (process.platform === 'win32') {
@@ -101,7 +101,7 @@ function resolveCodexCommand(options = {}) {
   }
 
   // Let spawn produce the platform-native ENOENT signal; the service will keep
-  // retrying in case Codex is installed after WorkMeow starts.
+  // retrying in case Codex is installed after AgentPaw starts.
   return direct(process.platform === 'win32' ? 'codex.exe' : 'codex', 'fallback');
 }
 

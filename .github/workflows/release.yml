@@ -35,15 +35,25 @@ jobs:
             throw 'GIF attribution is missing or incomplete'
           }
           if (-not (git ls-files "assets/cat/*.gif")) { throw 'No attributed GIF assets are tracked' }
+          $mouseCredits = Get-Content assets/characters/milktea-mouse/CREDITS.md -Raw
+          if ($mouseCredits -notmatch '阿翅 Achi' -or $mouseCredits -notmatch 'qizhongjicn.cn/roshow.php') {
+            throw 'Milk Tea Mouse attribution is missing or incomplete'
+          }
+          if (-not (git ls-files "assets/characters/milktea-mouse/*.gif")) { throw 'No Milk Tea Mouse GIF assets are tracked' }
+          $beeCredits = Get-Content assets/characters/mimi-bee/CREDITS.md -Raw
+          if ($beeCredits -notmatch '花栗鼠发发' -or $beeCredits -notmatch 'xinminweekly.com.cn') {
+            throw 'Mimi Bee attribution is missing or incomplete'
+          }
+          if (@(git ls-files "assets/characters/mimi-bee/*.gif").Count -ne 16) { throw 'Expected all 16 Mimi Bee GIF assets' }
       - run: npm run package:win
       - name: List Windows packages
         shell: pwsh
         run: Get-ChildItem dist -File | Format-Table Name, Length
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: workmeow-windows-x64
+          name: agentpaw-windows-x64
           path: |
-            dist/WorkMeow-*-Windows-x64.exe
+            dist/AgentPaw-*-Windows-x64.exe
             dist/latest.yml
           compression-level: 0
           if-no-files-found: error
@@ -64,7 +74,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: workmeow-windows-x64
+          name: agentpaw-windows-x64
           path: dist
       - name: Verify, upload draft, and publish release
         env:

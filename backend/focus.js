@@ -7,7 +7,7 @@
 // Windows 下我们探测 pid 链中拥有顶层窗口的进程
 // (WindowsTerminal / conhost apps / VS Code) and bring it to the foreground via
 // user32 (SetForegroundWindow + SwitchToThisWindow). focusSession only supports
-// the Windows desktop shipped by WorkMeow.
+// the Windows desktop shipped by AgentPaw.
 
 const { execFile } = require('child_process');
 

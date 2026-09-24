@@ -40,7 +40,7 @@ assert(!/appendFile|createWriteStream|console\.(?:log|info|warn|error)/.test(rat
   'quota refreshes must not create polling logs');
 assert(/\.slice\(-64\)/.test(rateLimits), 'the only persisted quota alert state must remain bounded');
 assert((main.match(/new Tray\(/g) || []).length === 1, 'Codex quota must reuse the existing tray slot');
-assert(/assets', 'salary-cat-tray\.png'/.test(main), 'the tray must use the generated 月薪喵 avatar');
+assert(/assets', 'agentpaw-tray\.png'/.test(main), 'the tray must use the independent product icon');
 assert(!/refreshTrayQuotaIcon|renderTrayIcon/.test(main), 'quota must never replace the mascot tray icon');
 assert(/tray\.setToolTip\(baseTooltip\)/.test(main) && !/quotaTooltip/.test(main),
   'tray hover text must not expose quota details');
@@ -64,7 +64,7 @@ assert(/\| Claude Code \|/.test(readme) && /\| Codex \|/.test(readme) && /rollou
 assert(TESTS.includes('codex-watch.js'), 'npm test must execute Codex watcher tests');
 assert(TESTS.includes('codex-rate-limits.js'), 'npm test must execute Codex quota tests');
 assert(TESTS.includes('codex-integration.js'), 'npm test must execute the Codex integration contract');
-assert(fs.existsSync(path.join(root, 'assets/salary-cat.png')), 'generated 月薪喵 avatar must ship with the app');
-assert(fs.existsSync(path.join(root, 'assets/salary-cat-tray.png')), 'generated 月薪喵 tray avatar must ship with the app');
+assert(fs.existsSync(path.join(root, 'assets/agentpaw-icon.png')), 'product icon must ship with the app');
+assert(fs.existsSync(path.join(root, 'assets/agentpaw-tray.png')), 'product tray icon must ship with the app');
 
 console.log('codex integration checks passed');

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// WorkMeow hook for Claude Code — thin wrapper around the shared hook logic.
-// Claude Code runs this as: node workmeow-hook.js <Event>
+// AgentPaw hook for Claude Code — thin wrapper around the shared hook logic.
+// Claude Code runs this as: node agentpaw-hook.js <Event>
 // All the real work (state mapping, transcript enrichment, POST) lives in
 // backend/hook-common.js so WorkBuddy / TRAE reuse it unchanged.
 

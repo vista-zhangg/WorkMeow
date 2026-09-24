@@ -1,7 +1,7 @@
 'use strict';
 
 // Manual Windows integration check. It deliberately uses Electron's default
-// session so the request follows the same system proxy/PAC path as WorkMeow.
+// session so the request follows the same system proxy/PAC path as AgentPaw.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -11,7 +11,7 @@ const { createPricingSync } = require('../backend/pricing-sync');
 const URL = 'https://models.dev/api.json';
 
 app.whenReady().then(async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-electron-pricing-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-electron-pricing-'));
   const cachePath = path.join(dir, 'pricing-cache.json');
   const sync = createPricingSync({ cachePath, refreshMs: 86400000 });
   try {

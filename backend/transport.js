@@ -1,6 +1,6 @@
 'use strict';
 
-// 打工喵 WorkMeow transport — original implementation.
+// 打工伙伴 AgentPaw transport — original implementation.
 //
 // Shared between the hook script and the server: a small set of localhost ports,
 // a runtime file that records which port the running app bound, the identity
@@ -8,7 +8,7 @@
 //
 // The protocol facts this targets (Claude Code's hook command/HTTP shape, the
 // PermissionRequest response JSON) are interfaces, not anyone's code — this file
-// is written from scratch with WorkMeow's own protocol/ports/paths.
+// is written from scratch with AgentPaw's own protocol/ports/paths.
 
 const fs = require('fs');
 const path = require('path');
@@ -125,7 +125,7 @@ function probe(port, timeoutMs, cb) {
   req.on('timeout', () => { req.destroy(); cb(false); });
 }
 
-// POST a state body to the first reachable WorkMeow server. Best-effort + fast:
+// POST a state body to the first reachable AgentPaw server. Best-effort + fast:
 // the hook must not block Claude Code, so it gives up quickly on each port.
 function postState(body, cb) {
   const payload = typeof body === 'string' ? body : JSON.stringify(body);

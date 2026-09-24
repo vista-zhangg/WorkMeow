@@ -316,7 +316,7 @@ function createServer(deps) {
     }
     if (req.method === 'GET' && req.url === '/debug') {
       // Off by default — it exposes session cwd/title/assistant text. Opt in with
-      // WORKMEOW_DEBUG=1, and even then drop the reply text and absolute cwd.
+      // AGENTPAW_DEBUG=1, and even then drop the reply text and absolute cwd.
       if (!env.flag('DEBUG')) { res.writeHead(404); res.end(); return; }
       if (!stateAuthorized(req)) { res.writeHead(403, serverHeaders()); res.end('forbidden'); return; }
       const snap = core.buildSnapshot();

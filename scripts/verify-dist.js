@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 
 function artifactNames(version) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Invalid release version');
-  return [`WorkMeow-${version}-Windows-x64.exe`, 'latest.yml'];
+  return [`AgentPaw-${version}-Windows-x64.exe`, 'latest.yml'];
 }
 
 // Also used before cleanup: a missing, incomplete or mismatched new build must
@@ -49,7 +49,7 @@ function verifyDist(options = {}) {
   if (entries.some((entry) => !entry.isFile()) || JSON.stringify(actual) !== JSON.stringify([...result.files].sort())) {
     throw new Error(`Unexpected dist contents\nExpected: ${result.files.join(', ')}\nActual: ${actual.join(', ')}`);
   }
-  if (options.quiet !== true) console.log(`Verified WorkMeow ${result.version}: installer + latest.yml, PE header and SHA-512 valid`);
+  if (options.quiet !== true) console.log(`Verified AgentPaw ${result.version}: installer + latest.yml, PE header and SHA-512 valid`);
   return result;
 }
 

@@ -4,7 +4,7 @@
 //
 // Now a thin config over the shared installer base — see backend/hookinstall-base.js.
 // Registers, into ~/.claude/settings.json, lifecycle hooks that run our
-// workmeow-hook.js, plus one blocking HTTP hook for PermissionRequest.
+// agentpaw-hook.js, plus one blocking HTTP hook for PermissionRequest.
 
 const os = require('os');
 const path = require('path');
@@ -12,8 +12,8 @@ const { createInstaller } = require('./hookinstall-base');
 const hookRuntime = require('./hook-runtime');
 
 const SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
-const HOOK_SCRIPT = hookRuntime.runtimeHookPath('workmeow-hook.js');
-const MARKER = 'workmeow-hook.js';
+const HOOK_SCRIPT = hookRuntime.runtimeHookPath('agentpaw-hook.js');
+const MARKER = 'agentpaw-hook.js';
 
 const COMMAND_EVENTS = [
   'SessionStart', 'SessionEnd', 'UserPromptSubmit',

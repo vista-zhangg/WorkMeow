@@ -2,21 +2,21 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: workmeow-asset:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: agentpaw-asset:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="ui.css" />
     <link rel="stylesheet" href="settings.css" />
     <link rel="stylesheet" href="capsule.css" />
-    <title>Codex 喵伴 · 设置</title>
+    <title>AgentPaw · AI 桌伴 · 设置</title>
   </head>
   <body>
     <div id="card">
       <header id="titlebar">
         <div class="brand">
-          <img class="logo" src="../assets/salary-cat.png" alt="" aria-hidden="true" />
+          <img class="logo" src="../assets/agentpaw-icon.png" alt="" aria-hidden="true" />
           <div>
-            <div class="brand-title" data-i18n="settings.title">Codex 喵伴 · 设置</div>
-            <div class="brand-sub" data-i18n="settings.subtitle">调整隐私、接入、更新方式和喵咪表情</div>
+            <div class="brand-title" data-i18n="settings.title">AgentPaw · AI 桌伴 · 设置</div>
+            <div class="brand-sub" data-i18n="settings.subtitle">调整隐私、接入、更新方式和角色表情</div>
           </div>
         </div>
         <button id="close" class="icon-button" data-i18n-title="settings.close" title="关闭" aria-label="关闭">✕</button>
@@ -29,16 +29,16 @@
         <button id="tab-appearance" class="settings-tab" type="button" role="tab" data-tab="appearance" aria-controls="panel-appearance" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="1"/><path d="M11 12h6"/></svg><span>桌面胶囊</span></button>
         <button id="tab-integrations" class="settings-tab" type="button" role="tab" data-tab="integrations" aria-controls="panel-integrations" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="8" height="8" rx="2"/><path d="M10 3v5M14 3v5M10 16v5M14 16v5M3 10h5M3 14h5M16 10h5M16 14h5"/></svg><span>Agent 接入</span></button>
         <button id="tab-updates" class="settings-tab" type="button" role="tab" data-tab="updates" aria-controls="panel-updates" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5M12 7v6l3 2"/></svg><span>版本更新</span></button>
-        <button id="tab-expressions" class="settings-tab" type="button" role="tab" data-tab="expressions" aria-controls="panel-expressions" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 10-1-7 6 4h4l6-4-1 7a8 8 0 1 1-14 0Z"/><path d="M8 13h.01M16 13h.01M10 17h4"/></svg><span>喵咪表情</span></button>
+        <button id="tab-expressions" class="settings-tab" type="button" role="tab" data-tab="expressions" aria-controls="panel-expressions" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 10-1-7 6 4h4l6-4-1 7a8 8 0 1 1-14 0Z"/><path d="M8 13h.01M16 13h.01M10 17h4"/></svg><span>角色与表情</span></button>
         <div class="sidebar-foot"><span class="local-dot"></span> 本地运行 · 安心陪伴</div>
       </nav>
       <main id="settings-content">
-        <div id="panel-general" class="settings-panel active" data-panel="general" role="tabpanel" aria-labelledby="tab-general" tabindex="0"><div class="page-heading"><h1>让工作，自在一点。</h1><p>设定启动、隐私与休息提醒，让Codex 喵伴融入你的日常。</p></div><section class="settings-section">
+        <div id="panel-general" class="settings-panel active" data-panel="general" role="tabpanel" aria-labelledby="tab-general" tabindex="0"><div class="page-heading"><h1>让工作，自在一点。</h1><p>设定启动、隐私与休息提醒，让AgentPaw · AI 桌伴融入你的日常。</p></div><section class="settings-section">
           <div class="section-kicker" data-i18n="settings.startupSection">启动设置</div>
           <div class="setting-card">
             <div class="setting-copy">
               <div class="setting-title" data-i18n="settings.autoLaunchTitle">开机自动启动</div>
-              <div class="setting-description" data-i18n="settings.autoLaunchDescription">登录 Windows 后自动运行Codex 喵伴</div>
+              <div class="setting-description" data-i18n="settings.autoLaunchDescription">登录 Windows 后自动运行AgentPaw · AI 桌伴</div>
             </div>
             <button id="auto-launch-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="开机自动启动">
               <span class="switch-thumb" aria-hidden="true"></span>
@@ -58,7 +58,7 @@
             </button>
           </div>
           <div id="privacy-status" class="setting-status" aria-live="polite"></div>
-          <p class="hint" data-i18n="settings.privacyHint">也可以右键Codex 喵伴，通过 ON/OFF 快速切换。</p>
+          <p class="hint" data-i18n="settings.privacyHint">也可以右键AgentPaw · AI 桌伴，通过 ON/OFF 快速切换。</p>
         </section><section class="settings-section">
           <div class="section-kicker" data-i18n="settings.xiabanSection">下班彩蛋</div>
           <div class="schedule-card">
@@ -80,11 +80,11 @@
                 <button id="xiaban-save" class="done-button" type="button" data-i18n="settings.saveTime">保存时间</button>
               </div>
             </div>
-            <p class="hint" data-i18n="settings.timeHint">彩蛋持续 10 分钟，仅在Codex 喵伴空闲或休息时播放。</p>
+            <p class="hint" data-i18n="settings.timeHint">彩蛋持续 10 分钟，仅在AgentPaw · AI 桌伴空闲或休息时播放。</p>
           </div>
         </section></div>
         <div id="panel-companion" class="settings-panel" data-panel="companion" role="tabpanel" aria-labelledby="tab-companion" tabindex="0" hidden>
-          <div class="page-heading"><h1>照顾进度，也照顾你。</h1><p>按你使用电脑的时间提醒，喵形象与胶囊模式都适用。</p></div>
+          <div class="page-heading"><h1>照顾进度，也照顾你。</h1><p>按你使用电脑的时间提醒，伙伴形象与胶囊模式都适用。</p></div>
           <section class="settings-section">
             <div class="section-kicker">休息提醒</div>
             <div class="setting-card"><div class="setting-copy"><div class="setting-title">陪你养成小习惯</div><div class="setting-description">无论 AI 是否在工作，按电脑使用时间提醒喝水、伸展与远眺。</div></div><button id="rest-enabled" class="switch" type="button" role="switch" aria-checked="true" aria-label="休息提醒"><span class="switch-thumb" aria-hidden="true"></span></button></div>
@@ -100,7 +100,7 @@
           </section>
           <section class="settings-section">
             <div class="section-kicker">少一点打扰</div>
-            <div class="setting-card"><div class="setting-copy"><div class="setting-title">全屏时自动藏起</div><div class="setting-description">视频、游戏或演示进入全屏后藏起喵与胶囊，退出全屏后恢复。</div></div><button id="fullscreen-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="全屏时自动藏起"><span class="switch-thumb" aria-hidden="true"></span></button></div>
+            <div class="setting-card"><div class="setting-copy"><div class="setting-title">全屏时自动藏起</div><div class="setting-description">视频、游戏或演示进入全屏后藏起伙伴与胶囊，退出全屏后恢复。</div></div><button id="fullscreen-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="全屏时自动藏起"><span class="switch-thumb" aria-hidden="true"></span></button></div>
             <div class="setting-card"><div class="setting-copy"><div class="setting-title">临时安静</div><div id="quiet-description" class="setting-description">藏起 15、30 或 60 分钟，时间到后自动回来。</div></div><button id="quiet-menu" class="subtle-button" type="button">收起与安静…</button></div>
             <div class="setting-card"><div class="setting-copy"><div class="setting-title">我的安静时长</div><div class="setting-description">修改后自动保存，在“收起”和托盘菜单中选择。</div></div><div class="rest-frequency"><label><input id="quiet-minutes" type="number" min="1" max="1440" step="1" value="30" aria-label="安静分钟数" /> 分钟</label></div></div>
             <p class="hint">主动“藏起”会一直保持。点击托盘图标可提前回来；后台任务监控始终继续。</p>
@@ -110,7 +110,7 @@
         <div id="panel-appearance" class="settings-panel" data-panel="appearance" role="tabpanel" aria-labelledby="tab-appearance" tabindex="0" hidden><div class="page-heading"><h1>一眼，即知进展。</h1><p>挑选你关心的信息，组合专属的桌面胶囊。</p></div><div class="capsule-preview" aria-label="胶囊外观预览，数值为示例">
   <div class="preview-caption"><span>桌面预览</span><span>示例数据</span></div>
   <div class="preview-stage" id="preview-stage">
-    <img id="preview-cat" src="../assets/cat/cat-working.gif" alt="喵咪预览" />
+    <img id="preview-cat" src="../assets/cat/cat-working.gif" alt="角色预览" />
     <div class="preview-compact"><span class="preview-dot" id="preview-dot" hidden></span><div class="chip preview-chip">
       <span class="chip-context" id="preview-status">干活中</span>
       <span class="chip-quota" id="preview-quota"><span class="quota-badge" data-period="5h" style="--quota-remaining:76%">76%</span><span class="quota-badge" data-period="7d" style="--quota-remaining:92%">92%</span></span>
@@ -121,7 +121,7 @@
   <p class="preview-empty" id="preview-empty" hidden>当前胶囊未选择展示信息。</p>
 </div><section class="settings-section" id="chip-display-section">
           <div class="section-kicker">展示内容</div>
-          <div class="setting-card"><div class="setting-copy"><div class="setting-title">显示喵喵</div><div class="setting-description">隐藏喵喵本体，状态小点会移动到胶囊左侧；胶囊可直接拖动</div></div><button id="showCat-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="显示喵喵"><span class="switch-thumb" aria-hidden="true"></span></button></div>
+          <div class="setting-card"><div class="setting-copy"><div class="setting-title">显示伙伴伙伴</div><div class="setting-description">隐藏伙伴伙伴本体，状态小点会移动到胶囊左侧；胶囊可直接拖动</div></div><button id="showCat-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="显示伙伴伙伴"><span class="switch-thumb" aria-hidden="true"></span></button></div>
           <div class="setting-card"><div class="setting-copy"><div class="setting-title">任务状态</div><div class="setting-description">显示“待命、休息中、干活中、刚刚完成”等当前状态</div></div><button id="showStatus-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="显示任务状态"><span class="switch-thumb" aria-hidden="true"></span></button></div>
           <div class="setting-card"><div class="setting-copy"><div class="setting-title">Codex 订阅额度</div><div class="setting-description">显示 5h、7d 剩余百分比，与托盘同步更新；点击额度查看刷新时间</div></div><button id="showQuota-toggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="显示 Codex 订阅额度"><span class="switch-thumb" aria-hidden="true"></span></button></div>
           <div class="setting-card"><div class="setting-copy"><div class="setting-title">今日 Tokens</div><div class="setting-description">显示全部工具今日累计 Token 消耗</div></div><button id="showTokens-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="显示今日 Tokens"><span class="switch-thumb" aria-hidden="true"></span></button></div>
@@ -148,7 +148,7 @@
                 <button id="integration-repair" class="done-button" type="button" data-i18n="settings.integrationsRepairAll" disabled>一键修复</button>
               </div>
             </div>
-            <p class="hint" data-i18n="settings.integrationsHint">修复只处理已检测工具；卸载只移除 WorkMeow 写入的 Hook 和插件，不影响 Agent 本身。</p>
+            <p class="hint" data-i18n="settings.integrationsHint">修复只处理已检测工具；卸载只移除 AgentPaw 写入的 Hook 和插件，不影响 Agent 本身。</p>
           </div>
         </section></div>
         <div id="panel-updates" class="settings-panel" data-panel="updates" role="tabpanel" aria-labelledby="tab-updates" tabindex="0" hidden><div class="page-heading"><h1>保持新鲜，持续进化。</h1><p>管理版本与更新，让陪伴始终如一。</p></div><section class="settings-section">
@@ -180,10 +180,23 @@
             <p id="update-hint" class="hint"></p>
           </div>
         </section></div>
-        <div id="panel-expressions" class="settings-panel" data-panel="expressions" role="tabpanel" aria-labelledby="tab-expressions" tabindex="0" hidden><div class="page-heading"><h1>每一种状态，都有表情。</h1><p>为你的桌面伙伴，添一点自己的风格。</p></div>          <section class="expression-intro">
+        <div id="panel-expressions" class="settings-panel" data-panel="expressions" role="tabpanel" aria-labelledby="tab-expressions" tabindex="0" hidden><div class="page-heading"><h1>选一个伙伴，一起开工。</h1><p>角色独立保存，切换后立即陪你工作。</p></div>
+          <section class="character-library" aria-label="桌宠角色">
+            <div id="character-list" class="character-list"></div>
+            <div class="character-create">
+              <label for="character-name">新角色名称</label>
+              <input id="character-name" type="text" maxlength="40" placeholder="给你的伙伴起个名字" />
+              <button id="character-create" class="asset-action" type="button">选 GIF 创建</button>
+              <button id="character-import" class="asset-action" type="button">导入角色包</button>
+            </div>
+            <p class="character-hint">一张待命 GIF 就能创建角色，之后可逐个补充状态。角色包可一次导入整套动作。</p>
+            <div class="character-current"><span id="character-current"></span><button id="character-remove" class="asset-action danger" type="button" hidden>移除角色</button></div>
+            <p id="character-credit" class="character-hint" hidden></p>
+          </section>
+          <section class="expression-intro">
             <div>
-              <div class="expression-title" data-i18n="settings.expressionsTitle">自定义每一种喵咪状态</div>
-              <p data-i18n="settings.expressionsDescription">选择状态和具体表情后，可以新增、替换或移出。导入后会自动透明化、等比缩放并适配到 120×120。</p>
+              <div class="expression-title" data-i18n="settings.expressionsTitle">自定义这个角色的每一种状态</div>
+              <p data-i18n="settings.expressionsDescription">选择状态和具体表情后，可以新增、替换或移出。GIF 会等比适配到 120×120；可选择是否清理纯色背景。</p>
             </div>
             <label class="background-option" title="复杂背景不会强制移除，以免误伤主体">
               <input id="remove-bg-toggle" type="checkbox" checked />
@@ -231,7 +244,7 @@
             </aside>
           </section></div>
       </main>
-      <footer><span>WorkMeow · Codex 喵伴</span><button id="done" class="done-button" type="button" data-i18n="settings.close">关闭</button></footer>
+      <footer><span>AgentPaw · AI 桌伴</span><button id="done" class="done-button" type="button" data-i18n="settings.close">关闭</button></footer>
     </div>
     <script src="../shared/i18n.js"></script>
     <script src="../shared/pet-assets.js"></script>

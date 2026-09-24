@@ -7,7 +7,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
-const home = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-detect-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-detect-'));
 const electron = require('electron');
 const token = 'a'.repeat(64);
 
@@ -55,14 +55,14 @@ try {
   const settings = JSON.parse(fs.readFileSync(path.join(home, '.claude', 'settings.json'), 'utf8'));
   const command = settings.hooks.SessionStart[0].hooks[0].command;
   assert(command.includes("ELECTRON_RUN_AS_NODE='1'"));
-  assert(command.includes(path.join(home, '.workmeow', 'hook-runtime', 'hook', 'workmeow-hook.js')));
-  assert(!command.includes(path.join(root, 'hook', 'workmeow-hook.js')),
+  assert(command.includes(path.join(home, '.agentpaw', 'hook-runtime', 'hook', 'agentpaw-hook.js')));
+  assert(!command.includes(path.join(root, 'hook', 'agentpaw-hook.js')),
     'installed hook must not point into the movable ZIP directory');
 
   runInPortableNode(
     `const h=require(${JSON.stringify(path.join(root, 'backend', 'hooks.js'))});h.uninstall();`
   );
-  assert.strictEqual(fs.existsSync(path.join(home, '.workmeow', 'hook-runtime')), false);
+  assert.strictEqual(fs.existsSync(path.join(home, '.agentpaw', 'hook-runtime')), false);
   const cleaned = JSON.parse(fs.readFileSync(path.join(home, '.claude', 'settings.json'), 'utf8'));
   assert.strictEqual(cleaned.hooks, undefined);
 } finally {

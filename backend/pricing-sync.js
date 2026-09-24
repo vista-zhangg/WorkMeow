@@ -3,7 +3,7 @@
 // Pricing sync — public-data only, no credentials/API calls.
 //
 // 从 models.dev 公开数据库 (https://models.dev/api.json) 拉取 Anthropic + OpenAI +
-// 主流国产/其它厂商模型价，缓存到 ~/.workmeow/pricing-cache.json。
+// 主流国产/其它厂商模型价，缓存到 ~/.agentpaw/pricing-cache.json。
 // metering.loadPricing() / codex-metering.loadPricing() / trae-metering 合并时
 // 放在用户手动 override 之下，手填价仍优先。与 CC Switch 同源同法，保持简洁、
 // 零依赖、无需鉴权，用户不必安装任何额外应用。

@@ -7,7 +7,7 @@ const path = require('path');
 const { createCodexMetering } = require('../backend/codex-metering');
 
 async function main(schemaVersion) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-history-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-history-'));
   const sessionsDir = path.join(root, 'sessions');
   const archivedSessionsDir = path.join(root, 'archived_sessions');
   const stateDir = path.join(root, 'state');

@@ -1,8 +1,13 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+const { pathToFileURL } = require('url');
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const root = path.resolve(__dirname, '..');
+const characterPack = process.env.AGENTPAW_PREVIEW_CHARACTER;
+const builtinCharacter = require('../shared/pet-assets').BUILTIN_CHARACTERS[characterPack];
+let characterStore;
+protocol.registerSchemesAsPrivileged([{ scheme: 'agentpaw-asset', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 const out = path.join(root, '.inspect', 'ui-preview');
 fs.mkdirSync(out, { recursive: true });
 const logFile = path.join(out, 'preview.log');
@@ -14,7 +19,7 @@ const fail = (error) => {
 // Diagnostic tools must never leave modal Electron errors on the user's desktop.
 process.on('uncaughtException', fail);
 process.on('unhandledRejection', fail);
-const deadline = setTimeout(() => fail(new Error('UI preview timed out after 90 seconds')), 90000);
+const deadline = setTimeout(() => fail(new Error('UI preview timed out after 180 seconds')), 180000);
 app.on('will-quit', () => clearTimeout(deadline));
 const version = require('../package.json').version;
 app.setPath('userData', path.join(out, 'electron-profile'));
@@ -24,7 +29,7 @@ const defaults = { showCat: true, showStatus: true, showQuota: true, showTokens:
 let chipDisplay = { ...defaults };
 const today = { cost: 8.426, tokens: 1286400, input: 362400, output: 86400, inputTotal: 1200000, cacheRead: 837600, messages: 42 };
 const sessions = [
-  { id: 'demo1', agent: 'codex', state: 'working', project: 'WorkMeow', op: '调整详情面板与设置页面', model: 'gpt-5.5', createdAt: Date.now(), turnStartedAt: Date.now()-124000, contextPercent: 32 },
+  { id: 'demo1', agent: 'codex', state: 'working', project: 'AgentPaw', op: '调整详情面板与设置页面', model: 'gpt-5.5', createdAt: Date.now(), turnStartedAt: Date.now()-124000, contextPercent: 32 },
   { id: 'demo2', agent: 'claude', state: 'thinking', project: 'Design system', op: '检查组件与交互细节', model: 'claude-sonnet-4', createdAt: Date.now(), contextPercent: 18 },
 ];
 const daily = {};
@@ -32,7 +37,7 @@ for (let i = 1; i < 30; i++) { const date = new Date(); date.setDate(date.getDat
 const stats = { today, sessions, active: sessions[0], lifetime: { cost: 136.72, tokens: 22460000, messages: 628 },
   byModel: { 'gpt-5.5': { tokens: 824000, cost: 5.642 }, 'claude-sonnet-4': { tokens: 462400, cost: 2.784 } },
   hourlyTok: Array.from({length:24}, (_,i) => i<7 || i>21 ? 0 : 12000+(i*91317)%200000), hourly: Array.from({length:24}, (_,i) => i<7 || i>21 ? 0 : .12+(i*.371)%1.4), daily,
-  lastOps: [{ icon:'◈', detail:'更新界面样式', project:'WorkMeow', ts:Date.now() },{ icon:'↗', detail:'检查交互行为', project:'WorkMeow', ts:Date.now()-13000 }],
+  lastOps: [{ icon:'◈', detail:'更新界面样式', project:'AgentPaw', ts:Date.now() },{ icon:'↗', detail:'检查交互行为', project:'AgentPaw', ts:Date.now()-13000 }],
   idleMs: 0, bg: {}, chipDisplay,
   codexQuota: { status:'ready', updatedAt:Date.now(), windows:{ fiveHour:{ remainingPercent:76, usedPercent:24, resetsAt:Math.floor(Date.now()/1000)+6200 }, weekly:{ remainingPercent:92,usedPercent:8,resetsAt:Math.floor(Date.now()/1000)+320000 } } }
 };
@@ -59,7 +64,11 @@ const handlers = {
   'integrations:get-health': () => report,
   'get-xiaban-schedule': () => ({lunch:'12:00',evening:'18:00'}),
   'set-xiaban-schedule': (_,schedule) => ({ok:true,schedule}),
-  'get-pet-assets': () => require('../shared/pet-assets').defaultCatalog(),
+  'get-pet-assets': () => characterStore ? characterStore.catalog() : require('../shared/pet-assets').defaultCatalog(),
+  'pet-character:select': (_, id) => characterStore.select(id),
+  'import-pet-gif': (_, slot, mode, options) => characterStore.importGif(path.join(root, 'assets/cat/cat-idle.gif'), slot, mode, options),
+  'remove-pet-asset': (_, slot, id) => characterStore.removeAsset(slot, id),
+  'reset-pet-slot': (_, slot) => characterStore.resetSlot(slot),
   'update:get-state': () => ({supported:true,autoCheck:true,currentVersion:version,latestVersion:version,phase:'not-available',mode:'installer'}),
   'get-win-pos': () => [0,0],
   'get-window-metrics': () => ({bounds:{x:0,y:0,width:520,height:520},workArea:{x:0,y:0,width:1920,height:1080},scaleFactor:1}),
@@ -97,8 +106,54 @@ async function checkReadable(win) {
 app.whenReady().then(async()=>{
   try {
     const result=[];
+    if (characterPack) {
+      const { PetCharacterStore } = require('../backend/pet-characters');
+      characterStore = new PetCharacterStore({ rootDir: fs.mkdtempSync(path.join(out, 'character-test-')) });
+      if (builtinCharacter) characterStore.select(characterPack);
+      else await characterStore.importPack(path.resolve(characterPack));
+      protocol.handle('agentpaw-asset', (request) => {
+        const id = new URL(request.url).pathname.slice(1, -4);
+        const file = characterStore.assetPath(id);
+        return file ? net.fetch(pathToFileURL(file).href) : new Response('', { status: 404 });
+      });
+    }
     const settings=await create('settings',840,760);
     log('settings loaded');
+    if (characterStore) {
+      const mouseId = characterStore.activeId();
+      await settings.webContents.executeJavaScript(`document.getElementById('tab-expressions').click(); window.confirm=()=>true; void 0;`);
+      const addCard = await settings.webContents.executeJavaScript(`(() => {
+        const cards = [...document.querySelectorAll('#character-list > button')];
+        const add = document.getElementById('character-add'); add.click();
+        return { index: cards.indexOf(add), images: add.querySelectorAll('img').length,
+          focused: document.activeElement.id, active: assetCatalog.character.id };
+      })()`);
+      assert.equal(addCard.index, 3, 'fourth card is the custom character entry');
+      assert.equal(addCard.images, 0, 'custom entry never reuses a character thumbnail');
+      assert.equal(addCard.focused, 'character-name', 'entry focuses the creation form');
+      assert.equal(addCard.active, mouseId, 'opening the creation form keeps the current pet');
+      const clickRole = async (id) => {
+        await settings.webContents.executeJavaScript(`document.querySelector('[data-character-id="${id}"]').click()`);
+        for (let i=0; i<100; i++) {
+          if (await settings.webContents.executeJavaScript(`!assetBusy && assetCatalog.character.id === '${id}'`)) return;
+          await new Promise(r=>setTimeout(r,50));
+        }
+        throw Error('Role did not switch');
+      };
+      await clickRole('salary-cat');
+      assert.equal(characterStore.activeId(), 'salary-cat');
+      await clickRole(mouseId);
+      assert.equal(await settings.webContents.executeJavaScript(`document.getElementById('remove-bg-toggle').checked`), false);
+      await settings.webContents.executeJavaScript(`selectedSlotId='working';renderAssets();`);
+      await settings.webContents.executeJavaScript(`importExpression('append')`);
+      assert.equal(characterStore.catalog().slots.working.active.length, 2);
+      await settings.webContents.executeJavaScript(`resetSlot()`);
+      assert.equal(characterStore.catalog().slots.working.active.length, 1);
+      assert.equal(characterStore.catalog().slots.working.active[0].kind, builtinCharacter ? 'builtin' : 'preset');
+      const bad = await settings.webContents.executeJavaScript(`[...document.querySelectorAll('.character-card img,.asset-card img')].filter(img=>!img.complete||!img.naturalWidth).map(img=>img.src)`);
+      assert.deepEqual(bad, [], 'role and state GIFs decoded');
+      log('Character switching, GIF append and reset passed');
+    }
     for(const tab of ['general','companion','appearance','integrations','updates','expressions']) {
       await settings.webContents.executeJavaScript(`document.getElementById('tab-${tab}').click()`);
       result.push({page:tab,...await dimensions(settings)});
@@ -165,6 +220,17 @@ app.whenReady().then(async()=>{
     await capture(panel,'panel-small-lifetime');
     panel.destroy();
     const pet=await create('pet',520,420);
+    if (characterStore) {
+      for (const state of ['working','thinking','talking','juggling','sweeping','loafing','waiting','needsinput','happy','greet','error','sad','sleeping']) {
+        await pet.webContents.executeJavaScript(`setState('${state}')`);
+        await new Promise(r=>setTimeout(r,100));
+        const decoded = await pet.webContents.executeJavaScript(`({url:catImg.src,width:catImg.naturalWidth,hidden:catImg.hidden})`);
+        assert((builtinCharacter ? decoded.url.includes('/characters/'+characterPack+'/') : decoded.url.startsWith('agentpaw-asset:')) && decoded.width === 120 && !decoded.hidden, 'own animated GIF decodes: '+state);
+      }
+      await pet.webContents.executeJavaScript(`setState('working')`);
+      await capture(pet,'pet-'+(builtinCharacter ? characterPack : 'custom')+'-working');
+      log('All character states decoded at 120px in Electron');
+    }
     pet.webContents.send('pet:stats',stats);
     await capture(pet,'pet');
     await pet.webContents.executeJavaScript(`Object.defineProperty(document,'hidden',{configurable:true,value:false}); void 0;`);
@@ -186,7 +252,7 @@ app.whenReady().then(async()=>{
     await capture(pet,'pet-compact-rest');
     assert.equal(await pet.webContents.executeJavaScript(`document.getElementById('rest-reminder').classList.contains('hidden')`),false,'capsule shows rest reminder');
     assert.equal(await pet.webContents.executeJavaScript(`document.getElementById('rest-snooze').textContent`),'7 分钟后','configured snooze text');
-    pet.webContents.send('pet:event',{kind:'waiting',choice:{kind:'perm',permId:'demo-perm',sessionId:'demo1',project:'WorkMeow',tool:'Bash',command:'npm test',options:[{label:'允许',key:'allow'}]}});
+    pet.webContents.send('pet:event',{kind:'waiting',choice:{kind:'perm',permId:'demo-perm',sessionId:'demo1',project:'AgentPaw',tool:'Bash',command:'npm test',options:[{label:'允许',key:'allow'}]}});
     await new Promise(r=>setTimeout(r,100));
     await capture(pet,'pet-compact-rest-pending');
     assert.equal(await pet.webContents.executeJavaScript(`document.getElementById('rest-pending').hidden`),false,'rest reminder stays visible beside waiting permission');

@@ -2,15 +2,15 @@
 
 const $ = (id) => document.getElementById(id);
 let lastOpKey = null;
-const t = (key, vars) => window.WorkMeowI18n.t(key, vars);
-const backgroundStatus = (session) => window.WorkMeowI18n.backgroundStatus(session);
+const t = (key, vars) => window.AgentPawI18n.t(key, vars);
+const backgroundStatus = (session) => window.AgentPawI18n.backgroundStatus(session);
 
 let hoursSummary = '';
 let usageMetric = 'tokens';
 let usageRange = 'today';
 
 const THEME = {
-  name: 'Codex 喵伴',
+  name: 'AgentPaw · AI 桌伴',
   color: '#0071e3',
   barGradient: 'linear-gradient(180deg, #91bdf1, #568fde)',
   nowGradient: 'linear-gradient(180deg, #4c9af0, #0071e3)',
@@ -469,7 +469,7 @@ window.pet.onPrice((m) => {
 
 function applyStaticI18n() {
   document.documentElement.lang = 'zh-CN';
-  document.title = 'Codex 喵伴 · 详情';
+  document.title = 'AgentPaw · AI 桌伴 · 详情';
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
   for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
 }

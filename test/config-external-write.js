@@ -7,9 +7,9 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
-const home = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-config-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-config-'));
 const electron = require('electron');
-const configPath = path.join(home, '.workmeow', 'config.json');
+const configPath = path.join(home, '.agentpaw', 'config.json');
 const script = `
   const fs=require('fs');
   const c=require(${JSON.stringify(path.join(root, 'backend', 'config.js'))});

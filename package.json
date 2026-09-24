@@ -1,7 +1,7 @@
 {
-  "name": "workmeow",
-  "version": "1.8.4",
-  "description": "Codex 喵伴（WorkMeow）：面向 Codex 的 Windows 桌宠与 AI 编程陪伴助手，提供状态提醒、订阅额度监控、token 用量统计和休息提醒，兼容 Claude Code、TRAE、WorkBuddy、opencode 与 ZCode。Codex desktop pet, companion and usage monitor.",
+  "name": "agentpaw",
+  "version": "1.9.0",
+  "description": "AgentPaw · AI 桌伴：支持 Codex、Claude Code、TRAE、WorkBuddy、opencode、ZCode 的 Windows AI 桌宠与编程助手。多角色切换、自定义 GIF、任务状态提醒、Codex 订阅额度监控、token 用量统计与休息提醒。AI desktop pet, coding agent companion, task notifications and usage monitor.",
   "keywords": [
     "codex",
     "codex-desktop-pet",
@@ -18,7 +18,23 @@
     "opencode",
     "zcode",
     "桌宠",
-    "喵伴"
+    "agentpaw",
+    "ai-desktop-pet",
+    "desktop-companion",
+    "claude-code-desktop-pet",
+    "coding-agent",
+    "agent-monitor",
+    "custom-pet",
+    "gif-pet",
+    "codex-quota",
+    "token-monitor",
+    "AI桌宠",
+    "桌面宠物",
+    "AI桌伴",
+    "编程助手",
+    "任务提醒",
+    "额度监控",
+    "多角色桌宠"
   ],
   "main": "main.js",
   "license": "MIT",
@@ -56,9 +72,9 @@
     "sharp": "^0.35.3"
   },
   "build": {
-    "appId": "io.github.vista-zhangg.workmeow",
-    "productName": "Codex 喵伴",
-    "executableName": "WorkMeow",
+    "appId": "io.github.vista-zhangg.agentpaw",
+    "productName": "AgentPaw · AI 桌伴",
+    "executableName": "AgentPaw",
     "asar": false,
     "electronDist": "node_modules/electron/dist",
     "publish": [
@@ -83,9 +99,9 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/salary-cat.ico",
+      "icon": "assets/agentpaw-icon.ico",
       "signExecutable": false,
-      "artifactName": "WorkMeow-${version}-Windows-${arch}.${ext}",
+      "artifactName": "AgentPaw-${version}-Windows-${arch}.${ext}",
       "electronLanguages": [
         "zh-CN"
       ]
@@ -93,7 +109,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "differentialPackage": false
+      "differentialPackage": false,
+      "guid": "8737e7ad-d3e9-5b66-8bd0-f2a73c6219ec"
     }
   }
 }

@@ -188,7 +188,7 @@ function loadPricing() {
       }
     }
   } catch {}
-  // Layer 2: user override (~/.workmeow/codex-pricing.json) — wins over sync cache
+  // Layer 2: user override (~/.agentpaw/codex-pricing.json) — wins over sync cache
   try {
     const raw = JSON.parse(fs.readFileSync(PRICING_OVERRIDE_PATH, 'utf8'));
     for (const [key, row] of Object.entries(raw)) {

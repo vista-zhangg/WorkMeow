@@ -53,7 +53,7 @@ async function main() {
     check('渲染端 STATE_WORDS ⊇ 后端 VALID_STATES', () => assert.deepStrictEqual(missing, []));
     check('STATE_WORDS 含 loafing（曾在手抄副本里漏掉）', () => assert(STATE_WORDS.includes('loafing')));
     check('renderer 通过 <script> 拿到同一份 STATE_WORDS', () => {
-      const oi = world().window.WorkMeowStates;
+      const oi = world().window.AgentPawStates;
       assert(oi && Array.isArray(oi.RENDER_STATE_WORDS));
       assert.deepStrictEqual(oi.RENDER_STATE_WORDS, States.RENDER_STATE_WORDS);
     });
@@ -227,7 +227,7 @@ async function main() {
     check('下午下班窗口的 sleeping 播放 cat-xiaban', () => assert(catSrc(w).endsWith('cat-xiaban.gif')));
     const eveningLines = [
       '🍜 下班时间到！今天的 bug 留给明天，先去干饭～',
-      '🌃 工位已由喵接管，放心下班，记得按时吃饭！',
+      '🌃 工位已由伙伴接管，放心下班，记得按时吃饭！',
       '🔔 收工收工！再不走，晚饭就要开始等你回复了。',
     ];
     check('晚间窗口使用下班主题文案', () => assert(eveningLines.includes(bubbleText.textContent), bubbleText.textContent));
@@ -348,16 +348,16 @@ async function main() {
       today: { tokens: 126000, cost: 0.84, messages: 18 },
       workingCount: 1,
       sessions: [{
-        project: 'WorkMeow', agent: 'codex', state: 'working', op: '编辑文件',
+        project: 'AgentPaw', agent: 'codex', state: 'working', op: '编辑文件',
         sessionId: 'sess-work', headless: false, createdAt: started, updatedAt: Date.now(), idleMs: 1000,
       }],
     });
     w.handlers.stats(working);
     clickCat(w);
-    check('单击干活中的喵打开速览', () => assert(!peek.classList.contains('hidden')));
+    check('单击干活中的伙伴打开速览', () => assert(!peek.classList.contains('hidden')));
     check('速览展示状态、Agent、项目和当前操作', () => {
       assert.strictEqual(w.elements('peek-title').textContent, '干活中');
-      assert.strictEqual(w.elements('peek-subtitle').textContent, 'Codex · WorkMeow');
+      assert.strictEqual(w.elements('peek-subtitle').textContent, 'Codex · AgentPaw');
       const row = w.elements('peek-list').children[0];
       assert(row && row.children[1].children[1].textContent === '编辑文件');
     });
@@ -544,16 +544,16 @@ async function main() {
     catalog.slots.working = {
       id: 'working', mode: 'replace', usingDefaults: false, custom: [{
         id: '11111111-1111-4111-8111-111111111111', kind: 'custom', name: 'custom.gif',
-        url: 'workmeow-asset://asset/11111111-1111-4111-8111-111111111111.gif?v=1',
+        url: 'agentpaw-asset://asset/11111111-1111-4111-8111-111111111111.gif?v=1',
       }], active: [{
         id: '11111111-1111-4111-8111-111111111111', kind: 'custom', name: 'custom.gif',
-        url: 'workmeow-asset://asset/11111111-1111-4111-8111-111111111111.gif?v=1',
+        url: 'agentpaw-asset://asset/11111111-1111-4111-8111-111111111111.gif?v=1',
       }],
     };
     custom.handlers.petAssets(catalog);
     custom.handlers.stats(baseStats({ workingCount: 1 }));
     check('自定义资源更新后当前状态立即换图', () =>
-      assert(catSrc(custom).startsWith('workmeow-asset://asset/11111111-')));
+      assert(catSrc(custom).startsWith('agentpaw-asset://asset/11111111-')));
   }
 
   console.log('[R13] 呼噜工资条：长按触发、活动时让路、同日去重');

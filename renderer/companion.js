@@ -54,8 +54,8 @@
     const names = { water: '喝口水', stretch: '起身伸个懒腰', eyes: '看看远处' };
     title.textContent = pending.kinds.map(kind => names[kind]).filter(Boolean).join('，') + '吧';
     message.textContent = pending.kinds.includes('stretch')
-      ? '离开座位走两步，让肩颈也放松一下。喵继续帮你看着进度。'
-      : pending.kinds.includes('water') ? '给自己补一点水，慢慢来，喵陪你。' : '把视线从屏幕移开一会儿，让眼睛也休息一下。';
+      ? '离开座位走两步，让肩颈也放松一下。伙伴继续帮你看着进度。'
+      : pending.kinds.includes('water') ? '给自己补一点水，慢慢来，伙伴陪你。' : '把视线从屏幕移开一会儿，让眼睛也休息一下。';
     document.getElementById('rest-snooze').textContent = `${value.rest.preferences.snoozeMinutes || 10} 分钟后`;
     status.textContent = '';
     bubble.classList.add('hidden');
@@ -101,7 +101,7 @@
   card.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') { event.preventDefault(); act('snooze'); }
   });
-  window.WorkMeowCompanion = { refresh, hide, defer, isOpen: () => open };
+  window.AgentPawCompanion = { refresh, hide, defer, isOpen: () => open };
   if (window.pet.onCompanionState) window.pet.onCompanionState(receive);
   document.addEventListener('visibilitychange', refresh);
   window.pet.getCompanionState().then(receive).catch(() => {});

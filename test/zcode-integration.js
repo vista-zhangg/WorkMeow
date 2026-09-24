@@ -4,7 +4,7 @@
 // ~/.zcode/cli/config.json plus an end-to-end hook run: ZCode pipes a
 // Claude-compatible JSON payload (event name ONLY in `hook_event_name`, never
 // argv) into hook/zcode-hook.js, which must POST the mapped pet state to the
-// WorkMeow server.
+// AgentPaw server.
 
 const assert = require('assert');
 const fs = require('fs');
@@ -18,7 +18,7 @@ const { buildBody, EVENT_STATE } = require('../backend/hook-common');
 let DatabaseSync = null;
 try { ({ DatabaseSync } = require('node:sqlite')); } catch {}
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-zcode-int-'));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-zcode-int-'));
 
 // ---- shared hook mapping (agent id + event vocabulary) ----
 {
@@ -136,10 +136,10 @@ const ourHooksIn = (config) => {
   assert(!installer.hooksCurrent());
 }
 
-// ---- end-to-end hook run with a temp home and a stub WorkMeow server ----
+// ---- end-to-end hook run with a temp home and a stub AgentPaw server ----
 const token = 'a'.repeat(48);
 
-function freeWorkmeowPort() {
+function freeAgentPawPort() {
   const { PORTS } = require('../backend/transport');
   return new Promise((resolve) => {
     let i = 0;
@@ -156,9 +156,9 @@ function freeWorkmeowPort() {
 }
 
 async function main() {
-  const port = await freeWorkmeowPort();
+  const port = await freeAgentPawPort();
   if (!port) {
-    console.log('zcode integration checks passed (e2e hook POST skipped: no free WorkMeow port)');
+    console.log('zcode integration checks passed (e2e hook POST skipped: no free AgentPaw port)');
     fs.rmSync(root, { recursive: true, force: true });
     return;
   }
@@ -167,17 +167,17 @@ async function main() {
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
-      received.push({ path: req.url, token: req.headers['x-workmeow-token'], body: body ? JSON.parse(body) : null });
-      res.writeHead(200, { 'x-workmeow-server': 'workmeow' });
+      received.push({ path: req.url, token: req.headers['x-agentpaw-token'], body: body ? JSON.parse(body) : null });
+      res.writeHead(200, { 'x-agentpaw-server': 'agentpaw' });
       res.end();
     });
   });
   await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
 
   const home = path.join(root, 'home');
-  fs.mkdirSync(path.join(home, '.workmeow'), { recursive: true });
-  fs.writeFileSync(path.join(home, '.workmeow', 'runtime.json'),
-    JSON.stringify({ app: 'workmeow', port, token }));
+  fs.mkdirSync(path.join(home, '.agentpaw'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.agentpaw', 'runtime.json'),
+    JSON.stringify({ app: 'agentpaw', port, token }));
 
   const hookScript = path.join(__dirname, '..', 'hook', 'zcode-hook.js');
   const runHook = (payload, extraEnv = {}) => spawnSync(process.execPath, [hookScript], {
@@ -212,10 +212,10 @@ async function main() {
 
     received.length = 0;
     // ZCode 的 transcript_path 是每次 hook 现生成的临时文件，Stop 的 💬 气泡
-    // 改从 db.sqlite（message/part 表）取最后一条助手文本。WORKMEOW_ZCODE_DB
+    // 改从 db.sqlite（message/part 表）取最后一条助手文本。AGENTPAW_ZCODE_DB
     // 指向测试库；指向不存在的库时 enrich 安静跳过、不影响状态推送。
     const nodb = runHook({ hook_event_name: 'Stop', session_id: 'sess_z' },
-      { WORKMEOW_ZCODE_DB: path.join(root, 'no-such', 'db.sqlite') });
+      { AGENTPAW_ZCODE_DB: path.join(root, 'no-such', 'db.sqlite') });
     assert.strictEqual(nodb.status, 0);
     await new Promise((r) => setTimeout(r, 100));
     assert.strictEqual(received.length, 1);
@@ -242,7 +242,7 @@ async function main() {
       zdb.close();
 
       const bubble = runHook({ hook_event_name: 'Stop', session_id: 'sess_z', cwd: 'D:\\proj' },
-        { WORKMEOW_ZCODE_DB: zdbPath });
+        { AGENTPAW_ZCODE_DB: zdbPath });
       assert.strictEqual(bubble.status, 0, `bubble hook exit code: ${bubble.status} ${bubble.stderr}`);
       await new Promise((r) => setTimeout(r, 100));
       assert.strictEqual(received.length, 1);

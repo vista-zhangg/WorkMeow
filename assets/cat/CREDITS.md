@@ -2,9 +2,11 @@
 
 GIF 素材来自抖音博主 @月薪喵 的原创“月薪喵”表情系列。本项目使用的素材选自「月薪喵」表情包第 1 弹。
 
-根目录 `assets/salary-cat.png`、`assets/salary-cat-tray.png` 与 `assets/salary-cat.ico` 是以本目录 GIF 中的月薪喵角色为视觉参考、通过 OpenAI 图像生成模型制作的静态衍生头像。它们沿用原角色的识别特征，同样不纳入 WorkMeow 的 MIT License。
+本项目免费、非营利，面向个人桌面陪伴、学习和交流，不销售角色素材。署名不代表作者背书或素材权利转授；完整边界与权利人联系入口见[统一素材说明](../CREDITS.md)。
 
-> **素材版权归抖音博主 @月薪喵 所有，不纳入 WorkMeow 的 MIT License。**
+根目录 `assets/salary-cat.png`、`assets/salary-cat-tray.png` 与 `assets/salary-cat.ico` 是以本目录 GIF 中的月薪喵角色为视觉参考、通过 OpenAI 图像生成模型制作的静态衍生头像。它们沿用原角色的识别特征，同样不纳入 AgentPaw 的 MIT License。AgentPaw 当前的应用、任务栏和托盘图标使用独立品牌设计，不再使用这些角色衍生头像。
+
+> **素材版权归抖音博主 @月薪喵 所有，不纳入 AgentPaw 的 MIT License。**
 
 - **原作者**：抖音博主 **@月薪喵**（原创猫 meme 表情系列）
 - **素材出处**：mfuns 文章《最近很火的月薪喵表情包第1弹》

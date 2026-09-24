@@ -11,7 +11,7 @@
 //     text is taken from the local message/part tables instead.
 //
 // Every helper degrades to null/[] instead of throwing when node:sqlite, the
-// database or a table is missing — ZCode presence is optional for WorkMeow and
+// database or a table is missing — ZCode presence is optional for AgentPaw and
 // the app/runtimes pin different Node versions. All access is read-only; the
 // database runs in WAL mode, so readers coexist with the live CLI.
 

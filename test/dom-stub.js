@@ -172,7 +172,7 @@ function createStubWorld() {
   const windowListeners = {};
   const window = {
     pet,
-    WorkMeowIcons: undefined,
+    AgentPawIcons: undefined,
     localStorage: {
       _data: new Map(),
       getItem(key) { return this._data.has(String(key)) ? this._data.get(String(key)) : null; },

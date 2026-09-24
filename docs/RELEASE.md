@@ -1,16 +1,16 @@
-# Codex 喵伴（WorkMeow）Windows EXE 发布手册
+# AgentPaw · AI 桌伴 Windows EXE 发布手册
 
 适用于 1.8.0 及之后的 Windows x64 安装版。对外提供简洁下载入口，同时保留已安装用户的应用内升级能力。一个版本只执行一次完整本地测试和一次本地打包；CI 在独立环境中再次验证并生成正式发布包。
 
 ## 发布契约
 
-对外产品名使用「Codex 喵伴（WorkMeow）」，Release 标题由 `shared/brand.js` 统一生成。升级身份保持不变：npm 包名 `workmeow`、应用 ID `io.github.vista-zhangg.workmeow`、可执行文件 `WorkMeow.exe`、安装包文件名与 `~/.workmeow/` 数据目录均沿用现有值。
+对外产品名使用「AgentPaw · AI 桌伴」，Release 标题由 `shared/brand.js` 统一生成。npm 包名为 `agentpaw`、应用 ID 为 `io.github.vista-zhangg.agentpaw`、程序为 `AgentPaw.exe`、数据目录为 `~/.agentpaw/`。本次更名保留 NSIS 安装 GUID，并通过兼容模块迁移旧数据、Hook 与协议；新品牌名称不再沿用旧标识。
 
-从 1.8.3 起，仓库地址为 `vista-zhangg/codex-desktop-pet`。`package.json` 中的仓库与发布配置、应用更新链接、发布脚本的仓库校验和文档链接必须保持一致。原 `vista-zhangg/WorkMeow` 地址依赖 GitHub 的改名重定向服务旧客户端，不得重新创建同名仓库占用旧地址。改名后需实际验证旧地址的 Release 列表、`latest.yml` 和安装包下载跳转。
+从 1.8.3 起，仓库地址为 `vista-zhangg/codex-desktop-pet`。`package.json` 中的仓库与发布配置、应用更新链接、发布脚本的仓库校验和文档链接必须保持一致。历史仓库地址依赖 GitHub 的改名重定向服务旧客户端，不得重新创建同名仓库占用旧地址。1.9.0 只调整产品品牌，保留当前仓库地址及其检索关键词。
 
 `dist/` 和 GitHub Release 的上传附件必须恰好包含两个文件：
 
-- `WorkMeow-<version>-Windows-x64.exe`：唯一面向用户的安装包。
+- `AgentPaw-<version>-Windows-x64.exe`：唯一面向用户的安装包。
 - `latest.yml`：兼容现有更新客户端的版本、文件地址、大小和 SHA-512；用户不需要自行下载。
 
 不发布 ZIP 便携包、`.exe.blockmap`、独立 `SHA256SUMS.txt`、构建目录或调试配置。GitHub 自动生成的 Source code (zip / tar.gz) 是平台提供的源码入口，不是应用安装包。

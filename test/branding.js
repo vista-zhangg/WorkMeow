@@ -23,35 +23,35 @@ function walk(dir) {
   });
 }
 
-assert.strictEqual(pkg.name, 'workmeow');
+assert.strictEqual(pkg.name, 'agentpaw');
 assert.strictEqual(pkg.build.productName, BRAND.displayName);
-assert.strictEqual(pkg.build.executableName, 'WorkMeow');
+assert.strictEqual(pkg.build.executableName, 'AgentPaw');
 assert.strictEqual(pkg.build.appId, BRAND.appId);
 assert.strictEqual(pkg.author, 'vista-zhang');
 assert.strictEqual(pkg.repository.url, 'git+https://github.com/vista-zhangg/codex-desktop-pet.git');
 assert(pkg.build.files.includes('LICENSE'), 'packaged app must retain the upstream MIT license');
-assert.strictEqual(pkg.build.win.artifactName, 'WorkMeow-${version}-Windows-${arch}.${ext}');
+assert.strictEqual(pkg.build.win.artifactName, 'AgentPaw-${version}-Windows-${arch}.${ext}');
 assert(/--publish never(?:\s|$)/.test(pkg.scripts['package:win']), 'Windows packaging must use the unified release job');
 assert.strictEqual(pkg.scripts.test, 'node test/run-all.js');
-assert(/name: workmeow-windows-x64/.test(read('.github/workflows/release.yml')), 'release artifact must use WorkMeow');
+assert(/name: agentpaw-windows-x64/.test(read('.github/workflows/release.yml')), 'release artifact must use AgentPaw');
 assert(read('scripts/publish-release.js').includes('${BRAND.fullName} ${result.version}')
   && read('scripts/publish-release.js').includes('process.env.GITHUB_REF_NAME !== tag'),
   'release title and pushed tag must follow the verified package version');
 assert.strictEqual(lock.version, pkg.version);
 assert.strictEqual(lock.packages[''].version, pkg.version);
-assert.strictEqual(lock.name, 'workmeow');
-assert.strictEqual(lock.packages[''].name, 'workmeow');
+assert.strictEqual(lock.name, 'agentpaw');
+assert.strictEqual(lock.packages[''].name, 'agentpaw');
 assert(/app\.setName\(BRAND\.name\)/.test(main), 'Electron app name must come from the brand registry');
 assert(/app\.setAppUserModelId\(BRAND\.appId\)/.test(main), 'Windows app identity must come from the brand registry');
-assert(/const WINDOW_ICON_PATH = path\.join\(__dirname, 'assets', 'salary-cat\.ico'\)/.test(main),
-  'every Windows surface must share one packaged 月薪喵 icon');
-assert.strictEqual(pkg.build.win.icon, 'assets/salary-cat.ico', 'packaged Windows icon must use the cache-busting salary-cat path');
+assert(/const WINDOW_ICON_PATH = path\.join\(__dirname, 'assets', 'agentpaw-icon\.ico'\)/.test(main),
+  'every Windows surface must share the independent product icon');
+assert.strictEqual(pkg.build.win.icon, 'assets/agentpaw-icon.ico', 'Windows icon uses the new brand asset');
 assert.strictEqual((main.match(/icon:\s*WINDOW_ICON/g) || []).length, 3,
-  'pet, detail, and settings windows must all receive the 月薪喵 window icon');
+  'pet, detail, and settings windows must all receive the product icon');
 assert(/function applyWindowBranding\(win\)/.test(main) && /win\.setIcon\(WINDOW_ICON\)/.test(main)
   && /win\.setAppDetails\(\{/.test(main) && /appIconPath: WINDOW_ICON_PATH/.test(main),
   'Windows taskbar buttons must be explicitly refreshed with the generated icon');
-assert(/hook[\\/]workmeow-hook\.js/.test(read('README.md').replace(/`/g, '')), 'Claude hook docs must use the WorkMeow filename');
+assert(/hook[\\/]agentpaw-hook\.js/.test(read('README.md').replace(/`/g, '')), 'Claude hook docs must use the AgentPaw filename');
 assert(/基于 \[LLMPET\]\(https:\/\/github\.com\/myunwang\/LLMPET\) 二次开发/.test(readme),
   'README must retain explicit upstream attribution');
 assert(/Copyright \(c\) 2026 myunwang/.test(read('LICENSE')),
@@ -59,8 +59,15 @@ assert(/Copyright \(c\) 2026 myunwang/.test(read('LICENSE')),
 assert(/Windows x64 only/.test(readmeEn), 'English README must state the Windows-only support boundary');
 assert(/\[LLMPET\]\(https:\/\/github\.com\/myunwang\/LLMPET\)/.test(readmeEn),
   'English README must retain explicit upstream attribution');
-assert(/@月薪喵/.test(readme) && /@月薪喵/.test(readmeEn) && /@月薪喵/.test(credits),
-  'both READMEs and asset credits must retain the artist source attribution');
+assert(readme.includes('assets/cat/CREDITS.md') && readmeEn.includes('assets/cat/CREDITS.md') && /@月薪喵/.test(credits),
+  'README links must preserve original attribution in dedicated asset credits');
+assert(readme.includes('assets/characters/milktea-mouse/CREDITS.md') && readmeEn.includes('assets/characters/milktea-mouse/CREDITS.md'));
+assert(read('assets/characters/milktea-mouse/CREDITS.md').includes('阿翅 Achi'));
+assert.equal(fs.readdirSync(path.join(root, 'assets/characters/milktea-mouse')).filter((name) => name.endsWith('.gif')).length, 15);
+assert(readme.includes('assets/characters/mimi-bee/CREDITS.md') && readmeEn.includes('assets/characters/mimi-bee/CREDITS.md'));
+assert(read('assets/characters/mimi-bee/CREDITS.md').includes('花栗鼠发发'));
+assert.equal(fs.readdirSync(path.join(root, 'assets/characters/mimi-bee')).filter((name) => name.endsWith('.gif')).length, 16);
+assert.equal(pkg.build.nsis.guid, '8737e7ad-d3e9-5b66-8bd0-f2a73c6219ec', 'rebranding preserves the installer upgrade identity');
 for (const file of ['CONTRIBUTING.md', 'SECURITY.md', 'docs/PRIVACY.md']) {
   assert(fs.existsSync(path.join(root, file)), `${file} must exist`);
 }
@@ -81,6 +88,7 @@ for (const file of publicFiles) {
     .replace(/\[LLMPET\]\(https:\/\/github\.com\/myunwang\/LLMPET\)/g, '')
     .replace(/https?:\/\/\S+/g, '');
   assert(!/\bOctopus\b|\bLLMPET\b/.test(text), `${file} still exposes a retired public brand`);
+  if (!file.startsWith('.github/')) assert(!/meow|喵/i.test(text), `${file} exposes the former brand`);
 }
 
 const compatibilityFiles = new Set([
@@ -88,6 +96,8 @@ const compatibilityFiles = new Set([
   path.join(root, 'backend', 'paths.js'),
   path.join(root, 'backend', 'protocol-compat.js'),
   path.join(root, 'backend', 'hook-compat.js'),
+  path.join(root, 'backend', 'windows-brand-compat.js'),
+  path.join(root, 'backend', 'character-compat.js'),
 ]);
 const runtimeFiles = [
   path.join(root, 'main.js'), path.join(root, 'preload.js'),
@@ -97,7 +107,7 @@ const runtimeFiles = [
   ...walk(path.join(root, 'shared')),
 ].filter((file) => file.endsWith('.js') && !compatibilityFiles.has(file));
 for (const file of runtimeFiles) {
-  assert(!/llmpet|octopus/i.test(fs.readFileSync(file, 'utf8')),
+  assert(!/llmpet|octopus|meow|喵/i.test(fs.readFileSync(file, 'utf8')),
     `${path.relative(root, file)} leaks a retired identifier outside the compatibility boundary`);
 }
 

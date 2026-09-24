@@ -3,7 +3,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.WorkMeowRestPreferences = api;
+  if (root) root.AgentPawRestPreferences = api;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   const DEFAULTS = Object.freeze({
     enabled: true,

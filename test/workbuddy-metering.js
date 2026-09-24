@@ -1,7 +1,7 @@
 'use strict';
 
 // Regression test for backend/workbuddy-metering.js.
-// Uses temp dirs only (no real ~/.workbuddy / ~/.workmeow), and exercises:
+// Uses temp dirs only (no real ~/.workbuddy / ~/.agentpaw), and exercises:
 //  - real token counting from providerData.usage (OpenAI camelCase)
 //  - cached_tokens extracted from inputTokensDetails
 //  - exact-only pricing: a priced model gets cost>0, an unknown model (hy3) gets $0

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// 打工喵 WorkMeow hook for TRAE IDE — thin wrapper around shared hook logic.
+// 打工伙伴 AgentPaw hook for TRAE IDE — thin wrapper around shared hook logic.
 // TRAE fires Claude-Code-compatible hooks from ~/.trae-cn/hooks.json
 // (Windows: %userprofile%/.trae-cn/hooks.json). Same event vocabulary as
 // Claude Code. Install via backend/trae-hookinstall.js.

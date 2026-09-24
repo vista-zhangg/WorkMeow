@@ -14,7 +14,7 @@
 // module opens the database read-only on a timer, folds new rows into the same
 // stats shape as codex-metering / opencode-metering (so main.js merges the
 // sources with zero special-casing), and closes the handle after each scan.
-// node:sqlite ships with the Node runtime WorkMeow targets (>= 22.12); if it
+// node:sqlite ships with the Node runtime AgentPaw targets (>= 22.12); if it
 // or the schema is missing the meter reports empty stats instead of throwing.
 //
 // The ZCode database only changes while ZCode itself runs, so a 30s poll is
@@ -99,7 +99,7 @@ function loadPricing() {
       }
     }
   } catch {}
-  // Layer 2: user override (~/.workmeow/zcode-pricing.json) — wins.
+  // Layer 2: user override (~/.agentpaw/zcode-pricing.json) — wins.
   try {
     const raw = JSON.parse(fs.readFileSync(PRICING_OVERRIDE_PATH, 'utf8'));
     for (const [key, row] of Object.entries(raw)) {

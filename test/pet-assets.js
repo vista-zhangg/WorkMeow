@@ -10,7 +10,7 @@ const { normalizeGif, assertGifHeader, GifImportError } = require('../backend/gi
 const { PetAssetStore, sanitizeManifest, isAssetId } = require('../backend/pet-assets');
 
 const root = path.join(__dirname, '..');
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-pet-assets-'));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-pet-assets-'));
 
 async function main() {
   assert.strictEqual(new Set(Registry.SLOT_IDS).size, Registry.SLOT_IDS.length, 'visual slot ids must be unique');

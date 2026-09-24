@@ -1,8 +1,8 @@
 'use strict';
 
-// Persisted app config. The pet is intentionally fixed to the Salary Cat
-// renderer; only lightweight display preferences are persisted here.
-// Stored atomically under ~/.workmeow/config.json.
+// Persisted display preferences. Character selections and GIF edits live in
+// the separate pet-assets store.
+// Stored atomically under ~/.agentpaw/config.json.
 
 const fs = require('fs');
 const path = require('path');

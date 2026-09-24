@@ -5,7 +5,7 @@
 // opencode has no telemetry file of its own — the pet's opencode plugin
 // (hook/opencode-plugin.js, installed into ~/.config/opencode/plugins/) appends
 // one compact JSON line per completed assistant message to
-//   ~/.workmeow/opencode-usage.jsonl
+//   ~/.agentpaw/opencode-usage.jsonl
 // This module tails that file (byte cursor, append-only) and aggregates the
 // rows into the same stats shape as codex-metering, so main.js merges the
 // sources with zero special-casing.
@@ -83,7 +83,7 @@ function loadPricing() {
       }
     }
   } catch {}
-  // Layer 2: user override (~/.workmeow/opencode-pricing.json) — wins.
+  // Layer 2: user override (~/.agentpaw/opencode-pricing.json) — wins.
   try {
     const raw = JSON.parse(fs.readFileSync(PRICING_OVERRIDE_PATH, 'utf8'));
     for (const [key, row] of Object.entries(raw)) {

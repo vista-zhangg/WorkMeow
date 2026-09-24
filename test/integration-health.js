@@ -87,7 +87,7 @@ assert.strictEqual(eventDetected.integrations.find((row) => row.id === 'claude')
 assert(!JSON.stringify(healthy).includes('cwd') && !JSON.stringify(healthy).includes('token'),
   'health report must not expose project paths or runtime credentials');
 
-const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-health-watch-'));
+const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-health-watch-'));
 try {
   const core = { updateSession() {}, setContextUsage() {}, seedSession() {} };
   const codexWatch = createCodexWatch({ core, sessionsDir: path.join(emptyRoot, 'codex'), pollMs: 999999 });

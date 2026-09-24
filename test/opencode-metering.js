@@ -29,7 +29,7 @@ assert.strictEqual(usageCost(normalizeUsage({ cost: 0, tokens: { input: 1000, ou
   priceFor('gpt-5.6-codex', null)), 0, 'explicit free usage does not become estimated spend');
 
 async function main() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-opencode-meter-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-opencode-meter-'));
   const stateDir = path.join(root, 'state');
   fs.mkdirSync(stateDir, { recursive: true });
   const usageFile = path.join(root, 'opencode-usage.jsonl');

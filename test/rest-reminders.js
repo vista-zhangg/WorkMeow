@@ -41,7 +41,7 @@ assert.strictEqual(sanitizePreferences({ snoozeMinutes: 0 }).snoozeMinutes, 1);
 assert.strictEqual(sanitizePreferences({ snoozeMinutes: 999 }).snoozeMinutes, 240);
 const browser = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../shared/rest-preferences.js'), 'utf8'), browser);
-assert.strictEqual(browser.window.WorkMeowRestPreferences.DEFAULTS.waterMinutes, 45);
+assert.strictEqual(browser.window.AgentPawRestPreferences.DEFAULTS.waterMinutes, 45);
 
 // Ordinary computer work triggers reminders even with zero AI sessions. There
 // is no agent-state input that can prevent or manufacture active computer time.

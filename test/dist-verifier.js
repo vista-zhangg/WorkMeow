@@ -39,7 +39,7 @@ function createFixture(dist) {
   return version;
 }
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'workmeow-dist-test-'));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agentpaw-dist-test-'));
 try {
   const dist = path.join(temp, 'dist');
   const version = createFixture(dist);
@@ -53,7 +53,7 @@ try {
   assert.throws(() => verifyReleaseAssets({ ...release, assets: release.assets.slice(1) }, verified), /asset count/);
   assert.throws(() => verifyReleaseAssets({ ...release, assets: release.assets.map((a) => ({ ...a, digest: 'sha256:wrong' })) }, verified), /integrity check/);
 
-  const old = path.join(dist, 'WorkMeow-1.7.14-Windows-x64.exe');
+  const old = path.join(dist, 'AgentPaw-1.7.14-Windows-x64.exe');
   fs.writeFileSync(old, 'previous installer');
   fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), 'obsolete');
   fs.mkdirSync(path.join(dist, 'win-unpacked'));

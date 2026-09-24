@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// 打工喵 WorkMeow hook for WorkBuddy — thin wrapper around shared hook logic.
+// 打工伙伴 AgentPaw hook for WorkBuddy — thin wrapper around shared hook logic.
 // WorkBuddy fires Claude-Code-compatible hooks from ~/.workbuddy/settings.json
 // (events: SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / Stop /
 // Notification / Elicitation, payloads carry session_id + transcript_path).

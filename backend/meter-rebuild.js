@@ -117,7 +117,7 @@ async function main() {
   const afterCost = results.reduce((sum, row) => sum + row.after.cost, 0);
   const delta = afterCost - beforeCost;
   console.log(`\nTotal  $${beforeCost.toFixed(2)} → $${afterCost.toFixed(2)}  (${delta >= 0 ? '+' : ''}$${delta.toFixed(2)})`);
-  console.log('已重算 ~/.workmeow/ 下的 Claude、Codex、WorkBuddy、TRAE、opencode、ZCode 台账。重开Codex 喵伴详情面板即可看到新统计。');
+  console.log('已重算 ~/.agentpaw/ 下的 Claude、Codex、WorkBuddy、TRAE、opencode、ZCode 台账。重开AgentPaw · AI 桌伴详情面板即可看到新统计。');
 }
 
 if (require.main === module) {

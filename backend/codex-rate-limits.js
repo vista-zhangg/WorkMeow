@@ -625,7 +625,7 @@ function createCodexRateLimits(options = {}) {
     }
     // App Server diagnostics belong to Codex. Drain stderr so a chatty child
     // can never block on a full pipe, without copying auth-adjacent logs into
-    // WorkMeow's UI or persistence.
+    // AgentPaw's UI or persistence.
     if (proc.stderr && typeof proc.stderr.on === 'function') proc.stderr.on('data', () => {});
     if (typeof proc.once === 'function') {
       proc.once('error', () => finish('codex-not-found'));
@@ -635,7 +635,7 @@ function createCodexRateLimits(options = {}) {
     if (!send({
       method: 'initialize',
       id: initializeId,
-      params: { clientInfo: { name: 'workmeow', title: 'WorkMeow', version } },
+      params: { clientInfo: { name: 'agentpaw', title: 'AgentPaw', version } },
     })) {
       try { proc.kill(); } catch {}
       finish('app-server-stdio-unavailable');

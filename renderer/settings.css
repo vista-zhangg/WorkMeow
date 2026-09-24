@@ -106,6 +106,23 @@ footer .done-button { min-width: 70px; }
 #chip-display-section .section-kicker + .setting-card { border-radius: 14px 14px 0 0; }
 #chip-display-section .setting-card:has(+ .setting-status) { border-radius: 0 0 14px 14px; }
 .expression-intro { margin-bottom: 18px; }
+.character-library { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--ui-line); }
+.character-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 10px; max-height: 310px; overflow: auto; padding: 3px; }
+.character-card { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; padding: 12px 8px; border: 1px solid var(--ui-line); border-radius: 13px; background: #fff; cursor: pointer; color: var(--ui-text); font-size: 13px; }
+.character-card img { width: 70px; height: 70px; object-fit: contain; border-radius: 8px; }
+.character-card span { max-width: 100%; overflow-wrap: anywhere; }
+.character-card[aria-pressed="true"] { border-color: var(--ui-blue); background: #f5f9ff; box-shadow: 0 0 0 2px #0071e30a; }
+.character-card small { font-size: 12px; color: var(--ui-secondary); }
+.character-add { border-style: dashed; background: var(--ui-bg, #fafbfc); }
+.character-add-icon { display: grid; place-items: center; width: 70px; height: 70px; border-radius: 8px; color: var(--ui-blue); font-size: 36px; font-weight: 300; }
+.character-add:hover { border-color: var(--ui-blue); background: #f5f9ff; }
+.character-create { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 15px; }
+.character-create label { flex-basis: 100%; color: var(--ui-secondary); font-size: 12px; }
+.character-create input { flex: 1 1 145px; min-width: 0; width: 145px; padding: 8px 10px; border: 1px solid var(--ui-line); border-radius: 8px; font: inherit; font-size: 13px; }
+.character-hint { margin-top: 8px; font-size: 12px; color: var(--ui-secondary); line-height: 1.6; }
+.character-current { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 12px; font-size: 13px; }
+.character-current span { min-width: 0; overflow-wrap: anywhere; }
+.character-current button { flex-shrink: 0; }
 .expression-title { font-size: 15px; font-weight: 600; }
 .expression-intro p { margin-top: 5px; color: var(--ui-secondary); font-size: 13px; line-height: 1.6; }
 .background-option { display: flex; align-items: center; gap: 7px; width: fit-content; margin-top: 12px; font-size: 12px; color: var(--ui-secondary); cursor: pointer; }

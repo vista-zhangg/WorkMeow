@@ -1,21 +1,23 @@
 'use strict';
 
-// 单宠时代（2026-08-07 起）：永远只有一只打工喵盯全部工具，AGENT 恒为 'all'。
+// 单宠时代（2026-08-07 起）：永远只有一只打工伙伴盯全部工具，AGENT 恒为 'all'。
 // 该常量保留仅为兼容旧查询参数与下方少量分支判断。
 const AGENT = new URLSearchParams(location.search).get('agent') || 'all';
 
 const stage = document.getElementById('stage');
 const cat = document.getElementById('cat');
 
-// 状态 GIF 缺失或加载失败时使用仓库自带的静态猫图。
+// Each character falls back to its own immutable idle pose.
 const catImg = document.getElementById('cat-img');
 const CAT_FALLBACK = '../assets/salary-cat.png';
 if (catImg) {
   catImg.onerror = () => {
-    if (!catAssetMatches(CAT_FALLBACK)) catImg.src = CAT_FALLBACK;
+    const fallback = petAssetCatalog.character.id === 'salary-cat' ? CAT_FALLBACK : petAssetCatalog.fallbackAsset?.url;
+    if (fallback && !catAssetMatches(fallback)) catImg.src = fallback;
+    else catImg.hidden = true;
   };
 }
-const PET_ASSET_REGISTRY = window.WorkMeowPetAssets;
+const PET_ASSET_REGISTRY = window.AgentPawPetAssets;
 let petAssetCatalog = PET_ASSET_REGISTRY.defaultCatalog();
 
 function slotAssetUrls(slotId) {
@@ -31,7 +33,11 @@ function stateAssetUrls(stateName) {
 
 function applyPetAssetCatalog(next) {
   petAssetCatalog = PET_ASSET_REGISTRY.normalizeCatalog(next);
+  catImg.hidden = false;
+  catImg.alt = petAssetCatalog.character.name;
+  cat.setAttribute('aria-label', `${petAssetCatalog.character.name}：打开当前状态；右键打开菜单`);
   poolCycles.clear();
+  ambientCycles.clear();
   stopPoolRot();
   ambientStop();
   xiabanVisualKey = null;
@@ -76,7 +82,7 @@ function nextPoolFile(name, pool) {
 
 function showPoolFile(name, pool) {
   const source = nextPoolFile(name, pool);
-  if (source && !catAssetMatches(source)) catImg.src = source;
+  if (source && !catAssetMatches(source)) { catImg.hidden = false; catImg.src = source; }
 }
 
 function stopPoolRot() {
@@ -95,7 +101,7 @@ function stopPoolRot() {
 
    为什么不直接把语义态改成 loafing/idle：loafing 现在的含义是「任务进行中
    的工具间隙」，idle 是「一轮已收尾、等你下一句」。若无任务时也复用它们，
-   你就再也无法一眼分辨「喵在摸鱼」到底有没有活在跑，诊断价值直接归零。
+   你就再也无法一眼分辨「伙伴在摸鱼」到底有没有活在跑，诊断价值直接归零。
 
    作息曲线：越闲越困。刚下班基本在活动，夜深了基本在睡，但任何阶段都保留
    反向可能——所以永远不会静止成一张图。
@@ -174,7 +180,7 @@ function ambientStep() {
     ambientAwakeRun++;
     ambientSleepRun = 0;
   }
-  if (!catAssetMatches(sc.gif)) catImg.src = sc.gif;
+  if (!catAssetMatches(sc.gif)) { catImg.hidden = false; catImg.src = sc.gif; }
   if (sleepEl) sleepEl.classList.toggle('on', sc.sleep); // 💤 只在真睡的片段亮
   const [lo, hi] = sc.hold || phase.hold; // 片段自带时长优先（如 roam 幅度大要短播）
   ambientTimer = setTimeout(ambientStep, lo + Math.random() * (hi - lo));
@@ -206,7 +212,7 @@ const XIABAN_COPY_KEYS = {
   lunch: ['bub.xiabanLunch1', 'bub.xiabanLunch2', 'bub.xiabanLunch3'],
   evening: ['bub.xiabanEvening1', 'bub.xiabanEvening2', 'bub.xiabanEvening3'],
 };
-const XIABAN_ANNOUNCED_STORAGE_KEY = 'workmeow.xiaban-announced-window';
+const XIABAN_ANNOUNCED_STORAGE_KEY = 'agentpaw.xiaban-announced-window';
 let xiabanTimer = null;
 let xiabanVisualKey = null;
 let xiabanVisualAsset = null;
@@ -318,7 +324,7 @@ function xiabanMaybeShow(s) {
     xiabanVisualKey = info.key;
     xiabanVisualAsset = nextPoolFile('xiaban', pool);
   }
-  if (!catAssetMatches(xiabanVisualAsset)) catImg.src = xiabanVisualAsset;
+  if (!catAssetMatches(xiabanVisualAsset)) { catImg.hidden = false; catImg.src = xiabanVisualAsset; }
   if (sleepEl) sleepEl.classList.remove('on');
   announceXiaban(info);
   return true;
@@ -424,12 +430,12 @@ const answered = new Set(); // 已答的 key，避免快照延迟导致重弹
 let askHover = false; // 鼠标在选项面板上
 let elic = null;      // elicitation 渲染态：{ key, questions, qIdx, answers, selected }
 // 面板开着、且(鼠标在面板上 / 输入框聚焦/有草稿 / 已选了选项) = 交互中：
-// 此时别重渲面板、别改打工喵状态，免得打断你思考/选择。面板一关就自动解除。
+// 此时别重渲面板、别改打工伙伴状态，免得打断你思考/选择。面板一关就自动解除。
 const isInteracting = () => askActive && (askHover || document.activeElement === askText || !!(askText && askText.value) || (elic && elic.selected != null));
 
 // i18n: shared/i18n.js is loaded as a <script> before this file.
-const t = (key, vars) => window.WorkMeowI18n.t(key, vars);
-const backgroundStatus = (session) => window.WorkMeowI18n.backgroundStatus(session);
+const t = (key, vars) => window.AgentPawI18n.t(key, vars);
+const backgroundStatus = (session) => window.AgentPawI18n.backgroundStatus(session);
 // A reason arrives as a stable key ('reply'|'plan'|'perm'); older payloads may
 // still carry free text, so fall back to whatever came in.
 const waitPhrase = (reason) => (reason ? t('wait.' + reason) : t('wait.default'));
@@ -622,7 +628,7 @@ function fitRestingFrame(force = false, allowOverlays = false) {
   if (restingFitFrame) cancelAnimationFrame(restingFitFrame);
   restingFitFrame = requestAnimationFrame(() => {
     restingFitFrame = null;
-    if (window.WorkMeowCompanion && window.WorkMeowCompanion.isOpen()) {
+    if (window.AgentPawCompanion && window.AgentPawCompanion.isOpen()) {
       if (force || allowOverlays) fitPopup(document.getElementById('rest-reminder'));
       return;
     }
@@ -665,7 +671,7 @@ function fitPopup(el) {
 function resetPetSize() {
   fitPopupSeq++;
   fitRestingFrame(true);
-  requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
+  requestAnimationFrame(() => { if (window.AgentPawCompanion) window.AgentPawCompanion.refresh(); });
 }
 
 function settleEdgeLayout() {
@@ -795,7 +801,7 @@ function enqueueChoice(c) {
 }
 
 function showAskPanel() {
-  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
+  if (window.AgentPawCompanion) window.AgentPawCompanion.hide();
   const c = askQueue[askIdx];
   if (!c) { hideAsk(); return; }
   if (quotaPopoverOpen) closeQuotaPopover();
@@ -1181,7 +1187,7 @@ function maybeCloseEmptyPop() {
 }
 
 function openActionPop() {
-  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
+  if (window.AgentPawCompanion) window.AgentPawCompanion.hide();
   if (askActive) hideAsk(); // 别和选项面板抢窗口
   if (peekOpen) closePeek();
   if (quotaPopoverOpen) closeQuotaPopover();
@@ -1233,8 +1239,8 @@ let peekPrimarySessionId = '';
 
 function peekAgentLabel(agent) {
   try {
-    if (window.WorkMeowAgents && typeof window.WorkMeowAgents.shortLabel === 'function') {
-      return window.WorkMeowAgents.shortLabel(agent);
+    if (window.AgentPawAgents && typeof window.AgentPawAgents.shortLabel === 'function') {
+      return window.AgentPawAgents.shortLabel(agent);
     }
   } catch {}
   return ({ claude: 'Claude', codex: 'Codex', trae: 'TRAE', workbuddy: 'WorkBuddy', opencode: 'opencode', zcode: 'ZCode' })[agent] || 'AI';
@@ -1409,7 +1415,7 @@ function armPeekTimer() {
 }
 
 function openPeek() {
-  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
+  if (window.AgentPawCompanion) window.AgentPawCompanion.hide();
   if (!lastStats || askActive || actionPopOpen || radialOpen) return;
   if (quotaPopoverOpen) closeQuotaPopover();
   clearTimeout(bubbleTimer);
@@ -1475,7 +1481,7 @@ let radialOpen = false;
 const IDLE_SLEEP_MS = 6 * 60 * 1000;
 const PURR_HOLD_MS = 1100;
 const PURR_DISPLAY_MS = 6200;
-const PURR_DAY_STORAGE_KEY = 'workmeow.purr-payday-day';
+const PURR_DAY_STORAGE_KEY = 'agentpaw.purr-payday-day';
 // 额度详情采用显式点击，而不是原生 title。离开触发区/详情卡后留一点缓冲，
 // 让鼠标可以从胶囊移动到卡片；卡片打开期间每 30 秒刷新一次倒计时文案。
 const QUOTA_POPOVER_LEAVE_MS = 900;
@@ -1489,11 +1495,11 @@ let quotaPopoverCloseTimer = null;
 let quotaPopoverRefreshTimer = null;
 let quotaPopoverPointerInside = false;
 const stateEls = [cat];
-// ---------- 状态机（固定使用打工喵形象） ----------
+// ---------- 状态机（固定使用打工伙伴形象） ----------
 // 前端会 setState 的全部状态词（聚合态 + 短暂态 + 情绪态）——统一取自
 // shared/states.js（pet.html 以 <script> 在 pet.js 之前加载它）。classList.remove
 // 必须覆盖此全集，漏一个就会 class 残留在皮肤元素上。
-const STATE_WORDS = (window.WorkMeowStates && window.WorkMeowStates.RENDER_STATE_WORDS) || [];
+const STATE_WORDS = (window.AgentPawStates && window.AgentPawStates.RENDER_STATE_WORDS) || [];
 function setState(s) {
   if (state === s) {
     // 语义状态没变，限时视觉层仍可能刚刚到期；同状态快照也要让猫
@@ -1681,15 +1687,15 @@ function positionQuotaPopoverTip() {
 }
 
 function showBubble(text, holdMs = 3200, force = false) {
-  if (force && window.WorkMeowCompanion) window.WorkMeowCompanion.defer(holdMs);
-  if (window.WorkMeowCompanion && window.WorkMeowCompanion.isOpen()) {
+  if (force && window.AgentPawCompanion) window.AgentPawCompanion.defer(holdMs);
+  if (window.AgentPawCompanion && window.AgentPawCompanion.isOpen()) {
     if (!force) return;
-    window.WorkMeowCompanion.hide();
+    window.AgentPawCompanion.hide();
   }
   if (!force && (radialOpen || askActive || peekOpen || quotaPopoverOpen)) return; // 弹层开着时不用普通气泡盖住它
-  // emoji → 内联 SVG（WorkMeowIcons 在 emoji 字符与 SVG 之间做安全替换；不可识别字符原样保留）
-  if (window.WorkMeowIcons && window.WorkMeowIcons.hasMappedEmoji(text)) {
-    window.WorkMeowIcons.setTextWithIcons(bubbleText, text);
+  // emoji → 内联 SVG（AgentPawIcons 在 emoji 字符与 SVG 之间做安全替换；不可识别字符原样保留）
+  if (window.AgentPawIcons && window.AgentPawIcons.hasMappedEmoji(text)) {
+    window.AgentPawIcons.setTextWithIcons(bubbleText, text);
   } else {
     bubbleText.textContent = text;
   }
@@ -1708,7 +1714,7 @@ let quotaAlertRetryTimer = null;
 let quotaAlertDisplaying = false;
 function quotaAlertUiBusy() {
   return document.hidden === true || radialOpen || askActive || actionPopOpen || peekOpen || quotaPopoverOpen
-    || (window.WorkMeowCompanion && window.WorkMeowCompanion.isOpen())
+    || (window.AgentPawCompanion && window.AgentPawCompanion.isOpen())
     || !bubble.classList.contains('hidden');
 }
 function scheduleQuotaAlertRetry() {
@@ -1778,7 +1784,7 @@ function hideBubble() {
 const curSkinEl = () => catVisible ? cat : chip;
 
 window.pet.onEvent((ev) => {
-  requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
+  requestAnimationFrame(() => { if (window.AgentPawCompanion) window.AgentPawCompanion.refresh(); });
   if (ev.kind === 'quota-alert') {
     // Queue first: hidden windows and active popups must defer the bubble, not
     // consume the only alert for this reset cycle.
@@ -1829,7 +1835,7 @@ window.pet.onEvent((ev) => {
       }
       break;
     case 'user-turn':
-      // 你的输入里带情绪（loved/sad/excited）→ 打工喵即时反应；否则像以前一样进 thinking
+      // 你的输入里带情绪（loved/sad/excited）→ 打工伙伴即时反应；否则像以前一样进 thinking
       if (ev.emotion && state !== 'waiting') {
         const tip = ev.emotion === 'loved' ? t('bub.loved') : ev.emotion === 'sad' ? t('bub.sad') : t('bub.ack');
         transient(ev.emotion, 2800, tip, 2600);
@@ -1893,7 +1899,7 @@ function compactTokens(value) {
   return String(Math.round(n));
 }
 
-const petInsights = window.WorkMeowPetInsights;
+const petInsights = window.AgentPawPetInsights;
 function capsuleElapsed(ms) {
   const value = Math.max(0, Number(ms) || 0);
   if (value < 1000) return '';
@@ -2166,7 +2172,7 @@ function closeQuotaPopover() {
 }
 
 function openQuotaPopover() {
-  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
+  if (window.AgentPawCompanion) window.AgentPawCompanion.hide();
   if (!lastStats || !quotaEl || quotaEl.hidden || askActive) return false;
   if (quotaPopoverOpen) return true;
   if (radialOpen) closeRadial();
@@ -2301,7 +2307,7 @@ function renderContextCapsule(s) {
     title = '最近一轮任务已完成';
   } else if (info.kind === 'sleeping') {
     label = '💤 休息中';
-    title = '没有活动任务，喵正在休息';
+    title = '没有活动任务，伙伴正在休息';
   } else {
     label = '🌿 待命';
     title = '当前没有活动任务';
@@ -2375,9 +2381,9 @@ function applyStats(s) {
   refreshAsk(s);
   // 速览不冻结状态机：快照到来时就地更新文字，不关闭/重开。
   if (peekOpen) renderPeek(s);
-  if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh();
+  if (window.AgentPawCompanion) window.AgentPawCompanion.refresh();
 
-  // 你正在看面板/打字 → 不再改打工喵状态(别动来动去打断你)，安静等你答完
+  // 你正在看面板/打字 → 不再改打工伙伴状态(别动来动去打断你)，安静等你答完
   if (isInteracting()) return;
 
   // 聚合梯子，对齐 STATES.md 的优先级表：
@@ -2527,14 +2533,14 @@ function finishDrag(el, e, cancelled) {
     // settlement cannot revive an already released movement gesture.
     setTimeout(() => {
       settleEdgeLayout();
-      requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
+      requestAnimationFrame(() => { if (window.AgentPawCompanion) window.AgentPawCompanion.refresh(); });
     }, 0);
   } else if (!wasPurr && !cancelled) {
     // 左键短按 = 按当前优先级打开待处理卡/行动中心/工作速览；
     // 拖动仍由上面的 4px 阈值独立裁决，不会误触点击。
     handleCatClick();
   } else if (cancelled) {
-    requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
+    requestAnimationFrame(() => { if (window.AgentPawCompanion) window.AgentPawCompanion.refresh(); });
   }
 }
 
@@ -2545,7 +2551,7 @@ function attachDrag(el, options = {}) {
     // In compact mode the capsule remains a drag handle, but its quota group
     // is a separate deliberate click target and must not start a drag gesture.
     if (el === chip && e.target && e.target.closest && (e.target.closest('#chip-quota') || e.target.closest('#rest-pending'))) return;
-    if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
+    if (window.AgentPawCompanion) window.AgentPawCompanion.hide();
     try { el.setPointerCapture(e.pointerId); } catch {}
     el.classList.add('dragging');
     const gesture = {
@@ -2786,7 +2792,7 @@ function makeRadialItem(it, i, compact = false) {
       ? `<span class="ri-lb">${esc(t(it.labelKey))}</span><span class="ri-state">${esc(status)}</span>`
       : `<span class="ri-state">${esc(status)}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
   } else {
-    const icHtml = (window.WorkMeowIcons && window.WorkMeowIcons.icon(it.ic)) || '';
+    const icHtml = (window.AgentPawIcons && window.AgentPawIcons.icon(it.ic)) || '';
     b.innerHTML = `<span class="ri-ic oi">${icHtml}</span><span class="ri-lb">${esc(t(it.labelKey))}</span>`;
   }
   b.addEventListener('click', (e) => {
@@ -2907,7 +2913,7 @@ function buildRadial(metrics = null) {
 }
 
 async function openRadial() {
-  if (window.WorkMeowCompanion) window.WorkMeowCompanion.hide();
+  if (window.AgentPawCompanion) window.AgentPawCompanion.hide();
   const seq = ++radialOpenSeq;
   if (actionPopOpen) closeActionPop();
   if (peekOpen) closePeek();
@@ -2949,7 +2955,7 @@ function closeRadial() {
   radial.removeAttribute('data-layout');
   radial.removeAttribute('data-direction');
   radialOpen = false;
-  requestAnimationFrame(() => { if (window.WorkMeowCompanion) window.WorkMeowCompanion.refresh(); });
+  requestAnimationFrame(() => { if (window.AgentPawCompanion) window.AgentPawCompanion.refresh(); });
 }
 function toggleRadial() {
   if (radialOpen) closeRadial();
@@ -2965,7 +2971,7 @@ window.addEventListener('blur', () => {
 
 // ---------- 初始化 ----------
 (async () => {
-  // 单宠：无名牌、无按工具切换的唤起按钮（打工喵一只盯全部）。
+  // 单宠：无名牌、无按工具切换的唤起按钮（打工伙伴一只盯全部）。
   // Convert positions saved by older builds that anchored the transparent
   // window rather than the visible pet.
   requestAnimationFrame(settleEdgeLayout);
@@ -2985,7 +2991,7 @@ window.addEventListener('blur', () => {
 })();
 
 // ---------- 透明区域点击穿透（命中测试）----------
-// 桌宠窗口是透明矩形，空白处不该拦住后面的应用。光标在内容(打工喵/卡片/菜单/记事本)
+// 桌宠窗口是透明矩形，空白处不该拦住后面的应用。光标在内容(打工伙伴/卡片/菜单/记事本)
 // 上 → 接收点击；在透明区 → 让窗口穿透。forward:true 使穿透时 mousemove 仍回传，
 // 因此一旦光标回到内容上即可恢复可点。拖动中(g)始终保持可点。
 // The capsule is still the drag handle when the cat is hidden, while the

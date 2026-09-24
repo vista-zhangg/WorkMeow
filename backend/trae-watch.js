@@ -71,7 +71,7 @@ const RE_PLAN_FINISH = /plan tool call finish/;
 // 「有意义」的活动行判定：只匹配 chat 派发 / 工具调用 / 规划 / hook 信号。
 // TRAE 空闲时仍会持续写 toolhost/rpc/tenant_config 等后台行（见 ai-agent 日志尾部：
 // [Toolhost] spawn、[rpc] register_session_client、route: service:"commercial" 等），
-// 这些不算活动——否则打工喵会因后台日志持续落盘而永远停在 working 状态。
+// 这些不算活动——否则打工伙伴会因后台日志持续落盘而永远停在 working 状态。
 const RE_MEANINGFUL = /(do_chat|ToolcallService|hook=PreToolUse|hook=PostToolUse|plan final token cost|plan tool call finish|execute_toolcall)/i;
 
 // ---------- renderer.log 信号（TRAE 0.1.64+） ----------
@@ -308,7 +308,7 @@ function createTraeWatch(deps) {
   function handleLine(t, line) {
     if (t.kind === 'renderer') {
       // renderer.log 空闲时也被 list_chat_sessions 轮询等后台流量持续写入，
-      // 先过活动门控再解析，否则打工喵会永远停在 working。
+      // 先过活动门控再解析，否则打工伙伴会永远停在 working。
       if (!RE_R_MEANINGFUL.test(line)) return false;
       const p = tailJson(line);
       // Window logs interleave multiple projects and sessions. Never inherit
@@ -544,7 +544,7 @@ function createTraeWatch(deps) {
       }
       const sawActivity = pump(t, st.size);
       // 只有有意义的活动才刷新计时器；文件因后台行（toolhost/rpc 等）增长不算，
-      // 否则 TRAE 空闲时打工喵会永远停在 working 状态。
+      // 否则 TRAE 空闲时打工伙伴会永远停在 working 状态。
       if (sawActivity) {
         t.lastActivityAt = now;
       }

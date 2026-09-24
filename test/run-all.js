@@ -23,7 +23,7 @@ const TESTS = Object.freeze([
   'source-registry.js',
   'integration-health.js',
   'privacy-mode.js',
-  'workmeow-migration.js',
+  'agentpaw-migration.js',
   'config-external-write.js',
   'portable-runtime.js',
   'integration-detection.js',
@@ -39,6 +39,7 @@ const TESTS = Object.freeze([
   'pet-visibility.js',
   'desktop-presence.js',
   'pet-assets.js',
+  'pet-characters.js',
   'settings-assets.js',
   'focus.js',
   'deadcode.js',
@@ -65,7 +66,7 @@ function runAll() {
     if (result.error) throw result.error;
     if (result.status !== 0) process.exit(result.status || 1);
   }
-  console.log(`\nWorkMeow: ${TESTS.length} test suites passed`);
+  console.log(`\nAgentPaw: ${TESTS.length} test suites passed`);
 }
 
 if (require.main === module) runAll();

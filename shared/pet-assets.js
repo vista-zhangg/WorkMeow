@@ -6,7 +6,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.WorkMeowPetAssets = api;
+  if (root) root.AgentPawPetAssets = api;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   const SLOT_GROUPS = Object.freeze([
     { id: 'work', label: '工作状态' },
@@ -42,6 +42,49 @@
   }, { sleeping: 'ambient-sleep' }));
 
   function slotForState(state) { return STATE_TO_SLOT[state] || 'idle'; }
+  const BUILTIN_CHARACTERS = Object.freeze({
+    'salary-cat': { id: 'salary-cat', name: '打工猫', removeBackground: true },
+    'milktea-mouse': {
+      id: 'milktea-mouse', name: '奶茶鼠', removeBackground: false,
+      credit: '原作者：阿翅 Achi · 官方账号：奶茶鼠的想法（BOBARAT）',
+      files: {
+        idle: ['06'], working: ['13'], thinking: ['07'], talking: ['05'],
+        juggling: ['03'], sweeping: ['11'], loafing: ['10', '14'], waiting: ['08'],
+        needsinput: ['07'], happy: ['04', '01'], greet: ['01', '06'], error: ['12', '09'],
+        sad: ['02'], 'ambient-awake': ['10', '11', '14'], 'ambient-sleep': ['06'], xiaban: ['16'],
+      },
+      notes: {
+        thinking: '暂用「傻眼」表示思考，可替换为专用动作。',
+        sweeping: '暂用「玩泥巴」表示整理，可替换为专用动作。',
+        'ambient-sleep': '这套没有专用睡觉动作，暂用「系我」待命，可继续替换。',
+      },
+    },
+    'mimi-bee': {
+      id: 'mimi-bee', name: '小蜜蜂蜜蜜', removeBackground: false,
+      credit: '原作者：花栗鼠发发（曾用名：花栗鼠 Toby）',
+      files: {
+        idle: ['09'], working: ['13'], thinking: ['14'], talking: ['11'],
+        juggling: ['03'], sweeping: ['13'], loafing: ['08', '02'], waiting: ['10'],
+        needsinput: ['12'], happy: ['04', '05'], greet: ['01'], error: ['15'],
+        sad: ['06'], 'ambient-awake': ['02', '05', '09', '11'], 'ambient-sleep': ['07'], xiaban: ['16'],
+      },
+      notes: {
+        working: '这套没有专用工作动作，暂用「卷发」表示忙碌，可继续替换。',
+        sweeping: '暂用「卷发」表示整理，可替换为专用动作。',
+        xiaban: '暂用「想你」表示下班告别，可继续替换。',
+      },
+    },
+  });
+  function characterDefaults(id) {
+    const character = BUILTIN_CHARACTERS[id];
+    if (!character) return null;
+    return Object.fromEntries(SLOTS.map((slot) => [slot.id, id === 'salary-cat'
+      ? slot.defaultFiles.map(builtinAsset)
+      : character.files[slot.id].map((file) => ({
+        id: `builtin:characters/${id}/${file}.gif`, kind: 'builtin', name: `${character.name} ${file}.gif`,
+        url: `../assets/characters/${id}/${file}.gif`,
+      }))]));
+  }
   function builtinAsset(file) {
     return Object.freeze({
       id: `builtin:${file}`,
@@ -62,15 +105,18 @@
   function defaultCatalog() {
     return {
       version: 1,
+      character: { id: 'salary-cat', name: '打工猫', removeBackground: true, canDelete: false },
+      characters: Object.values(BUILTIN_CHARACTERS).map((c) => ({ id: c.id, name: c.name, builtin: true, thumbnail: characterDefaults(c.id).idle[0].url })),
+      fallbackAsset: builtinAsset('cat-idle.gif'),
       slots: Object.fromEntries(SLOTS.map((slot) => [slot.id, defaultSlot(slot)])),
     };
   }
   function safeAsset(value) {
     if (!value || typeof value !== 'object') return null;
-    const kind = value.kind === 'custom' ? 'custom' : value.kind === 'builtin' ? 'builtin' : null;
+    const kind = ['custom', 'builtin', 'preset'].includes(value.kind) ? value.kind : null;
     if (!kind || typeof value.id !== 'string' || typeof value.url !== 'string') return null;
-    if (kind === 'custom' && !/^workmeow-asset:\/\/asset\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.gif\?v=[^#]+$/i.test(value.url)) return null;
-    if (kind === 'builtin' && !/^\.\.\/assets\/cat\/cat-[a-z0-9-]+\.gif$/.test(value.url)) return null;
+    if (kind !== 'builtin' && !/^agentpaw-asset:\/\/asset\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.gif\?v=[^#]+$/i.test(value.url)) return null;
+    if (kind === 'builtin' && !/^\.\.\/assets\/(?:cat\/cat-[a-z0-9-]+|characters\/(?:milktea-mouse|mimi-bee)\/\d{2})\.gif$/.test(value.url)) return null;
     return {
       id: value.id,
       kind,
@@ -83,6 +129,23 @@
   function normalizeCatalog(value) {
     const fallback = defaultCatalog();
     if (!value || typeof value !== 'object' || !value.slots || typeof value.slots !== 'object') return fallback;
+    const base = safeAsset(value.fallbackAsset);
+    if (value.character && typeof value.character.id === 'string' && typeof value.character.name === 'string') {
+      fallback.character = {
+        id: value.character.id, name: value.character.name.slice(0, 40),
+        removeBackground: value.character.removeBackground === true,
+        canDelete: value.character.canDelete === true,
+        credit: typeof value.character.credit === 'string' ? value.character.credit.slice(0, 160) : '',
+      };
+      if (base) {
+        fallback.fallbackAsset = base;
+        for (const slot of SLOTS) fallback.slots[slot.id].active = [base];
+      }
+    }
+    if (Array.isArray(value.characters)) {
+      fallback.characters = value.characters.filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string')
+        .map((c) => ({ id: c.id, name: c.name.slice(0, 40), builtin: !!BUILTIN_CHARACTERS[c.id], thumbnail: safeAsset({ id: 'preview', kind: BUILTIN_CHARACTERS[c.id] ? 'builtin' : 'preset', url: c.thumbnail })?.url || '' }));
+    }
     for (const slot of SLOTS) {
       const source = value.slots[slot.id];
       if (!source || typeof source !== 'object') continue;
@@ -95,10 +158,11 @@
         usingDefaults: source.usingDefaults !== false,
         active,
         custom,
+        note: typeof source.note === 'string' ? source.note.slice(0, 240) : '',
       };
     }
     return fallback;
   }
 
-  return { SLOT_GROUPS, SLOTS, SLOT_IDS, SLOT_BY_ID, STATE_TO_SLOT, slotForState, defaultCatalog, normalizeCatalog };
+  return { SLOT_GROUPS, SLOTS, SLOT_IDS, SLOT_BY_ID, STATE_TO_SLOT, BUILTIN_CHARACTERS, characterDefaults, slotForState, defaultCatalog, normalizeCatalog };
 });

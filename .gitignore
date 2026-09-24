@@ -6,6 +6,8 @@ dist/
 
 # Local runtime state (never lives in the repo, but guard anyway)
 .workmeow/
+.agentpaw/
+local-assets/
 usage.json
 
 # Editor / local project config

@@ -1,7 +1,7 @@
 'use strict';
 
 // Canonical environment namespace. Older aliases live only in this upgrade
-// bridge so runtime modules and documentation can consistently use WORKMEOW_*.
+// bridge so runtime modules and documentation can consistently use AGENTPAW_*.
 const LEGACY_ALIASES = Object.freeze({
   NO_CODEX: ['LLMPET_NO_CODEX'],
   CODEX_DIR: ['LLMPET_CODEX_DIR'],
@@ -17,9 +17,9 @@ const LEGACY_ALIASES = Object.freeze({
 });
 
 function value(name, source = process.env) {
-  const current = source[`WORKMEOW_${name}`];
+  const current = source[`AGENTPAW_${name}`];
   if (current !== undefined) return current;
-  for (const alias of LEGACY_ALIASES[name] || []) {
+  for (const alias of [`WORKMEOW_${name}`, ...(LEGACY_ALIASES[name] || [])]) {
     if (source[alias] !== undefined) return source[alias];
   }
   return undefined;

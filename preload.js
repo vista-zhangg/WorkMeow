@@ -23,6 +23,8 @@ const IPC = Object.freeze({
   GET_XIABAN_SCHEDULE: 'get-xiaban-schedule', SET_XIABAN_SCHEDULE: 'set-xiaban-schedule',
   GET_PET_ASSETS: 'get-pet-assets', IMPORT_PET_GIF: 'import-pet-gif',
   REMOVE_PET_ASSET: 'remove-pet-asset', RESET_PET_SLOT: 'reset-pet-slot',
+  SELECT_PET_CHARACTER: 'pet-character:select', CREATE_PET_CHARACTER: 'pet-character:create',
+  IMPORT_PET_CHARACTER: 'pet-character:import', REMOVE_PET_CHARACTER: 'pet-character:remove',
   CLOSE_SETTINGS: 'close-settings',
   SET_PANEL_HEIGHT: 'set-panel-height', CLOSE_PET: 'close-pet',
   PERMISSION_DECIDE: 'permission-decide', FOCUS_SESSION: 'focus-session', SET_PET_SIZE: 'set-pet-size',
@@ -64,6 +66,10 @@ contextBridge.exposeInMainWorld('pet', {
   importPetGif: (slotId, mode, options) => ipcRenderer.invoke(IPC.IMPORT_PET_GIF, slotId, mode, options || {}),
   removePetAsset: (slotId, assetId) => ipcRenderer.invoke(IPC.REMOVE_PET_ASSET, slotId, assetId),
   resetPetSlot: (slotId) => ipcRenderer.invoke(IPC.RESET_PET_SLOT, slotId),
+  selectPetCharacter: (id) => ipcRenderer.invoke(IPC.SELECT_PET_CHARACTER, id),
+  createPetCharacter: (name, options) => ipcRenderer.invoke(IPC.CREATE_PET_CHARACTER, name, options || {}),
+  importPetCharacter: () => ipcRenderer.invoke(IPC.IMPORT_PET_CHARACTER),
+  removePetCharacter: (id) => ipcRenderer.invoke(IPC.REMOVE_PET_CHARACTER, id),
   getUpdateState: () => ipcRenderer.invoke(IPC.GET_UPDATE_STATE),
   checkForUpdates: () => ipcRenderer.invoke(IPC.CHECK_FOR_UPDATES),
   setAutoUpdate: (enabled) => ipcRenderer.invoke(IPC.SET_AUTO_UPDATE, !!enabled),
@@ -71,7 +77,7 @@ contextBridge.exposeInMainWorld('pet', {
   installUpdate: () => ipcRenderer.invoke(IPC.INSTALL_UPDATE),
   openUpdatePage: () => ipcRenderer.invoke(IPC.OPEN_UPDATE_PAGE),
   closeSettings: () => ipcRenderer.send(IPC.CLOSE_SETTINGS),
-  // 单宠模式：收起唯一的一只打工喵。
+  // 单宠模式：收起唯一的一只打工伙伴。
   closePet: () => ipcRenderer.send(IPC.CLOSE_PET),
   // 手动拖动窗口
   getWinPos: () => ipcRenderer.invoke(IPC.GET_WIN_POS),
